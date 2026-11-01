@@ -21,7 +21,7 @@ export const FAQS: FaqEntry[] = [
     category: "Devices",
     question: "Which brands does TereaCOD stock?",
     answer:
-      "The catalog currently stocks one focused line: IQOS ILUMA heat-not-burn tobacco sticks. The range spans the multi-origin duty-free line (Amber, Silver, Yellow, the Wave and Pearl editions), the Indonesia line (Sienna, Bronze, the Dimension Series and more) and the Japan line (Black Menthol, the Regular family and more). Every listing shows its flavour profile, sticks per pack and origin line, and is authenticity-checked before it goes on the wall.",
+      "The catalog currently stocks one focused line: IQOS ILUMA heat-not-burn tobacco sticks. The range spans all seven sourcing lines — Uzbekistan, Tajikistan, Kyrgyzstan, Indonesia, Switzerland (Duty Free), Japan and Italy — covering toasted tobaccos, Wave menthols, Pearl editions and the Dimension Series. Every listing shows its flavour profile, sticks per pack and origin line, and is authenticity-checked before it goes on the wall.",
   },
   {
     id: "device-setup",

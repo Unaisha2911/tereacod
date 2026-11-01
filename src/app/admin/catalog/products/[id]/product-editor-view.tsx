@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { FormField, Select, TextArea, TextInput } from "@/components/forms/fields";
 import { COUNTRIES } from "@/data/countries";
+import { ORIGIN_LINES } from "@/lib/catalog-origin";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import type {
@@ -717,8 +718,32 @@ export function ProductEditorView({ detail }: { detail: AdminProductDetail }) {
                 <FormField label="Nicotine strength" htmlFor="p-nicotine" hint="e.g. 20 mg/ml — leave blank for devices.">
                   <TextInput id="p-nicotine" value={state.nicotineStrength} onChange={(e) => patch({ nicotineStrength: e.target.value })} maxLength={80} />
                 </FormField>
-                <FormField label="Origin" htmlFor="p-origin" hint="Country of manufacture.">
-                  <TextInput id="p-origin" value={state.origin} onChange={(e) => patch({ origin: e.target.value })} maxLength={80} />
+                <FormField
+                  label="Origin"
+                  htmlFor="p-origin"
+                  hint="Sourcing line shown on chips, filters and the /origin pages."
+                >
+                  <Select
+                    id="p-origin"
+                    value={ORIGIN_LINES.some((line) => line.dbValue === state.origin) ? state.origin : state.origin ? "__legacy__" : ""}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      patch({ origin: next === "__legacy__" ? state.origin : next });
+                    }}
+                  >
+                    <option value="">Not specified</option>
+                    {ORIGIN_LINES.map((line) => (
+                      <option key={line.slug} value={line.dbValue}>
+                        {line.flag} {line.label}
+                      </option>
+                    ))}
+                    {/* Legacy free-text origin (pre-dropdown catalog rows) —
+                        kept selectable so an accidental re-save never silently
+                        rewrites the stored value. */}
+                    {state.origin !== "" && !ORIGIN_LINES.some((line) => line.dbValue === state.origin) && (
+                      <option value="__legacy__">{state.origin} (custom)</option>
+                    )}
+                  </Select>
                 </FormField>
                 <FormField label="Search keywords" htmlFor="p-keywords" hint="Comma-separated terms that feed storefront search." className="sm:col-span-2">
                   <TextInput id="p-keywords" value={state.keywords} onChange={(e) => patch({ keywords: e.target.value })} maxLength={500} />

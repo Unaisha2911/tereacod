@@ -24,7 +24,7 @@ const TIMELINE: Array<{ year: string; title: string; body: string }> = [
   {
     year: "2022",
     title: "The brand wall comes together",
-    body: "The catalog sharpens into a single focused line — IQOS ILUMA heat-not-burn tobacco sticks across the multi-origin, Indonesia and Japan flavour families — kept in stock at our Dubai warehouse.",
+    body: "The catalog sharpens into a single focused line — IQOS ILUMA heat-not-burn tobacco sticks across all seven sourcing lines (Uzbekistan, Tajikistan, Kyrgyzstan, Indonesia, Switzerland duty-free, Japan and Italy) — kept in stock at our Dubai warehouse.",
   },
   {
     year: "2023",

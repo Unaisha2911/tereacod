@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { RevealSection } from "@/components/atmosphere/reveal-section";
-import { SectionAtmosphere } from "@/components/atmosphere/section-atmosphere";
 import { NeonHeading } from "./neon-heading";
 import { SectionContainer } from "@/components/layout/page-container";
 import { CategoryCard } from "@/components/shared/category-card";
@@ -37,7 +36,8 @@ export function ProductCategoriesSection({ CATALOG_CATEGORIES }: { CATALOG_CATEG
 
   return (
     <SectionContainer spacing="lg">
-      <SectionAtmosphere variant="inferno" intensity={0.55} />
+      {/* Perf trim: the per-section inferno smoke layer was removed — the
+          fixed page-level ambient smoke already carries the atmosphere. */}
 
       <section aria-labelledby="categories-heading" className="relative z-10">
         <RevealSection className="flex flex-wrap items-end justify-between gap-6">

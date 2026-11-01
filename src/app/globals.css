@@ -904,3 +904,51 @@
     border-color: #ddd !important;
   }
 }
+
+/* ============================================================================
+   AGE GATE — site-entry 18+ confirmation overlay.
+   Visibility is CSS-driven from the html.age-gate-locked class that the
+   pre-paint inline script in AgeGate sets (zero flash, no hydration
+   mismatch): the overlay covers the site from the very first frame and
+   body scroll is locked until consent is stored.
+   ========================================================================== */
+html.age-gate-locked,
+html.age-gate-locked body {
+  overflow: hidden !important;
+}
+
+.age-gate {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  align-items: center;
+  justify-content: center;
+  overflow-y: auto;
+  background: color-mix(in srgb, var(--bg-0, #060409) 88%, transparent);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  /* Safe-area aware so the card clears iOS home indicators. */
+  padding: 1.5rem max(1.25rem, env(safe-area-inset-left)) calc(1.5rem + env(safe-area-inset-bottom)) max(1.25rem, env(safe-area-inset-right));
+}
+
+html.age-gate-locked .age-gate {
+  display: flex;
+}
+
+.age-gate__card {
+  width: 100%;
+  border-radius: 1.75rem;
+  border: 1px solid var(--line-strong, rgb(243 239 232 / 0.16));
+  background: color-mix(in srgb, var(--bg-elev, #221a33) 92%, transparent);
+  box-shadow:
+    0 30px 90px rgba(0, 0, 0, 0.6),
+    0 0 60px rgba(139, 92, 246, 0.14);
+  padding: 2.25rem 1.75rem;
+}
+
+@media (max-width: 640px) {
+  .age-gate__card {
+    padding: 1.75rem 1.25rem;
+  }
+}

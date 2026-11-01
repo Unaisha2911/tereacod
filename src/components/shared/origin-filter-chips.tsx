@@ -25,10 +25,11 @@ export function OriginFilterChips({
   className?: string;
 }) {
   const options = [
-    { slug: "all", label: "All origins", count: counts?.all },
+    { slug: "all", label: "All origins", flag: "", count: counts?.all },
     ...ORIGIN_LINES.map((line) => ({
       slug: line.slug,
       label: line.chipLabel,
+      flag: line.flag,
       count: counts?.[line.slug],
     })),
   ].filter((option) => counts ? (option.count ?? 0) > 0 || option.slug === "all" || option.slug === value : true);
@@ -57,6 +58,11 @@ export function OriginFilterChips({
                 : "border-line text-muted-foreground hover:border-line-strong hover:text-foreground"
             )}
           >
+            {option.flag && (
+              <span aria-hidden="true" className="text-[0.9rem] leading-none">
+                {option.flag}
+              </span>
+            )}
             {option.label}
             {option.count !== undefined && (
               <span

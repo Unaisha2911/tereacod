@@ -24,7 +24,7 @@ export function BrandIntroSection() {
       {/* Section transition: LED divider with charging indicator dots */}
       <NeonDivider className="absolute inset-x-6 top-0 z-[1] sm:inset-x-10" />
 
-      <SectionAtmosphere variant="ice" intensity={0.65} />
+      <SectionAtmosphere variant="ice" intensity={0.4} />
 
       <section id="the-brand" aria-labelledby="brand-intro-heading" className="relative z-10 scroll-mt-24">
         <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">

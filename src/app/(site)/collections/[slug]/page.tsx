@@ -116,8 +116,9 @@ export default async function CollectionPage({ params }: CollectionPageProps) {
               <Link
                 key={line.slug}
                 href={`/origin/${line.slug}`}
-                className="inline-flex min-h-9 items-center rounded-full border border-line px-3.5 text-[0.8rem] text-muted-foreground transition-colors hover:border-violet-glow/50 hover:text-foreground"
+                className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-line px-3.5 text-[0.8rem] text-muted-foreground transition-colors hover:border-violet-glow/50 hover:text-foreground"
               >
+                <span aria-hidden="true">{line.flag}</span>
                 {line.chipLabel}
               </Link>
             ))}
@@ -138,7 +139,7 @@ export default async function CollectionPage({ params }: CollectionPageProps) {
               heading: "TEREA delivery to every emirate",
               paragraphs: [
                 "Every listing on this shelf ships from our Dubai warehouse with UAE-wide delivery — Dubai, Abu Dhabi, Sharjah, Ajman, Ras Al Khaimah, Fujairah, Umm Al Quwain and Al Ain. Orders placed before the daily cut-off are dispatched the same day, and packs arrive factory-sealed with AED pricing shown up front, so the price you see is the price you pay at the door.",
-                "Use the origin filter above to narrow the shelf to a single sourcing line — Duty Free (Multi), Indonesia or Japan — or load more to keep browsing. Each origin line has its own landing page with delivery details, flavour guides and per-line pricing.",
+                "Use the origin filter above to narrow the shelf to a single sourcing line — Uzbekistan, Tajikistan, Kyrgyzstan, Indonesia, Switzerland (Duty Free), Japan or Italy — or load more to keep browsing. Each origin line has its own landing page with delivery details, flavour guides and per-line pricing.",
               ],
             },
             {
@@ -157,7 +158,7 @@ export default async function CollectionPage({ params }: CollectionPageProps) {
           ]}
           links={[
             ...ORIGIN_LINES.map((line) => ({
-              label: `TEREA ${line.chipLabel} sticks`,
+              label: `TEREA ${line.flag} ${line.chipLabel} sticks`,
               href: `/origin/${line.slug}`,
               description: `Shop the ${line.chipLabel} origin line with UAE delivery.`,
             })),

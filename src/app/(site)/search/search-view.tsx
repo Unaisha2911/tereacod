@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PackageSearch, Search, X } from "lucide-react";
@@ -9,7 +9,9 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { LoadingIndicator } from "@/components/shared/loading-indicator";
 import { LoadMoreGrid } from "@/components/shared/load-more-grid";
+import { OriginFilterChips } from "@/components/shared/origin-filter-chips";
 import { catalogService } from "@/services/catalog";
+import { originCountsFor, originSlugForItem } from "@/lib/catalog-origin";
 import { cn } from "@/lib/utils";
 import type { CatalogCategory, CatalogItem } from "@/types";
 
@@ -50,6 +52,7 @@ export function SearchView() {
   const [retryTick, setRetryTick] = useState(0);
   const [categories, setCategories] = useState<CatalogCategory[]>([]);
   const [activeSuggestion, setActiveSuggestion] = useState(-1);
+  const [origin, setOrigin] = useState("all");
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const typedQ = input.trim();
@@ -166,12 +169,28 @@ export function SearchView() {
   const suggestionsVisible =
     typedQ !== "" && typedQ !== committedQ && suggestions?.q === typedQ && suggestions.items.length > 0;
 
+  // Origin facet — in-memory filter over the accumulated result batches.
+  // The origin filter chips mirror the ones on discover / collections /
+  // brand pages (same seven sourcing lines, same counts logic).
+  const originCounts = useMemo(
+    () => (results.status === "ready" ? originCountsFor(results.items) : undefined),
+    [results]
+  );
+  const originFiltered = useMemo(
+    () =>
+      origin === "all"
+        ? results.items
+        : results.items.filter((item) => originSlugForItem(item) === origin),
+    [results.items, origin]
+  );
+
   const clearAll = () => {
     setInput("");
     setCommittedQ("");
     setSuggestions(null);
     setActiveSuggestion(-1);
     setPage(1);
+    setOrigin("all");
     setResults({ key: "", status: "ready", items: [], total: 0, hasMore: false });
     router.replace("/search", { scroll: false });
     inputRef.current?.focus();
@@ -297,9 +316,22 @@ export function SearchView() {
             {searching
               ? "Searching the catalog…"
               : results.status === "ready"
-                ? `${results.total} ${results.total === 1 ? "result" : "results"} for “${committedQ}”`
+                ? origin === "all"
+                  ? `${results.total} ${results.total === 1 ? "result" : "results"} for “${committedQ}”`
+                  : `${originFiltered.length} of ${results.total} results for “${committedQ}” in this origin line`
                 : ""}
           </p>
+
+          {/* Origin facet — narrows the loaded results to one sourcing line. */}
+          {results.status === "ready" && results.items.length > 0 && (
+            <OriginFilterChips
+              className="mb-8"
+              ariaLabel="Filter search results by origin line"
+              value={origin}
+              onChange={setOrigin}
+              counts={originCounts}
+            />
+          )}
 
           {initialLoading ? (
             <LoadingIndicator label="Searching the catalog" className="py-16" />
@@ -313,11 +345,19 @@ export function SearchView() {
               actionLabel="Clear search"
               onAction={clearAll}
             />
+          ) : results.status === "ready" && originFiltered.length === 0 ? (
+            <EmptyState
+              icon={PackageSearch}
+              title="Nothing in this origin line"
+              body="The loaded results do not include this sourcing line — clear the origin filter or search a different term."
+              actionLabel="Show all origins"
+              onAction={() => setOrigin("all")}
+            />
           ) : results.status === "ready" ? (
             <LoadMoreGrid
-              items={results.items}
-              total={results.total}
-              hasMore={results.hasMore}
+              items={originFiltered}
+              total={origin === "all" ? results.total : originFiltered.length}
+              hasMore={origin === "all" ? results.hasMore : false}
               loading={appending}
               onLoadMore={() => setPage((p) => p + 1)}
               columns={4}

@@ -162,6 +162,7 @@ export const adminService = {
     priceCents: number;
     tagline?: string;
     description?: string;
+    origin?: string;
   }): Promise<{ id: string; slug: string }> {
     return sendData("/api/v1/admin/products", "POST", payload);
   },

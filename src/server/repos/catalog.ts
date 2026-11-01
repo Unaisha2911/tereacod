@@ -899,6 +899,8 @@ export interface AdminCreateProductInput {
   slug?: string;
   tagline?: string;
   description?: string;
+  /** Sourcing line — must match a catalog-origin dbValue (admin dropdown). */
+  origin?: string;
 }
 
 /** Creates a DRAFT product (published_at NULL) + inventory + FTS rows atomically. */
@@ -923,9 +925,9 @@ export async function adminCreateProduct(input: AdminCreateProductInput): Promis
     {
       sql: `INSERT INTO products
               (id, slug, name, brand_id, category_id, sku, tagline, description,
-               price_cents, published_at, created_at, updated_at, version)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, 1)`,
-      params: [id, slug, input.name, input.brandId, input.categoryId, input.sku, tagline, description, input.priceCents, now, now],
+               price_cents, origin, published_at, created_at, updated_at, version)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, 1)`,
+      params: [id, slug, input.name, input.brandId, input.categoryId, input.sku, tagline, description, input.priceCents, input.origin?.trim() || null, now, now],
     },
     {
       sql: `INSERT INTO inventory (product_id, variant_id, qty_on_hand, qty_reserved, updated_at)

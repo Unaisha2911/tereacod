@@ -14,7 +14,7 @@ import { canonical } from "@/lib/seo";
 export const metadata: Metadata = {
   title: "IQOS ILUMA UAE — Every Brand We Stock",
   description:
-    "IQOS ILUMA heat-not-burn tobacco sticks in the UAE — the multi-origin duty-free line, the Indonesia line and the Japan line — authenticity-checked stock, AED pricing and UAE-wide delivery from Dubai.",
+    "IQOS ILUMA heat-not-burn tobacco sticks in the UAE — all seven sourcing lines from Uzbekistan and Switzerland (Duty Free) to Japan and Italy — authenticity-checked stock, AED pricing and UAE-wide delivery from Dubai.",
   ...canonical("/brand"),
 };
 

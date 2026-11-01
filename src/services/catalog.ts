@@ -15,7 +15,7 @@ export interface CatalogQuery {
   query?: string;
   sort?: SortKey;
   availability?: CatalogItem["availability"] | "all";
-  /** Origin-line slug filter (japan / indonesia / duty-free). */
+  /** Origin-line slug filter — see src/lib/catalog-origin.ts for the seven lines. */
   originSlug?: string;
   page?: number;
   pageSize?: number;

@@ -1,5 +1,6 @@
 import { GradientBackdrop } from "@/components/atmosphere/gradient-backdrop";
 import { AmbientSmoke } from "@/components/atmosphere/ambient-smoke";
+import { AgeGate } from "./age-gate";
 import { SiteHeader } from "./site-header";
 import { SiteFooter } from "./site-footer";
 import { BottomNavigation } from "./bottom-navigation";
@@ -28,14 +29,20 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="relative flex min-h-screen flex-col">
       <GradientBackdrop variant="page" />
-      {/* Continuous ambient signature — dense page-level smoke, red mixed in */}
-      <AmbientSmoke preset="ambient" palette="mixed" intensity={0.85} zIndexClass="-z-10" position="fixed" />
+      {/* Continuous ambient signature — page-level smoke, red mixed in.
+          Perf: intensity trimmed (0.85 → 0.7) alongside the preset layer
+          reduction to cut scroll-compositing cost on the homepage. */}
+      <AmbientSmoke preset="ambient" palette="mixed" intensity={0.7} zIndexClass="-z-10" position="fixed" />
       <SiteHeader headerNav={header} mobileNav={mobile} footerColumns={footerCols} legalNav={legal} />
       <main id="main-content" className="flex-1 pt-16">{children}</main>
       <SiteFooter />
       <BottomNavigation items={mobile} />
       {/* Conversational ordering CTA — fixed bottom-right, above the mobile nav */}
       <FloatingWhatsAppButton />
+      {/* Site-entry 18+ age gate — REQUIRED compliance surface. Renders on
+          every public page; CSS-driven visibility (zero flash) and consent
+          is stored in localStorage so it only ever prompts once. */}
+      <AgeGate />
     </div>
   );
 }

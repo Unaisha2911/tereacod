@@ -30,6 +30,8 @@ const createSchema = z.object({
   slug: z.string().trim().min(1).max(80).optional(),
   tagline: z.string().trim().min(1).max(240).optional(),
   description: z.string().trim().min(1).max(4000).optional(),
+  // Sourcing line — validated against the catalog-origin dropdown values.
+  origin: z.string().trim().max(80).optional(),
 });
 
 /**

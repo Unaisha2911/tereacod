@@ -129,6 +129,17 @@ export default function RootLayout({
         {/* NOTE: the page-wide smoke texture preload moved to the (site)
             layout — the admin console ships no smoke atmosphere and must
             not pay 196KB of preload on every console navigation. */}
+        {/* Age-gate pre-paint boot (raw <head> script — outside the React
+            hydration tree, so it can never cause a hydration mismatch):
+            locks the page (html.age-gate-locked) BEFORE first paint when no
+            18+ consent is stored, so the gate overlay in AppShell covers the
+            site from the very first frame. Skipped on /admin — the console
+            has no gate and must never inherit the scroll lock. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{if(!location.pathname.startsWith("/admin")&&localStorage.getItem("tereacod.age-gate.v1")!=="1"){document.documentElement.classList.add("age-gate-locked")}}catch(e){if(!location.pathname.startsWith("/admin")){document.documentElement.classList.add("age-gate-locked")}}`,
+          }}
+        />
       </head>
       <body
         className={`${inter.variable} ${spaceGrotesk.variable} ${orbitron.variable} ${geistMono.variable} min-h-screen bg-background font-sans text-foreground antialiased`}

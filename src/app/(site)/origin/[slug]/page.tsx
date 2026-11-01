@@ -90,7 +90,10 @@ export default async function OriginPage({ params }: OriginPageProps) {
 
         <header className="max-w-2xl pb-8 pt-8">
           <p className="text-label font-medium uppercase tracking-[0.22em] text-violet-soft">TEREA origin line</p>
-          <h1 className="pt-3 text-h1 font-bold">TEREA {line.label} sticks</h1>
+          <h1 className="pt-3 text-h1 font-bold">
+            <span aria-hidden="true" className="mr-2">{line.flag}</span>
+            TEREA {line.label} sticks
+          </h1>
           <p className="pt-4 text-lead text-muted-foreground">{line.intro}</p>
           <div className="flex flex-wrap items-center gap-2 pt-6">
             <span className="inline-flex min-h-9 items-center rounded-full border border-line bg-elevated/45 px-3.5 text-[0.8rem] text-muted-foreground">
@@ -110,8 +113,9 @@ export default async function OriginPage({ params }: OriginPageProps) {
               <Link
                 key={other.slug}
                 href={`/origin/${other.slug}`}
-                className="inline-flex min-h-9 items-center rounded-full border border-line px-3.5 text-[0.8rem] text-muted-foreground transition-colors hover:border-violet-glow/50 hover:text-foreground"
+                className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-line px-3.5 text-[0.8rem] text-muted-foreground transition-colors hover:border-violet-glow/50 hover:text-foreground"
               >
+                <span aria-hidden="true">{other.flag}</span>
                 {other.chipLabel}
               </Link>
             ))}
@@ -130,7 +134,7 @@ export default async function OriginPage({ params }: OriginPageProps) {
           blocks={line.seoBlocks}
           links={[
             ...otherLines.map((other) => ({
-              label: `TEREA ${other.chipLabel} sticks`,
+              label: `TEREA ${other.flag} ${other.chipLabel} sticks`,
               href: `/origin/${other.slug}`,
               description: `Compare against the ${line.chipLabel} line with UAE delivery.`,
             })),

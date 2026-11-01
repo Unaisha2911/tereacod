@@ -76,23 +76,23 @@ const T = (
 });
 
 const VIOLET = "#8b5cf6";
-const VIOLET_SOFT = "#a78bfa";
 const ICE = "#6fd6f2";
 const MAGENTA = "#d75fd4";
 const RED = "#ff2a54";
-const RED_SOFT = "#ff5c74";
 
 export const ATMOSPHERE_PRESETS: Record<AtmospherePreset, AtmospherePresetConfig> = {
   ambient: {
     intensity: 1,
     particles: 0,
     particleOpacity: 0,
-    parallax: 10,
+    parallax: 8,
+    // Perf trim: was four smoke layers (violet/ice/magenta/red) — the
+    // page-level backdrop kept four large textures compositing on every
+    // scroll frame. Two layers keep the signature depth at roughly half
+    // the composited surface area.
     layers: [
       T("wisps", VIOLET, "110%", -12, 8, 0.3, "churn-a", 58, -12),
-      T("plume", ICE, "85%", 22, 18, 0.22, "drift-b", 66, -30, { x: true }),
-      T("wisps", MAGENTA, "90%", 16, -14, 0.2, "drift-c", 62, -20, { x: true }),
-      T("wisps", RED, "130%", 0, 42, 0.18, "fog-x", 54, -8, { y: true }),
+      T("plume", ICE, "85%", 22, 18, 0.2, "drift-b", 66, -30, { x: true }),
     ],
   },
   cinematic: {
@@ -100,13 +100,14 @@ export const ATMOSPHERE_PRESETS: Record<AtmospherePreset, AtmospherePresetConfig
     particles: 0,
     particleOpacity: 0,
     parallax: 14,
+    // Perf trim: was six layers — dropped the two lowest-opacity fillers
+    // (column + red-soft wisps) which contributed the most blurred area
+    // for the least visible detail.
     layers: [
       T("wisps", VIOLET, "115%", -14, 6, 0.34, "churn-a", 54, -10),
       T("plume", ICE, "90%", 24, 16, 0.26, "drift-b", 62, -28, { x: true }),
       T("wisps", MAGENTA, "95%", 18, -16, 0.24, "drift-c", 58, -18, { x: true }),
       T("wisps", RED, "130%", 0, 42, 0.22, "fog-x", 50, -6, { y: true }),
-      T("column", VIOLET_SOFT, "34%", -6, 2, 0.18, "drift-a", 70, -26),
-      T("wisps", RED_SOFT, "72%", -28, 22, 0.18, "churn-b", 48, -16, { x: true }),
     ],
   },
   reduced: {

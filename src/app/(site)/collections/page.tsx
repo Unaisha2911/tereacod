@@ -10,7 +10,7 @@ import { canonical } from "@/lib/seo";
 export const metadata: Metadata = {
   title: "Shop Heat-Not-Burn Collections — IQOS ILUMA Tobacco Sticks",
   description:
-    "Shop TereaCOD by collection — heat-not-burn tobacco sticks made for IQOS ILUMA across the multi-origin, Indonesia and Japan lines. Authentic stock, AED pricing, UAE-wide delivery.",
+    "Shop TereaCOD by collection — heat-not-burn tobacco sticks and IQOS devices made for IQOS ILUMA across all seven origin lines. Authentic stock, AED pricing, UAE-wide delivery.",
   ...canonical("/collections"),
 };
 
@@ -39,7 +39,7 @@ export default async function CollectionsPage() {
           />
           <p className="max-w-2xl pt-5 text-lead text-muted-foreground">
             Focused collections spanning every brand we stock — heat-not-burn
-            tobacco sticks across the multi-origin, Indonesia and Japan lines.
+            tobacco sticks and IQOS devices across all seven origin lines.
             Pick a shelf below and browse the full {catalogItems.length}-product range.
           </p>
         </div>

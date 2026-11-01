@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { RevealSection } from "@/components/atmosphere/reveal-section";
-import { SectionAtmosphere } from "@/components/atmosphere/section-atmosphere";
 import { NeonHeading } from "./neon-heading";
 import { SectionContainer } from "@/components/layout/page-container";
 import { ItemGrid } from "@/components/shared/item-grid";
@@ -20,7 +19,8 @@ export function CollectionPreview({ CATALOG_ITEMS }: { CATALOG_ITEMS: CatalogCar
   const FEATURED_ITEMS = CATALOG_ITEMS.filter((item) => item.featured).slice(0, 8);
   return (
     <SectionContainer spacing="lg">
-      <SectionAtmosphere variant="violet" intensity={0.5} />
+      {/* Perf trim: the per-section smoke layer was removed — the fixed
+          page-level ambient smoke already carries the atmosphere here. */}
       <section id="products" aria-labelledby="collection-heading" className="relative z-10 scroll-mt-24">
         <RevealSection className="flex flex-wrap items-end justify-between gap-6">
           <NeonHeading

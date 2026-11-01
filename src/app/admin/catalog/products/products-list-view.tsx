@@ -24,6 +24,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { FormField, Select, TextInput } from "@/components/forms/fields";
+import { ORIGIN_LINES } from "@/lib/catalog-origin";
 import { useToast } from "@/hooks/use-toast";
 import { formatAED } from "@/lib/utils";
 import type { AdminProductSummary, Brand, CatalogCategory } from "@/types";
@@ -84,6 +85,7 @@ function CreateProductDialog({
   const [price, setPrice] = useState("");
   const [brandId, setBrandId] = useState("");
   const [categoryId, setCategoryId] = useState("");
+  const [origin, setOrigin] = useState("");
   const [tagline, setTagline] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -93,6 +95,7 @@ function CreateProductDialog({
     setSku("");
     setPrice("");
     setTagline("");
+    setOrigin("");
     setBrandId(brands[0]?.id ?? "");
     setCategoryId(categories[0]?.id ?? "");
   }, [open, brands, categories]);
@@ -117,6 +120,7 @@ function CreateProductDialog({
         categoryId,
         brandId,
         priceCents,
+        ...(origin ? { origin } : {}),
         ...(tagline.trim() ? { tagline: tagline.trim() } : {}),
       });
       toast({ title: "Draft created", description: `${name.trim()} is saved as a draft — finish the listing in the editor.` });
@@ -187,6 +191,21 @@ function CreateProductDialog({
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+          <FormField
+            label="Origin"
+            htmlFor="new-product-origin"
+            hint="Sourcing line — chips, filters and /origin pages."
+            className="sm:col-span-2"
+          >
+            <Select id="new-product-origin" value={origin} onChange={(e) => setOrigin(e.target.value)}>
+              <option value="">Not specified</option>
+              {ORIGIN_LINES.map((line) => (
+                <option key={line.slug} value={line.dbValue}>
+                  {line.flag} {line.label}
                 </option>
               ))}
             </Select>

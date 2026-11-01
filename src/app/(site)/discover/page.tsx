@@ -7,14 +7,15 @@ import { getCategories, getProducts } from "@/server/data";
 export const metadata: Metadata = {
   title: "Browse All Heat-Not-Burn Sticks — Full Catalog",
   description:
-    "Browse the full TereaCOD range — heat-not-burn tobacco sticks made for IQOS ILUMA across the Duty Free (multi-origin), Indonesia and Japan lines. Filter by collection or origin, load more and check out with cash on delivery.",
+    "Browse the full TereaCOD range — heat-not-burn tobacco sticks made for IQOS ILUMA across all seven origin lines: Uzbekistan, Tajikistan, Kyrgyzstan, Indonesia, Switzerland (Duty Free), Japan and Italy. Filter by collection or origin, load more and check out with cash on delivery.",
   keywords: [
     "terea delivery uae",
     "terea cash on delivery",
     "buy terea sticks online uae",
     "terea japan uae",
     "terea indonesia uae",
-    "terea duty free uae",
+    "terea uzbekistan uae",
+    "terea switzerland duty free uae",
   ],
   ...canonical("/discover"),
 };

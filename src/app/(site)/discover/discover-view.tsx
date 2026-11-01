@@ -280,20 +280,20 @@ export function DiscoverView({
           {
             heading: "Order TEREA sticks online with delivery across the UAE",
             paragraphs: [
-              "TereaCOD stocks the complete TEREA heat-not-burn range for IQOS ILUMA — every flavour across the Duty Free (multi-origin), Indonesia and Japan sourcing lines, all shipped from Dubai with UAE-wide delivery. Filter by collection or origin line above, load more to keep browsing, and check out in under a minute with cash or card on delivery.",
+              "TereaCOD stocks the complete TEREA heat-not-burn range for IQOS ILUMA — every flavour across all seven sourcing lines (Uzbekistan, Tajikistan, Kyrgyzstan, Indonesia, Switzerland duty-free, Japan and Italy), all shipped from Dubai with UAE-wide delivery. Filter by collection or origin line above, load more to keep browsing, and check out in under a minute with cash or card on delivery.",
               "Same-day dispatch applies to orders placed before the daily cut-off; deliveries reach Dubai, Abu Dhabi, Sharjah, Ajman, Ras Al Khaimah, Fujairah, Umm Al Quwain and Al Ain. Pack pricing starts at AED 45 with any origin premium shown on the listing — never added at the door.",
             ],
           },
           {
             heading: "Compare TEREA origin lines before you order",
             paragraphs: [
-              "Every TEREA stick belongs to a sourcing line: the wide multi-origin duty-free range, the Indonesia line (Dimension Series, Golden Edition, Indonesia Pearls) or the Japan line (the menthol benchmark and the Regular family). Each line has a dedicated page with delivery details and flavour guides so you can pick the right profile before checkout.",
+              "Every TEREA stick belongs to a sourcing line: the wide Swiss duty-free range, the Indonesia line (Dimension Series, Golden Edition, Indonesia Pearls), the Japan line (the menthol benchmark and the Regular family) and the Uzbekistan, Tajikistan, Kyrgyzstan and Italy lines for the classic toasted profiles. Each line has a dedicated page with delivery details and flavour guides so you can pick the right profile before checkout.",
             ],
           },
         ]}
         links={[
           ...ORIGIN_LINES.map((line) => ({
-            label: `TEREA ${line.chipLabel} sticks`,
+            label: `TEREA ${line.flag} ${line.chipLabel} sticks`,
             href: `/origin/${line.slug}`,
             description: `The ${line.chipLabel} origin line with UAE delivery.`,
           })),
