@@ -8,6 +8,7 @@ import { SpecificationList } from "@/components/shared/specification-list";
 import { AvailabilityBadge } from "@/components/shared/status-badge";
 import { ItemGrid } from "@/components/shared/item-grid";
 import { toCardItems } from "@/lib/catalog-card";
+import { originLineForItem } from "@/lib/catalog-origin";
 import { getBrands, getCategoryBySlugRepo, getProductBySlug, getProducts } from "@/server/data";
 import { getProductsBySlugs } from "@/server/repos/catalog";
 import { breadcrumbJsonLd, canonical, faqJsonLd, JsonLd, productJsonLd, siteUrl } from "@/lib/seo";
@@ -62,6 +63,12 @@ export default async function ProductPage({ params }: ProductPageProps) {
   const { slug } = await params;
   const item = await getProductBySlug(slug);
   if (!item) notFound();
+
+  // Product-level sourcing line (admin "Details" dropdown → products.origin).
+  // Shown as a chip under the price so the origin is visible even when the
+  // listing carries no origin-type variants — matching the chips on every
+  // listing card and the /origin landing pages.
+  const originLine = originLineForItem(item);
 
   const [category, brand, related] = await Promise.all([
     getCategoryBySlugRepo(item.categorySlug),
@@ -147,6 +154,17 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
               <div className="flex flex-wrap items-center gap-2">
                 <AvailabilityBadge availability={item.availability} />
+                {originLine && (
+                  <Link
+                    href={`/origin/${originLine.slug}`}
+                    title={`Origin: ${originLine.label}`}
+                    aria-label={`View all ${originLine.label} origin products`}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-violet-glow/40 bg-foreground/[0.03] px-2.5 py-1 text-[0.72rem] font-medium tracking-wide text-violet-soft transition-colors hover:border-violet-glow/70"
+                  >
+                    <span aria-hidden="true" className="text-[0.8rem] leading-none">{originLine.flag}</span>
+                    {originLine.label}
+                  </Link>
+                )}
                 {item.nicotineStrength && (
                   <span className="inline-flex items-center rounded-full border border-line px-2.5 py-1 text-[0.72rem] font-medium tracking-wide text-muted-foreground">
                     {item.nicotineStrength}
