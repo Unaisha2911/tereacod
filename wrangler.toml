@@ -1,0 +1,90 @@
+# ============================================================================
+# tereacod — Cloudflare Workers deployment configuration (real, deploy-ready)
+#
+# Wrangler accepts `wrangler.toml` or `wrangler.jsonc` (identical schema —
+# TOML is used here). `bun run cf:build` produces `.open-next/` from the
+# Next.js app; `cf:preview` / `cf:deploy` then run it as a Worker.
+#
+# ONE-TIME PROVISIONING (before the first deploy — IDs pasted below):
+#   bunx wrangler d1 create tereacod                 -> database_id below
+#   bunx wrangler r2 bucket create tereacod-media
+#   bunx wrangler r2 bucket create tereacod-incr-cache
+#   bunx wrangler kv namespace create SETTINGS       -> id below
+#   bunx wrangler secret put SESSION_SIGNING_KEY     (required in production)
+#   bunx wrangler secret put STRIPE_SECRET_KEY       (card payments)
+#   bunx wrangler secret put STRIPE_WEBHOOK_SECRET
+#   bunx wrangler secret put RESEND_API_KEY          (transactional email)
+#   bunx wrangler secret put TURNSTILE_SECRET_KEY    (form protection)
+#   bun run db:migrate:remote                        (apply migrations to D1)
+#   bun run db:seed:export                           (local seeded DB -> scripts/seed-d1.sql + seed-kv/)
+#   bun run db:seed:remote                           (apply seed SQL to production D1)
+#   bun run db:seed:kv:remote                        (site settings -> Workers KV namespace)
+#
+# Full runbook: docs/CLOUDFLARE-DEPLOYMENT.md
+# ============================================================================
+
+name = "tereacod"
+main = ".open-next/worker.js"
+compatibility_date = "2026-06-15"
+compatibility_flags = [
+  "nodejs_compat",
+  # Populate process.env from vars/secrets synchronously so src/server/env.ts
+  # constants (SESSION_SIGNING_KEY, APP_ENV, ...) resolve at module load.
+  "nodejs_compat_populate_process_env",
+  "global_fetch_strictly_public",
+]
+
+# Static assets from the OpenNext build output (immutable _next/static, etc.).
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
+
+[observability]
+enabled = true
+
+[vars]
+APP_ENV = "production"
+# Canonical origin for sitemap/robots/canonicals/JSON-LD. Server routes read
+# this at runtime, but prerendered pages and robots.txt bake it in at BUILD
+# time — CI must also export NEXT_PUBLIC_SITE_URL before `bun run cf:build`.
+NEXT_PUBLIC_SITE_URL = "https://tereacod.ae/"
+# Production refuses to boot without the SESSION_SIGNING_KEY secret
+# (forgeable-session guard in src/server/env.ts).
+
+# --- D1: primary database (via src/server/db/client.ts -> globalThis.__tereacod_D1__) ---
+[[d1_databases]]
+binding = "DB"
+database_name = "tereacod"
+database_id = "f9f62a66-68bd-4292-9049-cf1c16e59a24"
+
+# --- R2: media upload pipeline (src/app/api/v1/admin/media POST) -------------
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "tereacod-media"
+
+# --- R2: OpenNext ISR incremental cache (wired in open-next.config.ts) --------
+[[r2_buckets]]
+binding = "NEXT_INC_CACHE_R2_BUCKET"
+bucket_name = "tereacod-incr-cache"
+
+# --- KV: settings store (src/server/kv.ts reads the SETTINGS namespace) -------
+[[kv_namespaces]]
+binding = "SETTINGS"
+id = "1e4c0e006dee4d4ab4d3dd75560fd17e"
+
+# --- Queues: background jobs (email outbox, retention sweeps) -----------------
+# Kept disabled until the queue consumer code ships: a consumer entry without
+# a `queue()` handler exported from the worker fails `wrangler deploy`.
+# [[queues.producers]]
+# binding = "JOBS"
+# queue = "tereacod-jobs"
+# [[queues.consumers]]
+# queue = "tereacod-jobs"
+# max_batch_size = 10
+# max_retries = 3
+# dead_letter_queue = "tereacod-jobs-dlq"
+
+# --- Cron triggers -------------------------------------------------------------
+# Enable together with the retention / abandoned-cart jobs (architecture §8).
+# [triggers]
+# crons = ["*/10 * * * *", "0 22 * * *"]

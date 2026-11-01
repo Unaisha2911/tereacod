@@ -1,0 +1,80 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+local-*
+.claude
+.z-ai-config
+*.log
+dev.log
+dev.out.log
+test
+prompt
+
+server.log
+# Skills directory
+/skills/
+# runtime database + local media uploads
+/db/
+/public/uploads/
+
+# cloudflare workers (wrangler state, OpenNext build output, local secrets)
+/.wrangler/
+/.open-next/
+.dev.vars
+worker-configuration.d.ts
+
+# sandbox artifacts
+/tool-results/
+/upload/
+/download/
+/agent-ctx/
+
+# generated D1/KV seed artifacts (embed admin password hash — regenerate before apply)
+/scripts/seed-d1.sql
+/scripts/seed-kv/
+
+# sandbox-only infrastructure (not part of the shipped app)
+.zscripts/
+examples/
+mini-services/
+Caddyfile
+!.env.example
