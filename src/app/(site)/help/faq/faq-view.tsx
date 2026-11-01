@@ -157,6 +157,15 @@ export function FaqView({
               </article>
             ))}
           </div>
+        ) : faqs.length === 0 ? (
+          <EmptyState
+            icon={SearchX}
+            title="FAQs are being written"
+            body="We're still compiling the answers — contact us directly and we'll help right away."
+            actionLabel="Contact us"
+            actionHref="/contact"
+            className="mt-8"
+          />
         ) : (
           <EmptyState
             icon={SearchX}

@@ -9,6 +9,7 @@ import { AvailabilityBadge } from "@/components/shared/status-badge";
 import { ItemGrid } from "@/components/shared/item-grid";
 import { toCardItems } from "@/lib/catalog-card";
 import { getBrands, getCategoryBySlugRepo, getProductBySlug, getProducts } from "@/server/data";
+import { getProductsBySlugs } from "@/server/repos/catalog";
 import { breadcrumbJsonLd, canonical, faqJsonLd, JsonLd, productJsonLd, siteUrl } from "@/lib/seo";
 import { ProductDetailShell } from "./product-detail-shell";
 import { ProductSaveButton } from "./product-save-button";
@@ -68,11 +69,9 @@ export default async function ProductPage({ params }: ProductPageProps) {
     getBrands().then((brands) =>
       brands.find((candidate) => candidate.name.toLowerCase() === item.brand.toLowerCase()) ?? null,
     ),
-    Promise.all(
-      (item.relatedSlugs ?? []).map((relatedSlug) => getProductBySlug(relatedSlug)),
-    ).then((entries) =>
-      entries.filter((relatedItem): relatedItem is NonNullable<typeof relatedItem> => Boolean(relatedItem)),
-    ),
+    // One batched IN query for ALL related slugs — the former
+    // per-slug getProductBySlug map ran 1+5 queries PER related item.
+    getProductsBySlugs(item.relatedSlugs ?? []),
   ]);
 
   const crumbs: BreadcrumbItem[] = [

@@ -1,7 +1,6 @@
 import { withApi, ok } from "@/server/api/guard";
 import { toUserProfile, getUserById } from "@/server/repos/users";
 import { getUserPermissionSet, isStaff } from "@/server/rbac";
-import { adminBasePath } from "@/server/console";
 import { readCartToken } from "@/server/api/http";
 import { getActiveCart, getRawLines } from "@/server/repos/cart";
 import { CART_COOKIE } from "@/server/env";
@@ -37,9 +36,6 @@ export const GET = withApi({}, async ({ identity, request }) => {
   return ok({
     user: row ? toUserProfile(row) : null,
     isStaff: staff,
-    // Staff-only: the secret console path so the client can offer a direct
-    // link after sign-in. Customers never receive it.
-    ...(staff ? { consolePath: adminBasePath() } : {}),
     cartCount: lines.reduce((sum, line) => sum + line.qty, 0),
     cartCookiePresent: Boolean(token),
   });

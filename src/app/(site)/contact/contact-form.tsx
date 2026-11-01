@@ -14,6 +14,7 @@ import {
   TextInput,
 } from "@/components/forms/fields";
 import { Button } from "@/components/ui/button";
+import { TurnstileWidget } from "@/components/forms/turnstile-widget";
 import { useToast } from "@/hooks/use-toast";
 
 const SUBJECTS = ["Order question", "Product question", "Safety report", "Privacy request", "Feedback", "Other"] as const;
@@ -54,6 +55,8 @@ export function ContactForm() {
   const [values, setValues] = useState<FormValues>(INITIAL_VALUES);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [state, setState] = useState<SubmitState>("idle");
+  const [formError, setFormError] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
 
   const set = <K extends keyof FormValues>(key: K, value: FormValues[K]) => {
     setValues((prev) => ({ ...prev, [key]: value }));
@@ -87,6 +90,7 @@ export function ContactForm() {
           subject: values.subject,
           message: values.message,
           category: CATEGORY_MAP[values.subject] ?? "other",
+          turnstileToken: turnstileToken ?? undefined,
         }),
       });
       const body = (await response.json().catch(() => ({}))) as {
@@ -97,7 +101,9 @@ export function ContactForm() {
         if (body.error?.fields) {
           setErrors(body.error.fields as FieldErrors);
         }
-        throw new Error(body.error?.message ?? "The message could not be sent.");
+        // Surface the server's reason (captcha failure, rate limit) instead
+        // of a generic message.
+        throw new Error(body.error?.message ?? body.data?.message ?? "The message could not be sent.");
       }
       setState("success");
       toast({
@@ -106,8 +112,10 @@ export function ContactForm() {
           body.data.message ??
           "Your message was received and a support ticket was created — we reply within two business days.",
       });
-    } catch {
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : null);
       setState("error");
+      setTurnstileToken(null);
     }
   }
 
@@ -212,8 +220,12 @@ export function ContactForm() {
         </FormSuccess>
       )}
       {state === "error" && (
-        <FormError>The submission failed — your message was not sent. Please try again in a moment.</FormError>
+        <FormError>
+          {formError ?? "The submission failed — your message was not sent. Please try again in a moment."}
+        </FormError>
       )}
+
+      <TurnstileWidget onToken={setTurnstileToken} action="contact" />
 
       <div className="flex flex-wrap items-center gap-4 pt-1">
         <Button

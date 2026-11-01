@@ -509,11 +509,26 @@ export async function getProductsByIds(ids: string[]): Promise<CatalogItem[]> {
   for (let i = 0; i < ids.length; i += 90) {
     const chunk = ids.slice(i, i + 90);
     const placeholders = chunk.map(() => "?").join(",");
-    const rows = await db.all<ProductRow>(`${SELECT_PRODUCT} WHERE p.id IN (${placeholders})`, chunk);
+    // Published-only: this path serves customer surfaces (saved items). A
+    // draft product id must not render through it, and an id that has since
+    // been unpublished drops out of the list instead of leaking.
+    const rows = await db.all<ProductRow>(
+      `${SELECT_PRODUCT} WHERE p.id IN (${placeholders}) AND p.published_at IS NOT NULL`,
+      chunk
+    );
     items.push(...(await hydrate(rows)));
   }
   const order = new Map(ids.map((s, i) => [s, i]));
   return items.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+}
+
+/** Lightweight existence check for customer-surface inserts (saved items). */
+export async function findPublishedProductRef(productId: string): Promise<{ id: string } | null> {
+  const db = await getDb();
+  return db.get<{ id: string }>(
+    `SELECT p.id FROM products p WHERE p.id = ? AND p.published_at IS NOT NULL`,
+    [productId]
+  );
 }
 
 /** FTS query builder: quote each term so user input cannot inject FTS syntax. */
@@ -544,13 +559,22 @@ export interface Suggestion {
 export async function suggestProducts(partial: string, limit = 6): Promise<Suggestion[]> {
   const trimmed = partial.trim();
   if (!trimmed) return [];
-  const result = await listProducts({ query: trimmed, pageSize: limit, page: 1 });
-  return result.items.map((item) => ({
-    slug: item.slug,
-    name: item.name,
-    brand: item.brand,
-    category: item.categorySlug,
-  }));
+  // One lightweight FTS query — the previous path ran the full paginated
+  // pipeline (COUNT + page + 5 hydration queries = 7 round trips) to return
+  // 6 names for the highest-QPS public endpoint.
+  const db = await getDb();
+  return db.all<Suggestion>(
+    `SELECT p.slug, p.name, b.name AS brand, c.slug AS category
+     FROM product_fts_idx f
+     JOIN product_fts cfts ON cfts.rowid = f.rowid
+     JOIN products p ON p.id = cfts.product_id
+     JOIN brands b ON b.id = p.brand_id
+     JOIN categories c ON c.id = p.category_id
+     WHERE product_fts_idx MATCH ? AND p.published_at IS NOT NULL
+     ORDER BY p.is_featured DESC, p.name ASC
+     LIMIT ?`,
+    [ftsQuery(trimmed), limit]
+  );
 }
 
 export async function allProductSlugs(): Promise<Array<{ slug: string; updated_at: string }>> {
@@ -564,10 +588,17 @@ export async function allProductSlugs(): Promise<Array<{ slug: string; updated_a
 
 export async function catalogCounts(): Promise<{ products: number; brands: number; categories: number }> {
   const db = await getDb();
-  const [p] = await Promise.all([db.get<{ c: number }>(`SELECT COUNT(*) AS c FROM products`)]);
-  const [b] = await Promise.all([db.get<{ c: number }>(`SELECT COUNT(*) AS c FROM brands`)]);
-  const [c] = await Promise.all([db.get<{ c: number }>(`SELECT COUNT(*) AS c FROM categories`)]);
-  return { products: p?.c ?? 0, brands: b?.c ?? 0, categories: c?.c ?? 0 };
+  const row = await db.get<{ products: number; brands: number; categories: number }>(
+    `SELECT
+       (SELECT COUNT(*) FROM products) AS products,
+       (SELECT COUNT(*) FROM brands) AS brands,
+       (SELECT COUNT(*) FROM categories) AS categories`
+  );
+  return {
+    products: row?.products ?? 0,
+    brands: row?.brands ?? 0,
+    categories: row?.categories ?? 0,
+  };
 }
 
 /* ========================================================================== */

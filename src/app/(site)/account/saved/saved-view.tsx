@@ -7,7 +7,6 @@ import { LoadingIndicator } from "@/components/shared/loading-indicator";
 import { ItemCard } from "@/components/shared/item-card";
 import { useToast } from "@/hooks/use-toast";
 import { catalogService } from "@/services/catalog";
-import { ensureCatalog, isCatalogReady } from "@/lib/client-catalog";
 import { savedItemsService, useSavedItems } from "@/services/saved-items";
 import type { CatalogItem } from "@/types";
 
@@ -27,15 +26,10 @@ export function SavedView() {
 
   useEffect(() => {
     let cancelled = false;
-    // Resolution reads the client catalog mirror — it only preloads when a
-    // cart has lines, so make sure it is ready before mapping ids. (For a
-    // signed-in member this is one cached API round trip at most.)
-    void (async () => {
-      if (!isCatalogReady()) {
-        await ensureCatalog().catch(() => undefined);
-      }
-      return catalogService.itemsByIds(ids);
-    })()
+    // Resolution fetches ONLY the saved products through the catalog
+    // service (subset endpoint) — no full-catalog mirror download.
+    void catalogService
+      .itemsByIds(ids)
       .then((items) => {
         if (!cancelled) setResolved(items);
       })

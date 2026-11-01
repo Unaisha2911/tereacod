@@ -48,7 +48,7 @@ export default function NotFound() {
           </Link>
         </nav>
       </main>
-      <footer className="p-6 text-center text-meta uppercase tracking-[0.16em] text-muted-foreground/60">
+      <footer className="p-6 text-center text-meta uppercase tracking-[0.16em] text-muted-foreground">
         TereaCOD — Dubai, United Arab Emirates
       </footer>
     </div>

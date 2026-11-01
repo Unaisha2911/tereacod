@@ -1,10 +1,8 @@
 import { z } from "zod";
 import { withApi, ok, fail, ErrorCode, created } from "@/server/api/guard";
-import { registerUser, createEmailVerificationOtp } from "@/server/repos/users";
+import { registerUser } from "@/server/repos/users";
 import { verifyTurnstile } from "@/server/turnstile";
-import { enqueue } from "@/server/jobs";
 import { logAudit } from "@/server/audit";
-import { APP_ENV } from "@/server/env";
 import { PASSWORD_HINT, passwordSchema } from "@/lib/validation";
 
 const bodySchema = z.object({
@@ -13,11 +11,18 @@ const bodySchema = z.object({
   password: passwordSchema.max(128, PASSWORD_HINT),
   displayName: z.string().trim().min(2, "Enter your name.").max(80),
   phone: z.string().trim().max(24).optional(),
-  dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD.").optional(),
   marketingOptIn: z.boolean().optional(),
+  // Stored into user_preferences at creation — the checkbox on the form
+  // must not silently discard the visitor's choice.
+  researchInvites: z.boolean().optional(),
   turnstileToken: z.string().optional(),
 });
 
+/**
+ * Registration is intentionally simple: email + password + name creates an
+ * ACTIVE, verified account in one step. No email OTP, no age gate, no
+ * verification screens — the response signs nothing up for follow-up flows.
+ */
 export const POST = withApi(
   { rateLimit: { limit: 10, windowMs: 60 * 60 * 1000, key: "auth:register" } },
   async ({ request, meta }) => {
@@ -33,8 +38,8 @@ export const POST = withApi(
       password: body.password,
       displayName: body.displayName,
       phone: body.phone,
-      dateOfBirth: body.dateOfBirth,
       marketingOptIn: body.marketingOptIn,
+      researchInvites: body.researchInvites,
     });
 
     if (!result.ok) {
@@ -43,24 +48,6 @@ export const POST = withApi(
       });
     }
 
-    // Signup stays simple (email + password); security comes from the
-    // 6-digit email OTP that must be confirmed before the account counts
-    // as verified. Cooldown cannot trip on a fresh registration (no rows).
-    const otp = await createEmailVerificationOtp(result.userId);
-    if (otp.ok) {
-      await enqueue("email.send", {
-        to: body.email,
-        subject: "Verify your TereaCOD account",
-        text: [
-          `Welcome to TereaCOD, ${body.displayName}!`,
-          "",
-          `Your verification code is: ${otp.code}`,
-          "",
-          "It expires in 15 minutes and can be used once.",
-          `Prefer a link? https://tereacod.ae/account/verify-email?email=${encodeURIComponent(body.email)}&code=${otp.code}`,
-        ].join("\n"),
-      });
-    }
     await logAudit({
       actorType: "customer",
       actorId: result.userId,
@@ -73,12 +60,6 @@ export const POST = withApi(
       userAgent: meta.userAgent,
     });
 
-    // Local development convenience ONLY: expose the OTP so the flow is
-    // testable without an email provider (same pattern as forgot-password).
-    return created({
-      email: body.email,
-      verificationRequired: true,
-      ...(APP_ENV === "development" && otp.ok ? { devCode: otp.code } : {}),
-    });
+    return created({ email: body.email });
   }
 );

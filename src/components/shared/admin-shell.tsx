@@ -96,7 +96,7 @@ function NavList({ onNavigate, variant }: { onNavigate?: () => void; variant: "s
     <nav aria-label="Admin sections" className="flex-1 space-y-6 overflow-y-auto px-3 py-2">
       {nav.map((group) => (
         <div key={group.label}>
-          <p className="px-3 pb-2 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-muted-foreground/70">{group.label}</p>
+          <p className="px-3 pb-2 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-muted-foreground">{group.label}</p>
           <ul className="space-y-0.5">
             {group.entries.map((entry) => {
               const active = isActive(pathname, entry.href, basePath);
@@ -268,6 +268,12 @@ export function AdminShell({ basePath, children }: { basePath: string; children:
             <ChevronDown className={cn("size-5 rotate-90 transition-transform duration-300", collapsed && "-rotate-90")} aria-hidden="true" />
           </button>
 
+          <a
+            href="#admin-main"
+            className="sr-only rounded-md bg-primary px-4 py-2 text-primary-foreground focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[9999]"
+          >
+            Skip to console content
+          </a>
           <nav aria-label="Breadcrumb" className="min-w-0">
             <ol className="flex items-center gap-1.5 text-[0.8rem] text-muted-foreground">
               {crumbs.map((c, i) => (
@@ -292,7 +298,7 @@ export function AdminShell({ basePath, children }: { basePath: string; children:
           {children}
         </main>
 
-        <footer className="border-t border-line px-4 py-4 text-[0.72rem] text-muted-foreground/70 sm:px-6">
+        <footer className="border-t border-line px-4 py-4 text-[0.72rem] text-muted-foreground sm:px-6">
           TereaCOD admin · staff session · RBAC enforced server-side
         </footer>
       </div>

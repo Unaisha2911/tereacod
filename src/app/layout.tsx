@@ -126,10 +126,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark" data-scroll-behavior="smooth" suppressHydrationWarning>
       <head>
-        {/* Smoke textures are referenced from CSS masks, which browsers
-            discover late — preload the page-wide one so the vapor is
-            visible on first paint, not seconds after. */}
-        <link rel="preload" as="image" href="/smoke/smoke-wisps.png" fetchPriority="high" />
+        {/* NOTE: the page-wide smoke texture preload moved to the (site)
+            layout — the admin console ships no smoke atmosphere and must
+            not pay 196KB of preload on every console navigation. */}
       </head>
       <body
         className={`${inter.variable} ${spaceGrotesk.variable} ${orbitron.variable} ${geistMono.variable} min-h-screen bg-background font-sans text-foreground antialiased`}

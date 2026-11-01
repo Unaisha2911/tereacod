@@ -2,6 +2,7 @@
 
 import { useReducedMotion } from "framer-motion";
 import { SmokeTexture } from "./smoke-texture";
+import { useMotionBoundary } from "./motion-boundary";
 
 type Plume = {
   /** Horizontal anchor inside the hero (percentage of width). */
@@ -66,9 +67,17 @@ const PLUMES: Plume[] = [
  */
 export function VaporHeroScene() {
   const reduced = useReducedMotion();
+  // Pause every CSS animation in the scene while the boundary reports the
+  // hero is off-screen — 20+ composited/blur layers otherwise keep
+  // compositing (GPU memory, scroll cost, battery) with no one watching.
+  const { visible } = useMotionBoundary();
+  const paused = !visible && !reduced;
 
   return (
-    <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+    <div
+      aria-hidden="true"
+      className={`pointer-events-none absolute inset-0 overflow-hidden ${paused ? "atmosphere-paused" : ""}`}
+    >
       {/* Static neon colour wash — lighting only, no animation */}
       <div
         className="absolute inset-0"

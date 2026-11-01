@@ -28,18 +28,20 @@ export function AppBootstrap({ children }: { children: React.ReactNode }) {
     if (started.current) return;
     started.current = true;
 
-    // Stage 1 (parallel): session identity + site settings.
+    // Everything independent races from the first tick: session identity,
+    // site settings AND the cart (the cart API resolves the cookie-token
+    // cart server-side — it never needed the session result; only saved
+    // hydration does). First-interaction latency for the cart badge and
+    // account state drops by a full round trip.
     const sessionReady = hydrateAuthFromServer();
+    const cartReady = hydrateCartFromServer();
     void hydrateWhatsAppNumber();
 
     void (async () => {
       await sessionReady;
       const auth = useAuth.getState();
-      // Stage 2 (parallel): cart + saved items.
-      await Promise.all([
-        hydrateCartFromServer(),
-        hydrateSavedItemsFromServer(Boolean(auth.user)),
-      ]);
+      // Saved hydration needs the signed-in flag — after the session lands.
+      await Promise.all([cartReady, hydrateSavedItemsFromServer(Boolean(auth.user))]);
     })();
   }, []);
 

@@ -1,6 +1,5 @@
 import { GradientBackdrop } from "@/components/atmosphere/gradient-backdrop";
 import { AmbientSmoke } from "@/components/atmosphere/ambient-smoke";
-import { AgeGate } from "./age-gate";
 import { SiteHeader } from "./site-header";
 import { SiteFooter } from "./site-footer";
 import { BottomNavigation } from "./bottom-navigation";
@@ -37,8 +36,6 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
       <BottomNavigation items={mobile} />
       {/* Conversational ordering CTA — fixed bottom-right, above the mobile nav */}
       <FloatingWhatsAppButton />
-      {/* 18+ gate — appears 5s after landing, remembers confirmed adults (public site only) */}
-      <AgeGate />
     </div>
   );
 }

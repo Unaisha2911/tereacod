@@ -20,23 +20,16 @@ export interface AuthResult {
 interface AuthState {
   user: UserProfile | null;
   isStaff: boolean;
-  /**
-   * Secret staff-console base path (e.g. "/manage/<secret>") — delivered by
-   * the session/sign-in APIs ONLY to staff sessions. Null for customers.
-   */
-  consolePath: string | null;
   hydrated: boolean;
-  setAuth: (user: UserProfile | null, isStaff: boolean, consolePath?: string | null) => void;
+  setAuth: (user: UserProfile | null, isStaff: boolean) => void;
   setHydrated: () => void;
 }
 
 export const useAuth = create<AuthState>((set) => ({
   user: null,
   isStaff: false,
-  consolePath: null,
   hydrated: false,
-  setAuth: (user, isStaff, consolePath) =>
-    set((state) => ({ user, isStaff, consolePath: consolePath ?? state.consolePath })),
+  setAuth: (user, isStaff) => set({ user, isStaff }),
   setHydrated: () => set({ hydrated: true }),
 }));
 
@@ -58,11 +51,9 @@ export async function hydrateAuthFromServer(): Promise<void> {
     const response = await fetch("/api/v1/auth/session", { headers: { accept: "application/json" } });
     if (response.ok) {
       const body = (await response.json()) as {
-        data: { user: UserProfile | null; isStaff: boolean; consolePath?: string | null };
+        data: { user: UserProfile | null; isStaff: boolean };
       };
-      useAuth
-        .getState()
-        .setAuth(body.data.user ?? null, Boolean(body.data.isStaff), body.data.consolePath ?? null);
+      useAuth.getState().setAuth(body.data.user ?? null, Boolean(body.data.isStaff));
     }
   } catch {
     // Offline — anonymous until next load.
@@ -74,16 +65,17 @@ export async function hydrateAuthFromServer(): Promise<void> {
 export const accountService = {
   async signIn(
     email: string,
-    password: string
-  ): Promise<AuthResult & { emailVerified?: boolean; isStaff?: boolean; consolePath?: string | null }> {
+    password: string,
+    turnstileToken?: string | null
+  ): Promise<AuthResult & { isStaff?: boolean }> {
     const response = await fetch("/api/v1/auth/sign-in", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, turnstileToken: turnstileToken ?? undefined }),
     });
     const body = (await response.json().catch(() => ({}))) as {
       data?: {
-        user?: { displayName?: string; emailVerified?: boolean; isStaff?: boolean; consolePath?: string | null };
+        user?: { displayName?: string; isStaff?: boolean };
       };
       error?: { message?: string };
     };
@@ -92,21 +84,17 @@ export const accountService = {
     }
     const bootstrap = await fetch("/api/v1/auth/session", { headers: { accept: "application/json" } });
     let staff = Boolean(body.data.user.isStaff);
-    let consolePath = body.data.user.consolePath ?? null;
     if (bootstrap.ok) {
       const data = (await bootstrap.json()) as {
-        data: { user: UserProfile | null; isStaff: boolean; consolePath?: string | null };
+        data: { user: UserProfile | null; isStaff: boolean };
       };
       staff = Boolean(data.data.isStaff);
-      consolePath = data.data.consolePath ?? consolePath;
-      useAuth.getState().setAuth(data.data.user ?? null, staff, consolePath);
+      useAuth.getState().setAuth(data.data.user ?? null, staff);
     }
     return {
       ok: true,
       message: `Welcome back${body.data.user.displayName ? `, ${body.data.user.displayName}` : ""}!`,
-      emailVerified: body.data.user.emailVerified !== false,
       isStaff: staff,
-      consolePath,
     };
   },
 
@@ -115,61 +103,31 @@ export const accountService = {
     password: string;
     displayName: string;
     marketingOptIn?: boolean;
+    researchInvites?: boolean;
+    turnstileToken?: string | null;
   }): Promise<AuthResult> {
     const response = await fetch("/api/v1/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        email: payload.email,
+        password: payload.password,
+        displayName: payload.displayName,
+        marketingOptIn: payload.marketingOptIn,
+        researchInvites: payload.researchInvites,
+        turnstileToken: payload.turnstileToken ?? undefined,
+      }),
     });
     if (!response.ok) {
       return { ok: false, message: await parseError(response, "Registration failed. Please try again.") };
     }
     const body = (await response.json().catch(() => ({}))) as {
-      data?: { email?: string; devCode?: string };
+      data?: { email?: string };
     };
     return {
       ok: true,
-      message: "Account created. Check your inbox for the 6-digit verification code.",
+      message: "Account created — you are signed in and ready to shop.",
       email: body.data?.email,
-      devCode: body.data?.devCode,
-    };
-  },
-
-  /** Confirm the 6-digit email OTP. */
-  async verifyEmail(email: string, code: string): Promise<AuthResult> {
-    const response = await fetch("/api/v1/auth/verify-email", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, code }),
-    });
-    if (!response.ok) {
-      return { ok: false, message: await parseError(response, "That code is incorrect or has expired.") };
-    }
-    // Refresh the profile so `verification` reflects the new status.
-    try {
-      const profile = await this.getProfile();
-      useAuth.getState().setAuth(profile, useAuth.getState().isStaff);
-    } catch {
-      // Anonymous session — the sign-in flow will refresh on next login.
-    }
-    return { ok: true, message: "Email verified." };
-  },
-
-  /** Resend the 6-digit email OTP (60s server-side cooldown). */
-  async resendEmailCode(email: string): Promise<AuthResult> {
-    const response = await fetch("/api/v1/auth/verify-email", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
-    });
-    if (!response.ok) {
-      return { ok: false, message: await parseError(response, "Could not send a new code.") };
-    }
-    const body = (await response.json().catch(() => ({}))) as { data?: { devCode?: string } };
-    return {
-      ok: true,
-      message: "A fresh code is on its way.",
-      devCode: body.data?.devCode,
     };
   },
 
@@ -177,11 +135,16 @@ export const accountService = {
     await fetch("/api/v1/auth/sign-out", { method: "POST" });
     // Drop user-scoped client state — the stale cart/saved caches would
     // otherwise bleed into the next session on this browser.
-    useAuth.getState().setAuth(null, false, null);
+    useAuth.getState().setAuth(null, false);
     const { useCart } = await import("@/services/cart");
     const { useSavedItems } = await import("@/services/saved-items");
+    const { usePlacedOrders } = await import("@/services/placed-orders");
     useCart.getState().setLines([]);
     useSavedItems.getState().setItems([]);
+    // Session-placed order receipts live in sessionStorage — on a shared
+    // browser the next visitor could otherwise reopen the previous
+    // session's confirmations from /account/orders.
+    usePlacedOrders.getState().clear();
     return { ok: true, message: "Signed out." };
   },
 

@@ -94,6 +94,41 @@ export function isCatalogLoaded(): boolean {
   return items.length > 0;
 }
 
+function markReady(): void {
+  if (!ready) {
+    ready = true;
+    for (const listener of readyListeners) listener();
+  }
+}
+
+/**
+ * Fetch ONLY the products a view actually needs (cart lines, saved items,
+ * quick-add target) into the mirror — instead of downloading the whole
+ * catalog. Merges into the existing mirror and marks it ready; a hit in
+ * the mirror never triggers a request.
+ */
+export async function ensureCatalogSubset(filter: { ids?: string[]; slugs?: string[] }): Promise<void> {
+  const wantIds = (filter.ids ?? []).filter((id) => !items.some((i) => i.id === id));
+  const wantSlugs = (filter.slugs ?? []).filter((s) => !items.some((i) => i.slug === s));
+  if (wantIds.length === 0 && wantSlugs.length === 0) {
+    markReady();
+    return;
+  }
+  const params = new URLSearchParams();
+  // Repo-side chunking caps bound parameters at 90 — stay under it.
+  if (wantIds.length > 0) params.set("ids", wantIds.slice(0, 90).join(","));
+  if (wantSlugs.length > 0) params.set("slugs", wantSlugs.slice(0, 90).join(","));
+  const response = await fetch(`/api/v1/catalog/products?${params.toString()}`, {
+    headers: { accept: "application/json" },
+  });
+  if (!response.ok) throw new Error(`Catalog subset load failed (${response.status})`);
+  const body = (await response.json()) as { data: CatalogItem[] };
+  const fetched = Array.isArray(body.data) ? body.data : [];
+  const known = new Set(items.map((i) => i.id));
+  items = [...items, ...fetched.filter((i) => !known.has(i.id))];
+  markReady();
+}
+
 /** Full mirror snapshot — for client-side listing views (discover grid). */
 export function allCatalogItems(): CatalogItem[] {
   return items;

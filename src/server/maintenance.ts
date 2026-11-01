@@ -40,6 +40,9 @@ export interface SweepResult {
   expiredVerifyTokens: number;
   expiredIdempotencyKeys: number;
   expiredCarts: number;
+  prunedJobs: number;
+  unstuckCarts: number;
+  prunedEmptyCarts: number;
 }
 
 export async function runMaintenanceSweep(): Promise<SweepResult> {
@@ -47,7 +50,7 @@ export async function runMaintenanceSweep(): Promise<SweepResult> {
   const now = new Date().toISOString();
   const staleLeaseBefore = new Date(Date.now() - STALE_LEASE_MS).toISOString();
 
-  const [requeuedJobs, expiredSessions, expiredResetTokens, expiredVerifyTokens, expiredIdempotencyKeys, cartsGone] =
+  const [requeuedJobs, expiredSessions, expiredResetTokens, expiredVerifyTokens, expiredIdempotencyKeys, cartsGone, prunedJobs, unstuckCarts, prunedEmptyCarts] =
     await Promise.all([
       db.run(
         `UPDATE job_queue SET status = 'pending', leased_at = NULL
@@ -73,6 +76,27 @@ export async function runMaintenanceSweep(): Promise<SweepResult> {
             .catch(() => undefined);
           return result;
         }),
+      // Job retention: terminal rows (done/failed) once held plaintext OTP
+      // codes (now redacted at completion) and still grow unbounded — drop
+      // them after 7 days.
+      db.run(
+        `DELETE FROM job_queue WHERE status IN ('done', 'failed') AND processed_at IS NOT NULL AND processed_at < ?`,
+        [new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString()]
+      ),
+      // Checkout claims abandoned mid-flight (crash between the claim and
+      // the final batch) — release them so the customer can retry.
+      db.run(
+        `UPDATE carts SET checkout_claimed_at = NULL
+         WHERE checkout_claimed_at IS NOT NULL AND checkout_claimed_at < ?`,
+        [new Date(Date.now() - 15 * 60 * 1000).toISOString()]
+      ),
+      // Guest-cart flood control: an empty active cart older than 48h has no
+      // purpose (the 30-day expiry only matters once it holds items).
+      db.run(
+        `DELETE FROM carts WHERE status = 'active' AND updated_at < ?
+         AND NOT EXISTS (SELECT 1 FROM cart_items WHERE cart_items.cart_id = carts.id)`,
+        [new Date(Date.now() - 48 * 3600 * 1000).toISOString()]
+      ),
     ]);
 
   return {
@@ -82,5 +106,8 @@ export async function runMaintenanceSweep(): Promise<SweepResult> {
     expiredVerifyTokens: expiredVerifyTokens.changes,
     expiredIdempotencyKeys: expiredIdempotencyKeys.changes,
     expiredCarts: cartsGone.changes,
+    prunedJobs: prunedJobs.changes,
+    unstuckCarts: unstuckCarts.changes,
+    prunedEmptyCarts: prunedEmptyCarts.changes,
   };
 }

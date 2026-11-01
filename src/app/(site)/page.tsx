@@ -8,7 +8,8 @@ import { HeroSection } from "@/components/homepage/hero-section";
 import { ProductCategoriesSection } from "@/components/homepage/product-categories-section";
 import { SafetySection } from "@/components/homepage/safety-section";
 import { SupportSection } from "@/components/homepage/support-section";
-import { getBrands, getCategories, getProducts, getSettings } from "@/server/data";
+import { getBrands, getCategories, getSettings } from "@/server/data";
+import { brandItemCounts, listProducts } from "@/server/repos/catalog";
 import { toCardItems } from "@/lib/catalog-card";
 import { canonical, itemListJsonLd, JsonLd } from "@/lib/seo";
 
@@ -27,21 +28,23 @@ export const metadata: Metadata = {
  * the (site) layout.
  */
 export default async function HomePage() {
-  const [products, brands, categories, settings] = await Promise.all([
-    getProducts(),
+  // Perf: the homepage needs 8 featured cards + per-brand counts — not the
+  // full catalog. listProducts({featured}) is one cached 8-row page;
+  // brandItemCounts() is one cached COUNT query. The former
+  // listAllPublishedProducts() hydration (500 rows + 5 child queries + JSON
+  // parsing) is gone from this path.
+  const [featuredPage, brands, categories, settings, brandCounts] = await Promise.all([
+    listProducts({ sort: "featured", pageSize: 8 }),
     getBrands(),
     getCategories(),
     getSettings(),
+    brandItemCounts(),
   ]);
 
   // Server-side trims — the full catalog stays on the server; the client
   // payload only carries what each section renders (was: the entire
   // catalog serialized into every homepage response).
-  const featuredItems = toCardItems(products.filter((item) => item.featured).slice(0, 8));
-  const itemCounts = products.reduce<Record<string, number>>((acc, item) => {
-    acc[item.brand] = (acc[item.brand] ?? 0) + 1;
-    return acc;
-  }, {});
+  const featuredItems = toCardItems(featuredPage.items);
 
   return (
     <>
@@ -53,7 +56,7 @@ export default async function HomePage() {
       <HeroSection />
       <CollectionPreview CATALOG_ITEMS={featuredItems} />
       <ProductCategoriesSection CATALOG_CATEGORIES={categories} />
-      <BrandCollectionSection BRANDS={brands} ITEM_COUNTS={itemCounts} />
+      <BrandCollectionSection BRANDS={brands} ITEM_COUNTS={brandCounts} />
       <DiscoverSection />
       <BrandIntroSection />
       <CompanySection />

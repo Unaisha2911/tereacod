@@ -7,6 +7,7 @@ import { SectionAtmosphere } from "@/components/atmosphere/section-atmosphere";
 import { NeonHeading } from "./neon-heading";
 import { SectionContainer } from "@/components/layout/page-container";
 import { CategoryCard } from "@/components/shared/category-card";
+import { EmptyState } from "@/components/shared/empty-state";
 import type { CatalogCategory } from "@/types";
 
 /**
@@ -14,9 +15,26 @@ import type { CatalogCategory } from "@/types";
  * Renders every catalog category record through the shared
  * CategoryCard (pointer-tracked glow, accent per category) beneath a
  * neon heading band. Categories are passed in from the
- * server-rendered homepage.
+ * server-rendered homepage. With an empty catalog (fresh store) the
+ * dead section collapses to a friendly empty state instead of an
+ * empty grid band.
  */
 export function ProductCategoriesSection({ CATALOG_CATEGORIES }: { CATALOG_CATEGORIES: CatalogCategory[] }) {
+  if (CATALOG_CATEGORIES.length === 0) {
+    return (
+      <SectionContainer spacing="lg">
+        <section aria-labelledby="categories-heading" className="relative z-10">
+          <RevealSection>
+            <EmptyState
+              title="Collections are being curated"
+              body="Our shelves are being restocked — check back shortly for the first drops."
+            />
+          </RevealSection>
+        </section>
+      </SectionContainer>
+    );
+  }
+
   return (
     <SectionContainer spacing="lg">
       <SectionAtmosphere variant="inferno" intensity={0.55} />

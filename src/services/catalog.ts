@@ -1,6 +1,6 @@
 import type { CatalogCategory, CatalogItem, Paginated } from "@/types";
 import type { SortKey } from "@/lib/catalog-sort";
-import { findByIdInCatalog } from "@/lib/client-catalog";
+import { ensureCatalogSubset, findByIdInCatalog } from "@/lib/client-catalog";
 
 /**
  * CATALOG SERVICE (API-backed)
@@ -21,8 +21,8 @@ export interface CatalogQuery {
   pageSize?: number;
 }
 
-async function getJson<T>(url: string): Promise<T> {
-  const response = await fetch(url, { headers: { accept: "application/json" } });
+async function getJson<T>(url: string, signal?: AbortSignal): Promise<T> {
+  const response = await fetch(url, { headers: { accept: "application/json" }, signal });
   if (!response.ok) throw new Error(`Request failed (${response.status})`);
   const body = (await response.json()) as { data: T };
   return body.data;
@@ -39,7 +39,7 @@ export const catalogService = {
     return categories.find((c) => c.slug === slug) ?? null;
   },
 
-  async items(query: CatalogQuery = {}): Promise<Paginated<CatalogItem>> {
+  async items(query: CatalogQuery = {}, signal?: AbortSignal): Promise<Paginated<CatalogItem>> {
     const params = new URLSearchParams();
     if (query.categorySlug) params.set("collection", query.categorySlug);
     if (query.brandSlug) params.set("brand", query.brandSlug);
@@ -49,7 +49,7 @@ export const catalogService = {
     if (query.originSlug) params.set("origin", query.originSlug);
     params.set("page", String(query.page ?? 1));
     params.set("pageSize", String(query.pageSize ?? 9));
-    return getJson<Paginated<CatalogItem>>(`/api/v1/catalog/products?${params.toString()}`);
+    return getJson<Paginated<CatalogItem>>(`/api/v1/catalog/products?${params.toString()}`, signal);
   },
 
   async item(slug: string): Promise<CatalogItem | null> {
@@ -68,8 +68,10 @@ export const catalogService = {
     return data.items;
   },
 
-  /** Resolve saved item ids → catalog items via the client mirror. */
+  /** Resolve saved item ids → catalog items (subset fetch, never the full mirror). */
   async itemsByIds(ids: string[]): Promise<CatalogItem[]> {
+    if (ids.length === 0) return [];
+    await ensureCatalogSubset({ ids }).catch(() => undefined);
     return ids
       .map((id) => findByIdInCatalog(id))
       .filter((item): item is CatalogItem => Boolean(item));
@@ -78,11 +80,13 @@ export const catalogService = {
   /** Simple suggestion helper for the search UI (server prefix search). */
   async suggest(
     partial: string,
-    limit = 6
+    limit = 6,
+    signal?: AbortSignal
   ): Promise<Array<{ slug: string; name: string; brand: string; category: string }>> {
     if (!partial.trim()) return [];
     const data = await getJson<{ suggestions: Array<{ slug: string; name: string; brand: string; category: string }> }>(
-      `/api/v1/search/suggest?q=${encodeURIComponent(partial.trim())}`
+      `/api/v1/search/suggest?q=${encodeURIComponent(partial.trim())}`,
+      signal
     );
     return data.suggestions.slice(0, limit);
   },

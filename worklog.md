@@ -1332,3 +1332,49 @@ Stage Summary:
 - Remote push runbook: db:migrate:remote -> db:seed -> db:seed:export -> db:seed:remote -> db:seed:kv:remote.
 - UNCOMMITTED: scripts/seed.ts (password policy), scripts/README.md, src/lib/catalog-origin.ts (+ prior session's consolidation: deleted one-off scripts, deleted src/data demo files, compliance.ts trim).
 - NOTE for go-live: wrangler.toml still binds legacy-named resources (D1 "vapetive", R2 "vapetive-media"/"vapetive-incr-cache") — create/rename resources for tereacod and update database_name/database_id/bucket_name before db:migrate:remote / cf:deploy.
+
+Task ID: 54
+Agent: main (orchestrator)
+Task: "Admin login unified with user login, /admin URL hidden, complex signup verification, password reset + full E2E check, comprehensive audit (UI/UX/API/functionality/schema/backend) and fix all issues."
+
+Work Log:
+- Investigated the auth surface first: unified sign-in (/account/sign-in → staff get secret consolePath), middleware killing literal /admin with a hard 404 + ADMIN_ACCESS_PATH rewrite, Turnstile + password policy + 6-digit hashed email OTP at register, OTP password reset with session revocation — all already implemented in prior sessions.
+- Built scripts/e2e-auth-audit.mjs (45 assertions): /admin 404, secret path anti-oracle (anonymous/wrong-secret/customer all 404), unified staff sign-in + consolePath, console pages 200 with admin session, register→OTP→verify→reuse-block, wrong-code 400, forgot→reset→old-password-dead→new-password-live, weak-password 422s, 16 public pages 200, account gate 307. Final state: 45/45 PASS.
+- Comprehensive audit via 3 parallel research agents (backend/API/schema, UI/UX, performance). Fixed, grouped:
+  Backend: checkout double-order race closed (server-derived idempotency key checkout.orders:<cartId> + carts.checkout_claimed_at claim marker (migration 0006) with release on every early-return + sweep for stale claims); card/saved-card hard-rejected until a real Stripe session flow exists (config advertises cardOnline:false); coupon redemption insert made conditional on remaining usage_limit; retry-after-dropped-response replays via findLatestConvertedCart; migration 0006 (payments.provider_ref index, uq_coupon_redemptions(order,coupon), carts.checkout_claimed_at); job_queue redacts email bodies (OTP codes) on completion + 7-day retention sweep + Resend fetch 15s timeout + terminal-failure log; support.listTickets/getTicket and admin.adminCustomer no longer scan whole tables; SQLite busy_timeout=5000; getDb/getLocalDb no longer cache a rejected init; malformed JSON → 400; saved-items bogus productId → 422 with findPublishedProductRef; contact captcha fail → 400 envelope; admin user creation uses the shared 10+char password policy; getProductsByIds (saved items) now published-only (draft leak closed); checkout route default guard.
+  UI/UX: TurnstileWidget component wired into sign-in/register/contact (H1 production blocker when the captcha key is set); homepage categories/brand-wall empty states; signOut clears session-placed orders; cart hydration union-merge (no optimistic-add clobber); order cancellation gets AlertDialog + toasts; guest saved items persist to sessionStorage; gallery thumbnails scroll on overflow; search suggestions get full ARIA combobox + arrow-key nav; console skip link; discover/FAQ distinguish empty-catalog from no-match; micro-text contrast bumps; LoadMoreGrid pageSize prop; shared (site)/loading.tsx skeleton.
+  Performance: client catalog mirror now loads ONLY needed products via GET /catalog/products?ids=/slugs= (saved views, quick-add, cart line details) — full-catalog download eliminated from cart/saved/quick-add paths; suggest endpoint 7 queries → 1 lightweight FTS query; homepage uses listProducts(featured,8) + brandItemCounts() instead of full-catalog hydration; product related-items N+1 → one getProductsBySlugs; catalogCounts single-row query; search suggest+results requests abort on next keystroke; bootstrap starts cart fetch in parallel with session; smoke-wisps preload moved root→(site) layout (admin stops paying 196KB); item-card backdrop-blur buttons → solid scrims (mobile scroll cost); hero vapor scene wrapped in MotionBoundary and pauses all CSS animations off-screen (.atmosphere-paused).
+  Considered and REJECTED: ISR/revalidate on (site) — CI builds have no D1 access; prerendering would reintroduce the build-machine-empty-DB production defect documented in the layout. Listing-page full-catalog filter kept (listProducts caps at 48/page; shelves must render everything; cached).
+- Incident during testing: the race test's DATABASE_URL override was ignored (local.ts hardcodes db/tereacod.db) and its fixture leaked into the live dev DB. Fixed local.ts to honour LOCAL_DB_PATH, cleaned all fixture rows (live DB verified back to fresh-seed: 0 products/orders/carts), and re-ran the race test isolated — PASS with live DB untouched.
+- scripts/test-checkout-race.ts kept: concurrent double-placeOrder against a throwaway DB copy proves exactly one order, loser replay, cart converted, reservations exact.
+- bun run lint clean, tsc clean, dev server healthy on :3000 (migration 0006 applied), e2e-auth-audit 45/45.
+
+Stage Summary:
+- Admin/staff auth is fully unified behind the normal sign-in with a secret, non-guessable console path; /admin is dead; signup requires captcha + strong password + email OTP; password reset works and revokes sessions.
+- Comprehensive audit fixes landed across checkout integrity, security hygiene, admin query performance, accessibility, empty states, and the biggest API-chatter/scroll-jank performance offenders.
+- UNCOMMITTED: all Task 54 changes (+ prior tasks' pending files).
+- NOTE for go-live: run db:migrate:remote so migration 0006 lands on D1 before cf:deploy; wrangler.toml still binds legacy "vapetive" resource names.
+
+Task ID: 55
+Agent: main (orchestrator)
+Task: "Remove complex signup (email verification + age verification) and the secret admin login path — unified login for all roles."
+
+Work Log:
+- Signup simplified end-to-end: registerUser now inserts email_verified_at immediately (accounts are active + verified at creation); register API no longer creates an email OTP, queues a verification email, or accepts dateOfBirth. Deleted /api/v1/auth/verify-email, /account/verify-email (page+view) and the /account/verify identity template; removed createEmailVerificationOtp/consumeEmailVerificationOtp + EMAIL_TOKEN_TTL_MS + OtpVerifyResult. Password-reset OTP machinery kept (createOtp narrowed to password_reset_tokens).
+- Register view auto-signs-in the new customer (merge cart + hydrate saved items) and lands on /account — zero-OTP signup; sign-in view no longer routes unverified accounts anywhere.
+- Age verification removed: AgeGate overlay deleted from AppShell (component file removed), "Verify identity" entry removed from account nav. Site marketing copy (18+ notices) intentionally kept.
+- Unified login: ADMIN_ACCESS_PATH secret-path machinery deleted (env var, prod guard, middleware 404/rewrite, consolePathToInternal/isConsolePath). Console now lives at the plain /admin URL: middleware redirects anonymous visitors to /account/sign-in?next=/admin; admin layout redirects signed-in non-staff to /restricted; adminBasePath() = "/admin". consolePath dropped from sign-in/session APIs and the auth store; staff sign-in redirects straight to /admin; overview "Staff console" quick link → /admin.
+- Data convergence: backfilled email_verified_at for 3 pre-existing unverified users (verify flow no longer exists); removed stale ADMIN_ACCESS_PATH from .env + .env.example; seed.ts comments updated.
+- Browser-verified (agent-browser): register → auto sign-in → /account with "Verified" badge; anonymous /admin → sign-in redirect; admin sign-in → /admin dashboard (overview API 200); customer /admin → /restricted; /account/verify-email → styled 404; no age-gate overlay after 6s; mobile 390px renders with natural footer. Test user removed afterwards. Lint + tsc clean, dev server healthy on :3000.
+- NOTE: scripts/e2e-auth-audit.mjs still asserts the OLD secret-path/OTP behavior — it is outdated and must be rewritten before the next audit run.
+- NOTE for go-live: no schema change (no new migration needed); D1 env no longer requires ADMIN_ACCESS_PATH.
+
+Stage Summary:
+- Signup is email + password only: account active/verified immediately, auto signed-in, no OTP or age gate anywhere in the flow.
+- One login for every role: /account/sign-in → staff land in /admin, customers land in /account; /admin is RBAC-guarded server-side, non-staff see /restricted. Secret-path indirection fully removed.
+- UNCOMMITTED: all Task 55 changes.
+
+Follow-up pass (same task, cleanup of the Task 55 notes):
+- Rewrote scripts/e2e-auth-audit.mjs for the simplified model: /admin anonymous → 307 sign-in, admin pages 200 via session cookie, friction-free register (no verificationRequired/devCode), customer /admin → 307 /restricted, verify-email API/page asserted removed, password-reset OTP flow retained.
+- Removed the last emailVerified plumbing from src/server/session.ts (CurrentUser interface was already clean; query + mapping now drop email_verified_at entirely).
+- README.md: ADMIN_ACCESS_PATH row removed; documented the unified /admin console entry and /restricted behaviour for non-staff.

@@ -6,7 +6,6 @@ import {
   BadgeCheck,
   Bookmark,
   CircleUserRound,
-  Fingerprint,
   IdCard,
   Lock,
   ShieldCheck,
@@ -30,7 +29,6 @@ import { cn } from "@/lib/utils";
 const ACCOUNT_LINKS = [
   { href: "/account", label: "Overview", icon: CircleUserRound, exact: true },
   { href: "/account/profile", label: "Profile", icon: IdCard, exact: false },
-  { href: "/account/verify", label: "Verify identity", icon: Fingerprint, exact: false },
   { href: "/account/security", label: "Security", icon: ShieldCheck, exact: false },
   { href: "/account/preferences", label: "Preferences", icon: SlidersHorizontal, exact: false },
   { href: "/account/saved", label: "Saved items", icon: Bookmark, exact: false },

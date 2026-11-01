@@ -117,6 +117,12 @@ export async function getDb(): Promise<DbClient> {
     return cached;
   })();
 
+  // A transient init failure must not poison the cached promise until
+  // process restart — clear it so the next caller retries initialization.
+  initPromise.catch(() => {
+    initPromise = null;
+  });
+
   return initPromise;
 }
 

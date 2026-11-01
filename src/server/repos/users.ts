@@ -6,7 +6,6 @@ import { getDb } from "@/server/db/client";
 import { newId, sha256Hex } from "@/server/ids";
 import { hashPassword, verifyPassword } from "@/server/password";
 import {
-  EMAIL_TOKEN_TTL_MS,
   RESET_TOKEN_TTL_MS,
   OTP_MAX_ATTEMPTS,
   OTP_RESEND_COOLDOWN_MS,
@@ -32,6 +31,11 @@ export type RegisterResult =
   | { ok: true; userId: string }
   | { ok: false; reason: "email_taken" };
 
+/**
+ * Registration is deliberately friction-free: email + password + name and
+ * the account is ACTIVE and verified immediately — there is no email
+ * verification (OTP) step and no age verification gate in the flow.
+ */
 export async function registerUser(input: {
   email: string;
   password: string;
@@ -39,6 +43,7 @@ export async function registerUser(input: {
   phone?: string;
   dateOfBirth?: string;
   marketingOptIn?: boolean;
+  researchInvites?: boolean;
 }): Promise<RegisterResult> {
   const db = await getDb();
   const email = input.email.trim().toLowerCase();
@@ -53,8 +58,8 @@ export async function registerUser(input: {
     {
       sql: `INSERT INTO users
               (id, email, password_hash, display_name, phone, date_of_birth, status, locale,
-               marketing_opt_in, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, 'active', 'en-AE', ?, ?, ?)`,
+               email_verified_at, marketing_opt_in, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, 'active', 'en-AE', ?, ?, ?, ?)`,
       params: [
         userId,
         email,
@@ -62,6 +67,7 @@ export async function registerUser(input: {
         input.displayName.trim(),
         input.phone ?? null,
         input.dateOfBirth ?? null,
+        now,
         input.marketingOptIn ? 1 : 0,
         now,
         now,
@@ -73,8 +79,8 @@ export async function registerUser(input: {
       params: [newId("aut"), userId, email, now],
     },
     {
-      sql: `INSERT INTO user_preferences (user_id, updated_at) VALUES (?, ?)`,
-      params: [userId, now],
+      sql: `INSERT INTO user_preferences (user_id, research_invites, updated_at) VALUES (?, ?, ?)`,
+      params: [userId, input.researchInvites ? 1 : 0, now],
     },
   ]).catch(async (error) => {
     // Two concurrent registrations can both pass the check-then-insert window;
@@ -299,10 +305,11 @@ function relativeTime(iso: string): string {
 /* ----------------------------- password reset ----------------------------- */
 
 /**
- * Password reset + email verification use 6-digit OTP codes: hashed at rest,
- * single-use, short-lived, resend-cooled, and locked after too many wrong
- * tries (OTP_MAX_ATTEMPTS). A new send invalidates the previous code, so
- * exactly one code is ever live per user per flow.
+ * Password reset uses 6-digit OTP codes: hashed at rest, single-use,
+ * short-lived, resend-cooled, and locked after too many wrong tries
+ * (OTP_MAX_ATTEMPTS). A new send invalidates the previous code, so exactly
+ * one code is ever live per user. (Email verification was removed — signup
+ * is verified immediately.)
  */
 
 export type CreateOtpResult = { ok: true; code: string } | { ok: false; reason: "cooldown" };
@@ -313,15 +320,10 @@ function generateOtpCode(): string {
   return String(buf[0] % 1_000_000).padStart(6, "0");
 }
 
-export type OtpVerifyResult = "ok" | "invalid" | "locked";
-
-/** Issue a fresh OTP for a flow ("reset" or "email"), enforcing the cooldown. */
-async function createOtp(
-  userId: string,
-  table: "email_verification_tokens" | "password_reset_tokens",
-  ttlMs: number
-): Promise<CreateOtpResult> {
+/** Issue a fresh password-reset OTP, enforcing the cooldown. */
+async function createOtp(userId: string): Promise<CreateOtpResult> {
   const db = await getDb();
+  const table = "password_reset_tokens";
   const latest = await db.get<{ created_at: string }>(
     `SELECT created_at FROM ${table} WHERE user_id = ? ORDER BY created_at DESC LIMIT 1`,
     [userId]
@@ -330,7 +332,7 @@ async function createOtp(
     return { ok: false, reason: "cooldown" };
   }
 
-  // Single live code per user per flow: drop any previous unconsumed codes.
+  // Single live code per user: drop any previous unconsumed codes.
   await db.run(`DELETE FROM ${table} WHERE user_id = ? AND used_at IS NULL`, [userId]);
 
   const code = generateOtpCode();
@@ -338,10 +340,10 @@ async function createOtp(
     `INSERT INTO ${table} (id, user_id, token_hash, expires_at, attempts, created_at)
      VALUES (?, ?, ?, ?, 0, ?)`,
     [
-      newId(table === "password_reset_tokens" ? "prt" : "evt"),
+      newId("prt"),
       userId,
       await sha256Hex(code),
-      new Date(Date.now() + ttlMs).toISOString(),
+      new Date(Date.now() + RESET_TOKEN_TTL_MS).toISOString(),
       new Date().toISOString(),
     ]
   );
@@ -350,7 +352,7 @@ async function createOtp(
 
 /** Shared wrong-code path: count the attempt, lock the code when exhausted. */
 async function recordOtpFailure(
-  table: "email_verification_tokens" | "password_reset_tokens",
+  table: "password_reset_tokens",
   rowId: string,
   attempts: number
 ): Promise<"invalid" | "locked"> {
@@ -364,7 +366,7 @@ async function recordOtpFailure(
 }
 
 export async function createPasswordResetOtp(userId: string): Promise<CreateOtpResult> {
-  return createOtp(userId, "password_reset_tokens", RESET_TOKEN_TTL_MS);
+  return createOtp(userId);
 }
 
 export type PasswordResetResult =
@@ -411,50 +413,6 @@ export async function consumePasswordResetOtp(
     },
   ]);
   return { status: "ok", userId: user.id };
-}
-
-/* --------------------------- email verification --------------------------- */
-
-export async function createEmailVerificationOtp(userId: string): Promise<CreateOtpResult> {
-  return createOtp(userId, "email_verification_tokens", EMAIL_TOKEN_TTL_MS);
-}
-
-export async function consumeEmailVerificationOtp(email: string, code: string): Promise<OtpVerifyResult> {
-  const user = await findUserByEmail(email);
-  if (!user) return "invalid";
-
-  const db = await getDb();
-  const row = await db.get<{ id: string; attempts: number; expires_at: string; token_hash: string }>(
-    `SELECT id, attempts, expires_at, token_hash FROM email_verification_tokens
-     WHERE user_id = ? AND used_at IS NULL ORDER BY created_at DESC LIMIT 1`,
-    [user.id]
-  );
-  if (!row) return "invalid";
-  if (row.expires_at < new Date().toISOString()) {
-    await db.run(`UPDATE email_verification_tokens SET used_at = ? WHERE id = ?`, [
-      new Date().toISOString(),
-      row.id,
-    ]);
-    return "invalid";
-  }
-  if (row.attempts >= OTP_MAX_ATTEMPTS) return "locked";
-
-  if ((await sha256Hex(code)) !== row.token_hash) {
-    return recordOtpFailure("email_verification_tokens", row.id, row.attempts);
-  }
-
-  const now = new Date().toISOString();
-  await db.batch([
-    {
-      sql: `UPDATE email_verification_tokens SET used_at = ? WHERE id = ?`,
-      params: [now, row.id],
-    },
-    {
-      sql: `UPDATE users SET email_verified_at = ?, updated_at = ? WHERE id = ?`,
-      params: [now, now, user.id],
-    },
-  ]);
-  return "ok";
 }
 
 /* ------------------------------- saved items ------------------------------ */

@@ -9,6 +9,17 @@ import type { OrderDetail, OrderSummary, OrderStatus } from "@/types";
 import { OrderStatusBadge } from "@/components/shared/status-badge";
 import { FormSection } from "@/components/shared/admin-primitives";
 import { PrototypeNotice } from "@/components/shared/prototype-notice";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { formatDateTime } from "@/lib/format";
 
@@ -74,10 +85,12 @@ const STATUS_LABEL: Record<string, string> = {
 
 function OrderStatusControl({ reference, currentStatus }: { reference: string; currentStatus: OrderStatus }) {
   const router = useRouter();
+  const { toast } = useToast();
   const [next, setNext] = useState<OrderStatus | "">("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const options = NEXT_STATUS[currentStatus] ?? [];
 
   if (options.length === 0) return null;
@@ -94,11 +107,18 @@ function OrderStatusControl({ reference, currentStatus }: { reference: string; c
       });
       const body = (await response.json().catch(() => ({}))) as { error?: { message?: string } };
       if (!response.ok) throw new Error(body.error?.message ?? "Transition failed");
+      toast({
+        title: next === "cancelled" ? "Order cancelled" : "Status updated",
+        description: `${reference} → ${STATUS_LABEL[next] ?? next}`,
+      });
       setNext("");
       setNote("");
+      setConfirmOpen(false);
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Transition failed");
+      const message = e instanceof Error ? e.message : "Transition failed";
+      setError(message);
+      toast({ title: "Transition failed", description: message, variant: "destructive" });
     } finally {
       setBusy(false);
     }
@@ -130,13 +150,54 @@ function OrderStatusControl({ reference, currentStatus }: { reference: string; c
       )}
       <button
         type="button"
-        onClick={apply}
+        onClick={() => {
+          // Cancellation is a terminal state — confirm it like every other
+          // destructive action instead of applying on a single click.
+          if (next === "cancelled") {
+            setConfirmOpen(true);
+            return;
+          }
+          void apply();
+        }}
         disabled={!next || busy}
-        className="min-h-9 rounded-xl bg-violet-soft px-3.5 text-[0.82rem] font-semibold text-ink transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+        className={cn(
+          "min-h-9 rounded-xl px-3.5 text-[0.82rem] font-semibold transition-opacity disabled:cursor-not-allowed disabled:opacity-40",
+          next === "cancelled" ? "bg-error/90 text-white hover:bg-error" : "bg-violet-soft text-ink hover:opacity-90"
+        )}
       >
         {busy ? "Applying…" : "Apply"}
       </button>
       {error && <span className="text-[0.78rem] text-warning">{error}</span>}
+
+      <AlertDialog
+        open={confirmOpen}
+        onOpenChange={(open) => {
+          if (!open) setConfirmOpen(false);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel order {reference}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cancellation is permanent — the order cannot be reopened or transitioned again. Reserved stock is
+              released and the customer is notified on the timeline.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>Keep order</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={busy}
+              onClick={(e) => {
+                e.preventDefault();
+                void apply();
+              }}
+              className="bg-error text-white hover:bg-error/90"
+            >
+              {busy ? "Cancelling…" : "Cancel order"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

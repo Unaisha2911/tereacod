@@ -102,7 +102,7 @@ export function ItemGallery({
       </Dialog.Root>
 
       {safeImages.length > 1 && (
-        <div className="flex gap-3">
+        <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1">
           {safeImages.map((img, i) => (
             <button
               key={`${img}-${i}`}

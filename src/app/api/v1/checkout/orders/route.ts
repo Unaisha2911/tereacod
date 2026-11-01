@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { withApi, ok, fail, ErrorCode, created } from "@/server/api/guard";
 import { readCartToken } from "@/server/api/http";
-import { getActiveCart } from "@/server/repos/cart";
+import { findLatestConvertedCart, getActiveCart } from "@/server/repos/cart";
 import { createOrder, replayOrder, orderRequestHash } from "@/server/repos/orders";
 import { getFeatureFlags } from "@/server/repos/settings";
 
@@ -74,8 +74,26 @@ export const POST = withApi(
     const token = await readCartToken(request);
     const cart = await getActiveCart(token, identity?.user.id ?? null);
     if (!cart) {
+      // Retry-after-dropped-response: the cart may already be converted and
+      // the customer simply never saw the 201. Probe the idempotency store
+      // with the server-derived key before giving up.
+      const converted = await findLatestConvertedCart(token, identity?.user.id ?? null);
+      if (converted) {
+        const replayed = await replayOrder(`checkout.orders:${converted.id}`, requestHash);
+        if (replayed) {
+          return ok(replayed, { replayed: true });
+        }
+      }
       return fail(409, ErrorCode.CONFLICT, "Your bag is empty — add a product from the shop first.");
     }
+
+    // Server-derived idempotency key: a client-random key generates a fresh
+    // value per submit, so a double-click / retry-after-500 would carry two
+    // different keys and the UNIQUE guard would never fire. Keying on the
+    // cart makes every submit for the same cart collapse into one order;
+    // the request hash still pins the exact body, and a cart can only be
+    // converted once, so the key can never alias a different order.
+    const serverIdempotencyKey = `checkout.orders:${cart.id}`;
 
     const result = await createOrder({
       contact: body.contact,
@@ -85,7 +103,7 @@ export const POST = withApi(
       couponCode: body.couponCode ?? null,
       cartId: cart.id,
       userId: identity?.user.id ?? null,
-      idempotencyKey: body.idempotencyKey,
+      idempotencyKey: serverIdempotencyKey,
       requestHash,
       ip: meta.ip,
       userAgent: meta.userAgent,
@@ -110,11 +128,18 @@ export const POST = withApi(
           return fail(422, ErrorCode.VALIDATION_FAILED, "You must confirm you are 18 or older.", {
             fields: { declaredAge18Plus: "Required for nicotine products." },
           });
+        case "cart_processing":
+          return fail(409, ErrorCode.CONFLICT, "This order is already being processed — check your orders in a moment.");
+        default: {
+          // Exhaustiveness guard: a future reason must map to a response here
+          // instead of silently falling through to a data-less 201.
+          const exhaustive: never = result;
+          console.error("[checkout] unmapped createOrder result:", exhaustive);
+          return fail(500, ErrorCode.INTERNAL, "The order could not be placed. Please try again.");
+        }
       }
     }
 
-    return created(result.ok ? result.summary : undefined, {
-      orderId: result.ok ? result.reference : undefined,
-    });
+    return created(result.summary, { orderId: result.reference });
   }
 );

@@ -10,6 +10,7 @@ import { ErrorState } from "@/components/shared/error-state";
 import { LoadingIndicator } from "@/components/shared/loading-indicator";
 import { LoadMoreGrid } from "@/components/shared/load-more-grid";
 import { catalogService } from "@/services/catalog";
+import { cn } from "@/lib/utils";
 import type { CatalogCategory, CatalogItem } from "@/types";
 
 const PAGE_SIZE = 16;
@@ -48,6 +49,7 @@ export function SearchView() {
   });
   const [retryTick, setRetryTick] = useState(0);
   const [categories, setCategories] = useState<CatalogCategory[]>([]);
+  const [activeSuggestion, setActiveSuggestion] = useState(-1);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const typedQ = input.trim();
@@ -91,15 +93,23 @@ export function SearchView() {
   }, [input, router]);
 
   // Live suggestions while typing — slightly faster than the results commit.
+  // In-flight fetches are aborted on the next keystroke so fast typers do
+  // not leave a trail of server work behind them.
   useEffect(() => {
     const q = input.trim();
     if (!q) return;
     let cancelled = false;
+    const controller = new AbortController();
     const timer = setTimeout(() => {
       catalogService
-        .suggest(q)
+        .suggest(q, 6, controller.signal)
         .then((items) => {
-          if (!cancelled) setSuggestions({ q, items });
+          if (!cancelled) {
+            setSuggestions({ q, items });
+            // Fresh list content → reset the listbox highlight alongside
+            // the state change (not in an effect) to avoid a cascade.
+            setActiveSuggestion(-1);
+          }
         })
         .catch(() => {
           if (!cancelled) setSuggestions({ q, items: [] });
@@ -108,6 +118,7 @@ export function SearchView() {
     return () => {
       cancelled = true;
       clearTimeout(timer);
+      controller.abort();
     };
   }, [input]);
 
@@ -120,8 +131,9 @@ export function SearchView() {
     if (!committedQ) return;
     if (results.key === requestKey) return; // batch already loaded — nothing to fetch
     let cancelled = false;
+    const controller = new AbortController();
     catalogService
-      .items({ query: committedQ, page, pageSize: PAGE_SIZE })
+      .items({ query: committedQ, page, pageSize: PAGE_SIZE }, controller.signal)
       .then((data) => {
         if (cancelled) return;
         setResults((prev) => {
@@ -147,13 +159,18 @@ export function SearchView() {
       });
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [committedQ, retryTick, page, filtersKey, requestKey, results.key]);
+
+  const suggestionsVisible =
+    typedQ !== "" && typedQ !== committedQ && suggestions?.q === typedQ && suggestions.items.length > 0;
 
   const clearAll = () => {
     setInput("");
     setCommittedQ("");
     setSuggestions(null);
+    setActiveSuggestion(-1);
     setPage(1);
     setResults({ key: "", status: "ready", items: [], total: 0, hasMore: false });
     router.replace("/search", { scroll: false });
@@ -167,11 +184,26 @@ export function SearchView() {
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Escape") clearAll();
+    if (e.key === "Escape") {
+      clearAll();
+      return;
+    }
+    // ARIA combobox pattern: arrow through the suggestion listbox, Enter
+    // follows the highlighted option, everything else keeps caret behaviour.
+    if (suggestionsVisible && suggestions) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setActiveSuggestion((i) => (i + 1) % suggestions.items.length);
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setActiveSuggestion((i) => (i <= 0 ? suggestions.items.length - 1 : i - 1));
+      } else if (e.key === "Enter" && activeSuggestion >= 0) {
+        e.preventDefault();
+        const picked = suggestions.items[activeSuggestion];
+        if (picked) window.location.assign(`/products/${picked.slug}`);
+      }
+    }
   };
-
-  const suggestionsVisible =
-    typedQ !== "" && typedQ !== committedQ && suggestions?.q === typedQ && suggestions.items.length > 0;
 
   return (
     <div className="pb-20">
@@ -192,6 +224,11 @@ export function SearchView() {
             onKeyDown={onKeyDown}
             placeholder="Search devices, liquids, accessories…"
             aria-label="Search the catalog"
+            role="combobox"
+            aria-expanded={suggestionsVisible}
+            aria-controls="search-suggestions"
+            aria-autocomplete="list"
+            aria-activedescendant={suggestionsVisible && activeSuggestion >= 0 ? `search-suggestion-${activeSuggestion}` : undefined}
             autoFocus
             className="h-14 w-full rounded-full border border-line bg-foreground/[0.03] pl-14 pr-14 text-lg text-foreground placeholder:text-muted-foreground/60 focus:border-violet-glow/60 focus:outline-none"
           />
@@ -212,12 +249,15 @@ export function SearchView() {
             <p className="px-4 pb-1 pt-3 text-label font-medium uppercase tracking-[0.16em] text-muted-foreground">
               Suggestions
             </p>
-            <ul className="p-2 pt-1">
-              {suggestions.items.map((s) => (
-                <li key={s.slug}>
+            <ul id="search-suggestions" role="listbox" aria-label="Search suggestions" className="p-2 pt-1">
+              {suggestions.items.map((s, i) => (
+                <li key={s.slug} role="option" id={`search-suggestion-${i}`} aria-selected={i === activeSuggestion}>
                   <Link
                     href={`/products/${s.slug}`}
-                    className="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-sm text-foreground transition-colors hover:bg-foreground/[0.05]"
+                    className={cn(
+                      "flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-sm text-foreground transition-colors hover:bg-foreground/[0.05]",
+                      i === activeSuggestion && "bg-foreground/[0.08]"
+                    )}
                   >
                     <span className="min-w-0 truncate">{s.name}</span>
                     <span className="shrink-0 text-meta uppercase tracking-[0.12em] text-muted-foreground">

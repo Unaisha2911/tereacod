@@ -11,7 +11,7 @@ import { AvailabilityBadge } from "./status-badge";
 import { GlowSurface } from "@/components/atmosphere/glow-surface";
 import { savedItemsService, useSavedItems } from "@/services/saved-items";
 import { cartService } from "@/services/cart";
-import { ensureCatalog, isCatalogReady } from "@/lib/client-catalog";
+import { ensureCatalogSubset } from "@/lib/client-catalog";
 import { ToastAction } from "@/components/ui/toast";
 import { useToast } from "@/hooks/use-toast";
 import type { CatalogCardItem } from "@/lib/catalog-card";
@@ -43,14 +43,12 @@ export const ItemCard = memo(function ItemCard({ item, priority = false }: { ite
     e.preventDefault();
     e.stopPropagation();
     if (blocked) return;
-    // The default-variant lookup reads the client catalog mirror, which is
-    // only loaded when a visitor already has cart lines. Fire-and-forget:
-    // resolve as soon as the mirror lands (sub-second, CDN-cached), then
-    // add the line with the correct variant instead of a variant-less one.
+    // The default-variant lookup needs just THIS product: fetch the single
+    // slug into the mirror (one small CDN-cached request) instead of paging
+    // the whole catalog. Fire-and-forget: the line lands with the correct
+    // variant as soon as the fetch resolves.
     void (async () => {
-      if (!isCatalogReady()) {
-        await ensureCatalog().catch(() => undefined);
-      }
+      await ensureCatalogSubset({ slugs: [item.slug] }).catch(() => undefined);
       const variantId = cartService.firstAvailableVariantId(item.slug);
       cartService.addItem(item.slug, variantId, 1);
       toast({
@@ -109,11 +107,15 @@ export const ItemCard = memo(function ItemCard({ item, priority = false }: { ite
           aria-pressed={saved}
           aria-label={saved ? `Remove ${item.name} from saved items` : `Save ${item.name}`}
           className={cn(
-            "absolute right-3 top-3 inline-flex size-9 items-center justify-center rounded-full border backdrop-blur-md transition-all",
+            "absolute right-3 top-3 inline-flex size-9 items-center justify-center rounded-full border transition-all",
             // Invisible hit-area expansion keeps the 36px visual while
             // giving thumbs a ~48px touch target.
             "before:absolute before:-inset-2 before:rounded-full before:content-['']",
-            saved ? "border-violet-glow/50 bg-violet-glow/25 text-violet-soft" : "border-line-strong bg-black/40 text-muted-foreground hover:text-foreground"
+            // Solid scrim instead of backdrop-blur: a 16-card grid with two
+            // blurred buttons each = ~32 backdrop-filter regions sampled
+            // against scrolling content — a known mobile scroll-cost
+            // multiplier. Visually near-identical at this size.
+            saved ? "border-violet-glow/50 bg-violet-glow/30 text-violet-soft" : "border-line-strong bg-black/60 text-muted-foreground hover:text-foreground"
           )}
         >
           {saved ? <BookmarkCheck className="size-4" aria-hidden="true" /> : <Bookmark className="size-4" aria-hidden="true" />}
@@ -152,7 +154,7 @@ export const ItemCard = memo(function ItemCard({ item, priority = false }: { ite
                 aria-label={blocked ? `${item.name} is currently unavailable` : `Add ${item.name} to cart`}
                 title={blocked ? "Currently unavailable" : "Add to cart"}
                 className={cn(
-                  "relative inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-line-strong bg-black/40 text-muted-foreground backdrop-blur-md transition-all hover:border-violet-glow/50 hover:text-violet-soft",
+                  "relative inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-line-strong bg-black/60 text-muted-foreground transition-all hover:border-violet-glow/50 hover:text-violet-soft",
                   "before:absolute before:-inset-2 before:rounded-full before:content-['']",
                   blocked && "cursor-not-allowed opacity-40 hover:border-line-strong hover:text-muted-foreground"
                 )}

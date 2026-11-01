@@ -127,7 +127,8 @@ export type CreateOrderResult =
   | { ok: false; reason: "empty_cart" | "blocked_lines" | "out_of_stock"; detail?: string }
   | { ok: false; reason: "invalid_coupon"; detail?: string }
   | { ok: false; reason: "payment_unavailable" }
-  | { ok: false; reason: "age_not_declared" };
+  | { ok: false; reason: "age_not_declared" }
+  | { ok: false; reason: "cart_processing" };
 
 /* ------------------------------ idempotency ------------------------------- */
 
@@ -367,16 +368,50 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
     if (replayed) return { ok: true, summary: replayed, reference: replayed.reference };
   }
 
-  // Validate card payments availability (Stripe not configured → reject early).
+  // Online card payments are hard-rejected: the Stripe Checkout session flow
+  // is not built yet (no session creation, no payments row, no checkout.session
+  // webhook handling), so accepting "card" here would ship goods unpayed once
+  // a key is configured. Revisit when the hosted-payment flow lands.
   if (input.paymentMethod === "card" || input.paymentMethod === "saved-card") {
-    const { STRIPE_SECRET_KEY } = await import("@/server/env");
-    if (!STRIPE_SECRET_KEY) {
-      return { ok: false, reason: "payment_unavailable" };
-    }
+    return { ok: false, reason: "payment_unavailable" };
   }
+
+  // Claim the cart BEFORE reading lines or reserving stock: two parallel
+  // submits (double-click, retry after a dropped response) must not both
+  // build an order from the same cart. checkout_claimed_at (migration 0006)
+  // is the claim marker: NULL → timestamp. The loser polls for the winner's
+  // idempotency record and replays it; a crashed claim is released by the
+  // catch paths below and by the maintenance sweep after 15 minutes.
+  const claimAt = new Date().toISOString();
+  const claim = await db.run(
+    `UPDATE carts SET checkout_claimed_at = ?
+     WHERE id = ? AND status = 'active' AND checkout_claimed_at IS NULL`,
+    [claimAt, input.cartId]
+  );
+  if (claim.changes !== 1) {
+    if (input.idempotencyKey) {
+      for (let i = 0; i < 12; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        const replayed = await replayIdempotent(input.idempotencyKey, requestHash);
+        if (replayed) return { ok: true, summary: replayed, reference: replayed.reference };
+      }
+    }
+    return { ok: false, reason: "cart_processing" };
+  }
+
+  // Every early-return below this point must hand the claim back, or the
+  // customer would need the maintenance sweep to unstick their cart.
+  const releaseClaim = () =>
+    db
+      .run(
+        `UPDATE carts SET checkout_claimed_at = NULL WHERE id = ? AND checkout_claimed_at = ?`,
+        [input.cartId, claimAt]
+      )
+      .catch(() => undefined);
 
   const lines = await getRawLines(input.cartId);
   if (lines.length === 0) {
+    await releaseClaim();
     return { ok: false, reason: "empty_cart" };
   }
 
@@ -392,10 +427,12 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
   }
 
   if (details.length === 0) {
+    await releaseClaim();
     return { ok: false, reason: "empty_cart" };
   }
   const blocked = details.filter((d) => d.blocked);
   if (blocked.length > 0) {
+    await releaseClaim();
     return {
       ok: false,
       reason: "blocked_lines",
@@ -407,6 +444,7 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
   const availability = await availabilityByProductIds(details.map((d) => d.product.id));
   for (const d of details) {
     if ((availability.get(d.product.id) ?? 0) < d.qty) {
+      await releaseClaim();
       return {
         ok: false,
         reason: "out_of_stock",
@@ -434,6 +472,7 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
       email: input.contact.email.trim().toLowerCase(),
     });
     if (!evaluation.ok) {
+      await releaseClaim();
       return { ok: false, reason: "invalid_coupon", detail: evaluation.reason };
     }
     coupon = evaluation;
@@ -445,6 +484,12 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
   const totalFils = Math.max(0, subtotalFils - discountFils + deliveryFeeFils);
   const itemCount = details.reduce((sum, d) => sum + d.qty, 0);
 
+  // Build all statements BEFORE reserving stock so the crash window between
+  // "units reserved" and "batch committed" stays as small as possible.
+  const now = new Date().toISOString();
+  const orderId = newId("ord");
+  const reference = await generateOrderReference();
+
   // Reserve inventory — conditional updates; all-or-nothing.
   const reservations: Array<{ productId: string; qty: number }> = [];
   for (const d of details) {
@@ -455,13 +500,14 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
       [d.qty, new Date().toISOString(), productId, d.qty]
     );
     if (result.changes !== 1) {
-      // Roll back reservations made so far.
+      // Roll back reservations made so far, then hand the cart claim back.
       for (const r of reservations) {
         await db.run(
           `UPDATE inventory SET qty_reserved = MAX(0, qty_reserved - ?), updated_at = ? WHERE product_id = ? AND variant_id = ''`,
           [r.qty, new Date().toISOString(), r.productId]
         );
       }
+      await releaseClaim();
       return {
         ok: false,
         reason: "out_of_stock",
@@ -473,9 +519,6 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
 
   // Persist everything in ONE all-or-nothing batch: order, address, events,
   // items, payment, coupon redemption, cart conversion.
-  const now = new Date().toISOString();
-  const orderId = newId("ord");
-  const reference = await generateOrderReference();
   const status: OrderStatus = "processing"; // COD-first flow: straight to processing
 
   const statements: BatchStatement[] = [
@@ -552,10 +595,24 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
   try {
     // Coupon redemption + event (usage counting = redemption rows).
     if (coupon) {
+      // Conditional insert: the redemption row is only written while the
+      // global usage limit still has room, so two concurrent checkouts can
+      // never push a coupon past its cap (the check-then-act COUNT above
+      // narrows but cannot close this race).
       statements.push({
         sql: `INSERT INTO coupon_redemptions (id, coupon_id, order_id, user_id, at)
-              VALUES (?, ?, ?, ?, ?)`,
-        params: [newId("crd"), coupon.couponId ?? "", orderId, input.userId ?? null, now],
+              SELECT ?, ?, ?, ?, ?
+              WHERE (SELECT COUNT(*) FROM coupon_redemptions WHERE coupon_id = ?)
+                    < COALESCE((SELECT usage_limit FROM coupons WHERE id = ?), 9223372036854775807)`,
+        params: [
+          newId("crd"),
+          coupon.couponId ?? "",
+          orderId,
+          input.userId ?? null,
+          now,
+          coupon.couponId ?? "",
+          coupon.couponId ?? "",
+        ],
       });
       statements.push({
         sql: `INSERT INTO order_events (id, order_id, type, to_status, message, actor, at)
@@ -609,8 +666,8 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
       });
     }
 
-    // Convert the cart.
-    statements.push({ sql: `UPDATE carts SET status = 'converted', updated_at = ? WHERE id = ?`, params: [now, input.cartId] });
+    // Convert the cart (we hold the checkout claim from above).
+    statements.push({ sql: `UPDATE carts SET status = 'converted', checkout_claimed_at = NULL, updated_at = ? WHERE id = ? AND checkout_claimed_at = ?`, params: [now, input.cartId, claimAt] });
     statements.push({ sql: `DELETE FROM cart_items WHERE cart_id = ?`, params: [input.cartId] });
 
     try {
@@ -627,13 +684,20 @@ export async function createOrder(input: CreateOrderInput): Promise<CreateOrderR
       throw error;
     }
   } catch (error) {
-    // Release reservations — the batch failed, so nothing was written.
+    // Release reservations — the batch failed, so nothing was written — and
+    // hand the cart back so the customer can retry.
     for (const r of reservations) {
       await db.run(
         `UPDATE inventory SET qty_reserved = MAX(0, qty_reserved - ?), updated_at = ? WHERE product_id = ? AND variant_id = ''`,
         [r.qty, new Date().toISOString(), r.productId]
       ).catch(() => undefined);
     }
+    await db
+      .run(
+        `UPDATE carts SET checkout_claimed_at = NULL WHERE id = ? AND checkout_claimed_at = ?`,
+        [input.cartId, claimAt]
+      )
+      .catch(() => undefined);
     throw error;
   }
 

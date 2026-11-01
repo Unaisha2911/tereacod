@@ -4,6 +4,7 @@ import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 import { VaporHeroScene } from "@/components/atmosphere/vapor-hero-scene";
+import { MotionBoundary } from "@/components/atmosphere/motion-boundary";
 import { PageContainer } from "@/components/layout/page-container";
 import { staggerContainer, staggerItem } from "@/lib/motion";
 
@@ -30,7 +31,13 @@ export function HeroSection() {
       aria-labelledby="hero-heading"
       className="relative -mt-16 flex min-h-[100svh] items-center overflow-hidden"
     >
-      <VaporHeroScene />
+      {/* MotionBoundary pauses the whole vapor engine once the hero scrolls
+          out of view — 20+ composited/blur layers must not keep animating
+          (GPU memory + scroll compositing) while the visitor is further
+          down the page. */}
+      <MotionBoundary preset="cinematic">
+        <VaporHeroScene />
+      </MotionBoundary>
 
       {/* Legibility scrim — keeps atmosphere visible, text readable */}
       <div

@@ -13,13 +13,16 @@ import {
   TextInput,
 } from "@/components/forms/fields";
 import { LoadingIndicator } from "@/components/shared/loading-indicator";
+import { TurnstileWidget } from "@/components/forms/turnstile-widget";
 import { accountService } from "@/services/account";
 import { mergeCartAfterSignIn } from "@/services/cart";
 import { hydrateSavedItemsFromServer } from "@/services/saved-items";
 
 const signInSchema = z.object({
   email: z.email({ message: "Enter a valid email address." }),
-  password: z.string().min(8, "Password must be at least 8 characters."),
+  // Sign-in only checks presence — the real policy lives server-side; a
+  // legacy password shorter than 10 chars must still be allowed to TRY.
+  password: z.string().min(1, "Enter your password."),
 });
 
 type FieldErrors = Partial<Record<"email" | "password", string>>;
@@ -38,6 +41,7 @@ export function SignInView() {
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
@@ -56,9 +60,10 @@ export function SignInView() {
     setFieldErrors({});
     setSubmitting(true);
     try {
-      const result = await accountService.signIn(parsed.data.email, parsed.data.password);
+      const result = await accountService.signIn(parsed.data.email, parsed.data.password, turnstileToken);
       if (!result.ok) {
         setError(result.message);
+        setTurnstileToken(null);
         return;
       }
       // Sync server state after sign-in: merge the guest cart and load
@@ -69,15 +74,11 @@ export function SignInView() {
       // Same-origin only — a protocol-relative value ("//evil.com") would
       // otherwise push the browser off-site after login.
       const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : null;
-      if (result.emailVerified === false) {
-        // Signed in, but the account still needs the email OTP — route
-        // there before any other destination.
-        router.push(`/account/verify-email?email=${encodeURIComponent(parsed.data.email)}`);
-      } else if (safeNext) {
+      if (safeNext) {
         router.push(safeNext);
-      } else if (result.isStaff && result.consolePath) {
-        // Staff landing: straight into the (secret) console.
-        router.push(result.consolePath);
+      } else if (result.isStaff) {
+        // Unified login: staff land straight in the console at /admin.
+        router.push("/admin");
       } else {
         router.push("/account");
       }
@@ -134,6 +135,8 @@ export function SignInView() {
 
         {error && <FormError>{error}</FormError>}
         {success && <FormSuccess>{success}</FormSuccess>}
+
+        <TurnstileWidget onToken={setTurnstileToken} action="sign-in" />
 
         <button
           type="submit"

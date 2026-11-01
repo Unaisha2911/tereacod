@@ -134,8 +134,39 @@ export async function adminCustomers(query: {
 }
 
 export async function adminCustomer(id: string): Promise<AdminCustomer | null> {
-  const all = await adminCustomers();
-  return all.find((c) => c.id === id) ?? null;
+  // Single indexed lookup — the previous implementation ran the full
+  // adminCustomers() scan (with its four correlated subqueries per user)
+  // and filtered in JS, twice per detail-page request.
+  const db = await getDb();
+  const row = await db.get<{
+    id: string;
+    display_name: string;
+    email: string;
+    status: string;
+    created_at: string;
+    orders_count: number;
+    privacy_request: string | null;
+    tickets_count: number;
+  }>(
+    `SELECT u.id, u.display_name, u.email, u.status, u.created_at,
+            (SELECT COUNT(*) FROM orders o WHERE o.user_id = u.id) AS orders_count,
+            (SELECT kind FROM privacy_requests pr WHERE pr.user_id = u.id AND pr.status != 'completed'
+             ORDER BY pr.requested_at DESC LIMIT 1) AS privacy_request,
+            (SELECT COUNT(*) FROM tickets t WHERE t.user_id = u.id) AS tickets_count
+     FROM users u WHERE u.id = ?`,
+    [id]
+  );
+  if (!row) return null;
+  return {
+    id: row.id,
+    name: row.display_name,
+    email: row.email,
+    status: row.status as AdminCustomer["status"],
+    joinedAt: row.created_at,
+    ordersCount: row.orders_count,
+    privacyRequest: (row.privacy_request as AdminCustomer["privacyRequest"]) ?? null,
+    supportTickets: row.tickets_count,
+  };
 }
 
 export async function setCustomerStatus(

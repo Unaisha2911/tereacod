@@ -329,7 +329,8 @@ async function ensureUser(input: {
       ? await hashPassword(input.password)
       : await unusablePasswordHash();
     // Seeded users are operator-provisioned: their email is vouched for by
-    // the deployment, so the OTP gate must not block their first sign-in.
+    // the deployment, so it is marked verified immediately — accounts are
+    // active with no verification step.
     db.prepare(
       `INSERT INTO users (id, email, password_hash, display_name, phone, status, locale, email_verified_at, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, 'en-AE', ?, ?, ?)`
@@ -347,7 +348,7 @@ async function ensureUser(input: {
   } else {
     console.log(`  = ${input.email} already exists — password left untouched`);
   }
-  // Backfill verification for users seeded before the OTP flow existed.
+  // Backfill verification for users seeded before verification was automatic.
   db.prepare(`UPDATE users SET email_verified_at = ? WHERE id = ? AND email_verified_at IS NULL`).run(now, userId);
   for (const slug of input.roleSlugs ?? []) {
     const role = db.prepare(`SELECT id FROM roles WHERE slug = ?`).get(slug) as { id: string } | undefined;

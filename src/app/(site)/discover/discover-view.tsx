@@ -244,13 +244,24 @@ export function DiscoverView({
         </p>
 
         {sorted.length === 0 ? (
-          <EmptyState
-            icon={PackageSearch}
-            title="Nothing matches these filters"
-            body="Try a different category, widen the availability filter, or clear everything and start again."
-            actionLabel="Clear filters"
-            onAction={resetFilters}
-          />
+          items.length === 0 ? (
+            // The catalog itself is empty — not a filter problem.
+            <EmptyState
+              icon={PackageSearch}
+              title="Our shelf is being restocked"
+              body="The first TEREA drop lands here shortly — check back soon or contact us in the meantime."
+              actionLabel="Contact us"
+              actionHref="/contact"
+            />
+          ) : (
+            <EmptyState
+              icon={PackageSearch}
+              title="Nothing matches these filters"
+              body="Try a different category, widen the availability filter, or clear everything and start again."
+              actionLabel="Clear filters"
+              onAction={resetFilters}
+            />
+          )
         ) : (
           <LoadMoreGrid
             items={visible}

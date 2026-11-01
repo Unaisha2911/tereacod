@@ -35,7 +35,12 @@ export type LocalDb = {
 };
 
 const DB_DIR = path.join(process.cwd(), "db");
-const DB_FILE = path.join(DB_DIR, "tereacod.db");
+// LOCAL_DB_PATH lets scripts/tests point the local driver at a throwaway
+// database file (e.g. a copy in /tmp) without touching the dev store. The
+// Workers runtime never loads this module, so the override is dev-only.
+const DB_FILE = process.env.LOCAL_DB_PATH
+  ? path.resolve(process.env.LOCAL_DB_PATH)
+  : path.join(DB_DIR, "tereacod.db");
 const MIGRATIONS_DIR = path.join(process.cwd(), "migrations");
 
 let instance: SqliteDatabase | null = null;
@@ -105,6 +110,10 @@ async function openRaw(): Promise<SqliteDatabase> {
   const db = await openDatabase(DB_FILE);
   db.exec("PRAGMA journal_mode = WAL;");
   db.exec("PRAGMA foreign_keys = ON;");
+  // The dev server and bun scripts (seed, smoke) share the database file;
+  // without a busy timeout any lock contention surfaces as an immediate
+  // SQLITE_BUSY throw instead of a short, almost-always-successful wait.
+  db.exec("PRAGMA busy_timeout = 5000;");
   instance = db;
   return db;
 }
@@ -186,6 +195,15 @@ export function getLocalDb(): Promise<LocalDb> {
     singleton = handle;
     return handle;
   })();
+
+  // A transient failure (FS hiccup, migration error) must not poison the
+  // cached promise for the lifetime of the process — clear it so the next
+  // caller retries initialization.
+  initPromise.catch(() => {
+    if (initPromise) {
+      initPromise = null;
+    }
+  });
 
   return initPromise;
 }

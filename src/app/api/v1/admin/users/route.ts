@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { withApi, ok, fail, created, ErrorCode } from "@/server/api/guard";
 import { listStaff, adminRoles, adminCreateUser } from "@/server/repos/admin";
+import { PASSWORD_HINT, passwordSchema } from "@/lib/validation";
 
 /** GET /api/v1/admin/users — live staff roster + role catalog. */
 export const GET = withApi({ requirePermission: "staff.manage" }, async () => {
@@ -12,7 +13,9 @@ const createSchema = z
   .object({
     email: z.string().trim().toLowerCase().email("Enter a valid email address."),
     displayName: z.string().trim().min(2, "Display name is too short.").max(80),
-    password: z.string().min(8, "Passwords must be at least 8 characters.").max(128).optional(),
+    // Same policy as self-service register/reset — one source of truth, so
+    // staff accounts cannot be created weaker than customer ones.
+    password: passwordSchema.max(128, PASSWORD_HINT).optional(),
     roleSlug: z.string().trim().max(60).optional(),
     kind: z.enum(["staff", "customer"]),
   })

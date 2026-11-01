@@ -44,24 +44,10 @@ export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days sliding
 export const SESSION_ABSOLUTE_MS = 90 * 24 * 60 * 60 * 1000;
 export const CART_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 export const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
-export const EMAIL_TOKEN_TTL_MS = 15 * 60 * 1000; // 15 minutes (OTP code)
 
-/** 6-digit OTP policy shared by email verification and password reset. */
+/** 6-digit OTP policy (password reset). */
 export const OTP_MAX_ATTEMPTS = 5;
 export const OTP_RESEND_COOLDOWN_MS = 60 * 1000; // 60s between sends
-
-/**
- * Secret staff-console base path (e.g. "manage/c3f17fa2e7c8"). The literal
- * /admin URL is dead — middleware 404s it — so the console is reachable only
- * via this non-guessable path. First segment is a fixed namespace
- * ("manage"); the second segment is the secret. Rotate by changing the env
- * var and restarting (Workers: update the var, redeploy).
- */
-export const ADMIN_ACCESS_PATH = process.env.ADMIN_ACCESS_PATH ?? "manage/c3f17fa2e7c8";
-
-if (IS_PROD && !process.env.ADMIN_ACCESS_PATH) {
-  throw new Error("ADMIN_ACCESS_PATH must be set when APP_ENV=production.");
-}
 
 /** Whether cookies must be marked Secure (HTTPS-only deployments). */
 export const COOKIE_SECURE = IS_PROD;

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
@@ -16,8 +17,10 @@ import {
   TextInput,
 } from "@/components/forms/fields";
 import { LoadingIndicator } from "@/components/shared/loading-indicator";
-import { PrototypeNotice } from "@/components/shared/prototype-notice";
+import { TurnstileWidget } from "@/components/forms/turnstile-widget";
 import { accountService } from "@/services/account";
+import { mergeCartAfterSignIn } from "@/services/cart";
+import { hydrateSavedItemsFromServer } from "@/services/saved-items";
 import { cn } from "@/lib/utils";
 import { PASSWORD_HINT, passwordSchema } from "@/lib/validation";
 
@@ -35,11 +38,11 @@ const registerSchema = z.object({
 type RegisterValues = z.infer<typeof registerSchema>;
 
 export function RegisterView() {
+  const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
-  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
-  const [devCode, setDevCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
 
   const form = useForm<RegisterValues>({
     resolver: zodResolver(registerSchema),
@@ -74,14 +77,26 @@ export function RegisterView() {
         password: values.password,
         displayName: local.length >= 2 ? local : "Customer",
         marketingOptIn: values.productUpdates,
+        researchInvites: values.researchInvites,
+        turnstileToken,
       });
       if (!result.ok) {
         setError(result.message);
+        setTurnstileToken(null);
         return;
       }
-      setSuccess(result.message);
-      setRegisteredEmail(result.email ?? values.email);
-      setDevCode(result.devCode ?? null);
+      // Friction-free signup: the account is active and verified at
+      // creation, so sign the customer in immediately — no OTP detour.
+      const signIn = await accountService.signIn(values.email, values.password, turnstileToken);
+      if (signIn.ok) {
+        await Promise.all([mergeCartAfterSignIn(), hydrateSavedItemsFromServer(true)]);
+        setSuccess(signIn.message);
+        router.push("/account");
+        router.refresh();
+      } else {
+        // Auto sign-in failed (rare) — the account exists; normal path applies.
+        setSuccess("Account created. Sign in to continue.");
+      }
     } catch {
       setError("Registration could not be completed. Please try again.");
     } finally {
@@ -230,6 +245,8 @@ export function RegisterView() {
         {error && <FormError>{error}</FormError>}
         {success && <FormSuccess>{success}</FormSuccess>}
 
+        <TurnstileWidget onToken={setTurnstileToken} action="register" />
+
         <button
           type="submit"
           disabled={submitting}
@@ -243,22 +260,14 @@ export function RegisterView() {
         </button>
 
         {success && (
-          <>
-            {devCode && (
-              <PrototypeNotice>
-                Development mode — email delivery is not configured. Your verification code is{" "}
-                <strong className="font-mono tracking-widest">{devCode}</strong>.
-              </PrototypeNotice>
-            )}
-            <p className="text-center text-sm">
-              <Link
-                href={`/account/verify-email${registeredEmail ? `?email=${encodeURIComponent(registeredEmail)}` : ""}`}
-                className="inline-flex min-h-11 items-center font-medium text-violet-soft underline-offset-4 transition-colors hover:text-foreground hover:underline"
-              >
-                Enter your verification code →
-              </Link>
-            </p>
-          </>
+          <p className="text-center text-sm">
+            <Link
+              href="/account/sign-in"
+              className="inline-flex min-h-11 items-center font-medium text-violet-soft underline-offset-4 transition-colors hover:text-foreground hover:underline"
+            >
+              Go to sign-in →
+            </Link>
+          </p>
         )}
 
         <p className="text-center text-sm text-muted-foreground">

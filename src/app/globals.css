@@ -588,6 +588,16 @@
   }
 }
 
+/* Atmosphere pause — applied by MotionBoundary consumers (hero vapor
+   scene) while their region is off-screen. Freezes every CSS animation
+   and transition inside the subtree so composited blur/blend layers stop
+   burning GPU time with no one watching. */
+.atmosphere-paused,
+.atmosphere-paused * {
+  animation-play-state: paused !important;
+  transition: none !important;
+}
+
 @utility safe-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }

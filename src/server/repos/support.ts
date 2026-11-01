@@ -56,45 +56,90 @@ export async function listTickets(query: TicketQuery = {}): Promise<SupportTicke
   );
   if (rows.length === 0) return [];
 
-  const allMessages = await db.all<{
-    ticket_id: string;
+  // Scope messages/notes to the selected tickets — an unbounded load of the
+  // whole ticket history grows linearly with every request.
+  const ticketIds = rows.map((r) => r.id as string);
+  const messagesByTicket = new Map<string, TicketMessage[]>();
+  const notesByTicket = new Map<string, Array<{ id: string; author: string; body: string; at: string }>>();
+  for (let i = 0; i < ticketIds.length; i += 90) {
+    const chunk = ticketIds.slice(i, i + 90);
+    const placeholders = chunk.map(() => "?").join(",");
+    const messages = await db.all<{
+      ticket_id: string;
+      id: string;
+      author_type: string;
+      author_label: string;
+      body: string;
+      created_at: string;
+    }>(
+      `SELECT ticket_id, id, author_type, author_label, body, created_at FROM ticket_messages
+       WHERE ticket_id IN (${placeholders}) ORDER BY created_at`,
+      chunk
+    );
+    for (const m of messages) {
+      const list = messagesByTicket.get(m.ticket_id) ?? [];
+      list.push({
+        id: m.id,
+        author: m.author_label,
+        role: m.author_type as TicketMessage["role"],
+        body: m.body,
+        at: m.created_at,
+      });
+      messagesByTicket.set(m.ticket_id, list);
+    }
+    const notes = await db.all<{ ticket_id: string; id: string; author_label: string; body: string; created_at: string }>(
+      `SELECT n.ticket_id, n.id, u.display_name AS author_label, n.body, n.created_at
+       FROM ticket_notes n LEFT JOIN users u ON u.id = n.author_id
+       WHERE n.ticket_id IN (${placeholders}) ORDER BY n.created_at`,
+      chunk
+    );
+    for (const n of notes) {
+      const list = notesByTicket.get(n.ticket_id) ?? [];
+      list.push({ id: n.id, author: n.author_label ?? "Staff", body: n.body, at: n.created_at });
+      notesByTicket.set(n.ticket_id, list);
+    }
+  }
+
+  return rows.map((row) => {
+    const ticketId = row.id as string;
+    return mapTicket(row, messagesByTicket.get(ticketId) ?? [], notesByTicket.get(ticketId) ?? []);
+  });
+}
+
+export async function getTicket(idOrReference: string): Promise<SupportTicket | null> {
+  const db = await getDb();
+  const row = await db.get<Record<string, unknown>>(
+    `SELECT * FROM tickets WHERE id = ? OR reference = ?`,
+    [idOrReference, idOrReference]
+  );
+  if (!row) return null;
+  const messages = await db.all<{
     id: string;
     author_type: string;
     author_label: string;
     body: string;
     created_at: string;
   }>(
-    `SELECT ticket_id, id, author_type, author_label, body, created_at FROM ticket_messages
-     ORDER BY created_at`
+    `SELECT id, author_type, author_label, body, created_at FROM ticket_messages
+     WHERE ticket_id = ? ORDER BY created_at`,
+    [row.id as string]
   );
-  const allNotes = await db.all<{ ticket_id: string; id: string; author_label: string; body: string; created_at: string }>(
-    `SELECT n.ticket_id, n.id, u.display_name AS author_label, n.body, n.created_at
+  const notes = await db.all<{ id: string; author_label: string; body: string; created_at: string }>(
+    `SELECT n.id, u.display_name AS author_label, n.body, n.created_at
      FROM ticket_notes n LEFT JOIN users u ON u.id = n.author_id
-     ORDER BY n.created_at`
+     WHERE n.ticket_id = ? ORDER BY n.created_at`,
+    [row.id as string]
   );
-
-  return rows.map((row) => {
-    const ticketId = row.id as string;
-    const messages: TicketMessage[] = allMessages
-      .filter((m) => m.ticket_id === ticketId)
-      .map((m) => ({
-        id: m.id,
-        author: m.author_label,
-        role: m.author_type as TicketMessage["role"],
-        body: m.body,
-        at: m.created_at,
-      }));
-    const notes = allNotes
-      .filter((n) => n.ticket_id === ticketId)
-      .map((n) => ({ id: n.id, author: n.author_label ?? "Staff", body: n.body, at: n.created_at }));
-    return mapTicket(row, messages, notes);
-  });
-}
-
-export async function getTicket(idOrReference: string): Promise<SupportTicket | null> {
-  const tickets = await listTickets();
-  return (
-    tickets.find((t) => t.id === idOrReference || t.reference === idOrReference) ?? null
+  return mapTicket(
+    row,
+    messages.map((m) => ({
+      id: m.id,
+      author: m.author_label,
+      role: m.author_type as TicketMessage["role"],
+      body: m.body,
+      at: m.created_at,
+    })),
+    notes.map((n) => ({ id: n.id, author: n.author_label ?? "Staff", body: n.body, at: n.created_at }))
   );
 }
 

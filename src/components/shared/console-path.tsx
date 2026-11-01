@@ -3,13 +3,11 @@
 import { createContext, useContext } from "react";
 
 /**
- * Client handle for the secret staff-console base path.
+ * Client handle for the staff-console base path ("/admin" — unified login).
  *
- * The base (e.g. "/manage/c3f17fa2e7c8") is injected server-side by the
- * admin layout and MUST NOT be baked into the client bundle as a constant —
- * the context keeps every console link correct while the literal /admin
- * stays dead. Server components use adminBasePath() from @/server/console
- * instead.
+ * The base is injected server-side by the admin layout so console views
+ * share one link builder; server components use adminBasePath() from
+ * @/server/console instead.
  */
 
 export const ConsolePathContext = createContext<string>("/admin");
@@ -19,7 +17,7 @@ export function useConsolePath(): string {
   return useContext(ConsolePathContext);
 }
 
-/** Build a console href: consoleHref("/manage/x", "/orders") → "/manage/x/orders". */
+/** Build a console href: consoleHref("/admin", "/orders") → "/admin/orders". */
 export function consoleHref(base: string, sub: string): string {
   return `${base}${sub.startsWith("/") ? sub : `/${sub}`}`;
 }

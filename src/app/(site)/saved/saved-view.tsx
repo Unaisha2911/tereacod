@@ -11,7 +11,6 @@ import { PrototypeNotice } from "@/components/shared/prototype-notice";
 import { ItemCard } from "@/components/shared/item-card";
 import { savedItemsService, useSavedItems } from "@/services/saved-items";
 import { catalogService } from "@/services/catalog";
-import { ensureCatalog, isCatalogReady } from "@/lib/client-catalog";
 import { useToast } from "@/hooks/use-toast";
 import type { CatalogItem } from "@/types";
 
@@ -35,17 +34,13 @@ export function SavedView() {
     };
   }, []);
 
-  // Saved ids resolve through the catalog service (order preserved);
-  // removals re-filter instantly via idSet below. The mirror only
-  // preloads when a cart has lines — guarantee it is ready first.
+  // Saved ids resolve through the catalog service, which fetches ONLY the
+  // saved products (one small request) — the full-catalog mirror download
+  // is gone. Removals re-filter instantly via idSet below.
   useEffect(() => {
     let cancelled = false;
-    void (async () => {
-      if (!isCatalogReady()) {
-        await ensureCatalog().catch(() => undefined);
-      }
-      return catalogService.itemsByIds(ids);
-    })()
+    void catalogService
+      .itemsByIds(ids)
       .then((items) => {
         if (!cancelled) setResolved(items);
       })

@@ -8,7 +8,6 @@ import { mergeGuestCart } from "@/server/repos/cart";
 import { verifyTurnstile } from "@/server/turnstile";
 import { logAudit } from "@/server/audit";
 import { getUserPermissionSet } from "@/server/rbac";
-import { adminBasePath } from "@/server/console";
 
 const bodySchema = z.object({
   email: z.string().email("Enter a valid email address."),
@@ -80,11 +79,6 @@ export const POST = withApi(
           email: result.user.email,
           displayName: result.user.display_name,
           isStaff: staff,
-          // Unverified accounts are signed in but routed to the OTP
-          // verification screen by the client before reaching /account.
-          emailVerified: result.user.email_verified_at !== null,
-          // Staff-only: secret console path for the post-login redirect.
-          ...(staff ? { consolePath: adminBasePath() } : {}),
         },
       },
     });

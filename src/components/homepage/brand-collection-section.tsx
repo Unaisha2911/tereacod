@@ -20,10 +20,11 @@ const BRAND_ACCENT_TEXT: Record<Brand["accent"], string> = {
  * A full-width LED-framed panel: vapor-lit shop copy on the left
  * and a responsive mini-grid of every stocked brand on the right,
  * each tile linking to its /brand/<slug> landing page with a live
- * product count computed on the server.
+ * product count computed on the server (keyed by brand SLUG — one
+ * cached COUNT query, not a full-catalog pass).
  *
  * Performance: the section only ever needed per-brand counts — it now
- * receives a small Record<brandName, count> instead of the FULL catalog
+ * receives a small Record<brandSlug, count> instead of the FULL catalog
  * array, which used to serialize every product (descriptions, specs,
  * variants) into the client payload just to be counted here.
  */
@@ -34,7 +35,7 @@ export function BrandCollectionSection({ BRANDS, ITEM_COUNTS }: { BRANDS: Brand[
   // Every brand on the wall with its live product count from the catalog.
   const BRAND_WALL = BRANDS.map((brand) => ({
     brand,
-    count: ITEM_COUNTS[brand.name] ?? 0,
+    count: ITEM_COUNTS[brand.slug] ?? 0,
   }));
 
   return (
@@ -121,31 +122,39 @@ export function BrandCollectionSection({ BRANDS, ITEM_COUNTS }: { BRANDS: Brand[
                 </motion.div>
               </motion.div>
 
-              {/* The brand wall — one tile per stocked brand, live catalog counts */}
+              {/* The brand wall — one tile per stocked brand, live catalog counts.
+                  With an empty catalog the wall collapses to a short note instead
+                  of a grid of dead "0 products" tiles. */}
               <RevealSection delay={0.08}>
-                <ul
-                  aria-label="TEREA lines stocked at TereaCOD"
-                  className="grid grid-cols-2 gap-2.5 sm:grid-cols-3"
-                >
-                  {BRAND_WALL.map(({ brand, count }) => (
-                    <li key={brand.slug}>
-                      <Link
-                        href={`/brand/${brand.slug}`}
-                        aria-label={`${brand.name} — ${count} ${count === 1 ? "product" : "products"} listed`}
-                        className="block rounded-xl border border-line bg-foreground/[0.03] px-3 py-2.5 transition-colors hover:border-violet-glow/50 hover:bg-foreground/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-glow/60"
-                      >
-                        <span
-                          className={`block font-neon text-[0.72rem] font-bold uppercase leading-snug ${BRAND_ACCENT_TEXT[brand.accent]}`}
+                {BRAND_WALL.some(({ count }) => count > 0) ? (
+                  <ul
+                    aria-label="TEREA lines stocked at TereaCOD"
+                    className="grid grid-cols-2 gap-2.5 sm:grid-cols-3"
+                  >
+                    {BRAND_WALL.map(({ brand, count }) => (
+                      <li key={brand.slug}>
+                        <Link
+                          href={`/brand/${brand.slug}`}
+                          aria-label={`${brand.name} — ${count} ${count === 1 ? "product" : "products"} listed`}
+                          className="block rounded-xl border border-line bg-foreground/[0.03] px-3 py-2.5 transition-colors hover:border-violet-glow/50 hover:bg-foreground/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-glow/60"
                         >
-                          {brand.name}
-                        </span>
-                        <span className="mt-0.5 block text-[0.68rem] text-muted-foreground">
-                          {count} {count === 1 ? "product" : "products"}
-                        </span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
+                          <span
+                            className={`block font-neon text-[0.72rem] font-bold uppercase leading-snug ${BRAND_ACCENT_TEXT[brand.accent]}`}
+                          >
+                            {brand.name}
+                          </span>
+                          <span className="mt-0.5 block text-[0.68rem] text-muted-foreground">
+                            {count} {count === 1 ? "product" : "products"}
+                          </span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="rounded-xl border border-dashed border-line-strong bg-foreground/[0.02] px-4 py-6 text-center text-sm text-muted-foreground">
+                    Stock and product counts appear here as soon as the first drop lands.
+                  </p>
+                )}
               </RevealSection>
             </div>
           </div>

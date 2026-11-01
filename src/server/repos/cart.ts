@@ -94,6 +94,33 @@ export async function getActiveCart(token: string | null, userId: string | null)
   return null;
 }
 
+/**
+ * Most recent converted cart for this guest token / user. Used by the
+ * checkout route to probe idempotency replay after a dropped response —
+ * the cart is already converted, but the client never saw the 201.
+ */
+export async function findLatestConvertedCart(token: string | null, userId: string | null): Promise<CartRow | null> {
+  const db = await getDb();
+  if (token) {
+    const byToken = await db.get<CartRow>(
+      `SELECT id, token, user_id, status FROM carts
+       WHERE token = ? AND status = 'converted' AND (user_id IS NULL OR user_id = ?)
+       ORDER BY updated_at DESC LIMIT 1`,
+      [token, userId]
+    );
+    if (byToken) return byToken;
+  }
+  if (userId) {
+    return db.get<CartRow>(
+      `SELECT id, token, user_id, status FROM carts
+       WHERE user_id = ? AND status = 'converted'
+       ORDER BY updated_at DESC LIMIT 1`,
+      [userId]
+    );
+  }
+  return null;
+}
+
 export async function touchCart(cartId: string): Promise<void> {
   const now = new Date().toISOString();
   // Sliding expiry: an actively-used cart must not be swept at its original

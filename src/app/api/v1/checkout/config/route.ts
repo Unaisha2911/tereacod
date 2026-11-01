@@ -1,7 +1,6 @@
 import { withApi, ok } from "@/server/api/guard";
 import { getDeliveryConfig } from "@/server/repos/settings";
 import { DELIVERY_METHOD_LABELS } from "@/server/repos/cart";
-import { STRIPE_SECRET_KEY } from "@/server/env";
 
 /** GET /api/v1/checkout/config — delivery fees, payment availability. */
 export const GET = withApi({}, async () => {
@@ -17,7 +16,11 @@ export const GET = withApi({}, async () => {
     payments: {
       cashOnDelivery: true,
       cardOnDelivery: true,
-      cardOnline: Boolean(STRIPE_SECRET_KEY),
+      // Online card is disabled until the Stripe Checkout session flow exists
+      // (session creation + payments row + checkout.session webhook). Flip to
+      // Boolean(STRIPE_SECRET_KEY) only when that path is complete — creating
+      // an order without a payment record would ship goods unpayed.
+      cardOnline: false,
     },
   });
 });

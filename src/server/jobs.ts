@@ -63,9 +63,32 @@ async function processEmailSend(payload: EmailPayload): Promise<void> {
       text: payload.text,
       ...(payload.replyTo ? { reply_to: payload.replyTo } : {}),
     }),
+    // A hung Resend call must not stall the serial drain for the whole
+    // waitUntil window — 15s is generous for an API round trip.
+    signal: AbortSignal.timeout(15_000),
   });
   if (!response.ok) {
     throw new Error(`Resend send failed (${response.status})`);
+  }
+}
+
+/**
+ * Redact a processed email payload: OTP codes, reset links and order contents
+ * live in the body text — once the job is terminal the body must not sit in
+ * the database in plaintext (the token tables themselves only store hashes).
+ */
+function redactEmailPayload(payloadJson: string): string {
+  try {
+    const payload = JSON.parse(payloadJson) as Partial<EmailPayload>;
+    return JSON.stringify({
+      to: payload.to,
+      subject: payload.subject,
+      replyTo: payload.replyTo,
+      notifyOps: payload.notifyOps,
+      text: "[redacted after processing]",
+    });
+  } catch {
+    return JSON.stringify({ text: "[redacted after processing]" });
   }
 }
 
@@ -113,8 +136,9 @@ export async function drainJobs(): Promise<void> {
       if (claimed.changes !== 1) continue;
       try {
         await runJob(job.type as JobType, job.payload_json);
-        await db.run(`UPDATE job_queue SET status = 'done', processed_at = ? WHERE id = ?`, [
+        await db.run(`UPDATE job_queue SET status = 'done', processed_at = ?, payload_json = ? WHERE id = ?`, [
           new Date().toISOString(),
+          job.type === "email.send" ? redactEmailPayload(job.payload_json) : job.payload_json,
           job.id,
         ]);
       } catch (error) {
@@ -123,18 +147,25 @@ export async function drainJobs(): Promise<void> {
           [job.id]
         );
         const nextAttempts = (attempts?.attempts ?? 0) + 1;
+        const terminal = nextAttempts >= 3;
         await db
           .run(
-            `UPDATE job_queue SET attempts = ?, status = ?, error = ?, processed_at = ? WHERE id = ?`,
+            `UPDATE job_queue SET attempts = ?, status = ?, error = ?, processed_at = ?, payload_json = ? WHERE id = ?`,
             [
               nextAttempts,
-              nextAttempts >= 3 ? "failed" : "pending",
+              terminal ? "failed" : "pending",
               (error as Error).message,
               new Date().toISOString(),
+              terminal && job.type === "email.send" ? redactEmailPayload(job.payload_json) : job.payload_json,
               job.id,
             ]
           )
           .catch(() => undefined);
+        if (terminal) {
+          // Terminal email failure must never be silent — this is the only
+          // signal (no DLQ/metrics yet) that the email pipeline is stuck.
+          console.error(`[jobs] email.send failed permanently: id=${job.id} subject=${String((JSON.parse(job.payload_json) as Partial<EmailPayload>)?.subject ?? "?")}`);
+        }
       }
     }
   } finally {

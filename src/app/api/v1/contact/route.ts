@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { withApi, ok } from "@/server/api/guard";
+import { withApi, ok, fail, ErrorCode } from "@/server/api/guard";
 import { createTicket } from "@/server/repos/support";
 import { enqueue } from "@/server/jobs";
 import { verifyTurnstile } from "@/server/turnstile";
@@ -21,7 +21,9 @@ export const POST = withApi(
 
     const bot = await verifyTurnstile(body.turnstileToken, meta.ip ?? undefined);
     if (!bot) {
-      return ok({ received: false, message: "Captcha verification failed — please try again." });
+      // Error envelope (4xx), not a 200 with received:false — the client
+      // contract is "error ⇒ non-2xx" and the form surfaces result.message.
+      return fail(400, ErrorCode.VALIDATION_FAILED, "Captcha verification failed — please try again.");
     }
 
     const categoryMap: Record<string, string> = {

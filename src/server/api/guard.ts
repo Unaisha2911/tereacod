@@ -128,6 +128,11 @@ export function withApi(options: WithApiOptions, handler: Handler) {
           requestId,
         });
       }
+      // `await request.json()` on a malformed body throws SyntaxError — a
+      // client mistake, not a server fault. 400 beats a logged 500.
+      if (error instanceof SyntaxError) {
+        return fail(400, ErrorCode.VALIDATION_FAILED, "The request body is not valid JSON.", { requestId });
+      }
       console.error(`[api] ${request.method} ${new URL(request.url).pathname} failed:`, error);
       return fail(500, ErrorCode.INTERNAL, "Something went wrong on our side.", { requestId });
     }

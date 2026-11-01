@@ -6,7 +6,7 @@ import {
   variantPriceDeltaTotal,
 } from "@/lib/variant-selection";
 import {
-  ensureCatalog,
+  ensureCatalogSubset,
   findInCatalog,
   isCatalogLoaded,
 } from "@/lib/client-catalog";
@@ -178,13 +178,28 @@ export async function hydrateCartFromServer(): Promise<void> {
       const body = (await response.json()) as CartApiResponse;
       const lines = Array.isArray(body.data?.lines) ? body.data.lines : [];
       hasLines = lines.length > 0;
-      useCart.getState().setLines(lines);
+      // Union-merge instead of replace: a quick-add in the first few hundred
+      // milliseconds (optimistic store write) must not be clobbered by an
+      // in-flight GET that started before the POST committed. Any line that
+      // was legitimately removed elsewhere gets reconciled on the next
+      // mutation, which always rewrites from the server response.
+      const local = useCart.getState().lines;
+      if (local.length > 0) {
+        const serverKeys = new Set(lines.map((l) => cartLineKey(l.productSlug, l.variantId)));
+        const localOnly = local.filter((l) => !serverKeys.has(cartLineKey(l.productSlug, l.variantId)));
+        useCart.getState().setLines([...lines, ...localOnly]);
+      } else {
+        useCart.getState().setLines(lines);
+      }
     }
     // The mirror is ONLY needed to derive line details (names, variants,
-    // prices) for display. An empty cart — every fresh visitor — skips the
-    // whole catalog download instead of paying for it on every page load.
-    // Non-blocking either way: line arrays are already rendered.
-    if (hasLines) void ensureCatalog().catch(() => undefined);
+    // prices) for display — and now loads JUST the cart's slugs (one small
+    // request) instead of paging the whole catalog. An empty cart — every
+    // fresh visitor — skips even that.
+    if (hasLines) {
+      const slugs = [...new Set(useCart.getState().lines.map((l) => l.productSlug))];
+      void ensureCatalogSubset({ slugs }).catch(() => undefined);
+    }
   } catch {
     // Offline or API unavailable — keep whatever the store has.
   } finally {

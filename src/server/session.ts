@@ -74,7 +74,6 @@ export interface CurrentUser {
   phone: string | null;
   status: string;
   locale: string;
-  emailVerified: boolean;
   dateOfBirth: string | null;
   createdAt: string;
 }
@@ -161,13 +160,12 @@ export async function findSessionByToken(token: string): Promise<{
     phone: string | null;
     status: string;
     locale: string;
-    email_verified_at: string | null;
     date_of_birth: string | null;
     created_at: string;
   }>(
     `SELECT s.id, s.user_id, s.created_at AS session_created_at, s.expires_at, s.last_seen_at, s.revoked_at,
             u.email, u.display_name, u.phone, u.status, u.locale,
-            u.email_verified_at, u.date_of_birth, u.created_at
+            u.date_of_birth, u.created_at
      FROM sessions s JOIN users u ON u.id = s.user_id
      WHERE s.token_hash = ?`,
     [tokenHash]
@@ -191,7 +189,6 @@ export async function findSessionByToken(token: string): Promise<{
       phone: row.phone,
       status: row.status,
       locale: row.locale,
-      emailVerified: row.email_verified_at !== null,
       dateOfBirth: row.date_of_birth,
       createdAt: row.created_at,
     },

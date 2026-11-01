@@ -5,11 +5,37 @@ import { useAuth } from "@/services/account";
 /**
  * SAVED-ITEMS STORE (API-backed for signed-in users)
  * --------------------------------------------------
- * Guests: local-only store (honest — nothing authoritative in the browser).
- * Signed-in: every toggle/remove mirrors to /api/v1/account/saved and the
- * list is hydrated from the server at bootstrap. The optimistic store keeps
- * badges and card hearts instant.
+ * Guests: local store persisted to sessionStorage — the list survives a
+ * reload on this device/tab (matching the promise made on /saved) and is
+ * pushed to the account at sign-in. Signed-in: every toggle/remove mirrors
+ * to /api/v1/account/saved and the list is hydrated from the server at
+ * bootstrap. The optimistic store keeps badges and card hearts instant.
  */
+
+const GUEST_SAVED_KEY = "tereacod.saved.v1";
+
+function persistSaved(items: SavedItem[]): void {
+  try {
+    sessionStorage.setItem(GUEST_SAVED_KEY, JSON.stringify(items));
+  } catch {
+    // Private mode / quota — persistence is best-effort.
+  }
+}
+
+function loadPersistedSaved(): SavedItem[] {
+  try {
+    const raw = sessionStorage.getItem(GUEST_SAVED_KEY);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (i): i is SavedItem =>
+        Boolean(i) && typeof (i as SavedItem).itemId === "string" && typeof (i as SavedItem).savedAt === "string"
+    );
+  } catch {
+    return [];
+  }
+}
 
 interface SavedItemsState {
   items: SavedItem[];
@@ -23,7 +49,7 @@ interface SavedItemsState {
 }
 
 export const useSavedItems = create<SavedItemsState>((set, get) => ({
-  items: [],
+  items: loadPersistedSaved(),
   hydrated: false,
   has: (itemId) => get().items.some((i) => i.itemId === itemId),
   toggle: (itemId) => {
@@ -33,15 +59,25 @@ export const useSavedItems = create<SavedItemsState>((set, get) => ({
         ? state.items.filter((i) => i.itemId !== itemId)
         : [...state.items, { itemId, savedAt: new Date().toISOString() }],
     }));
+    persistSaved(get().items);
     void syncToggle(itemId, exists);
     return exists ? "removed" : "added";
   },
   remove: (itemId) => {
     set((state) => ({ items: state.items.filter((i) => i.itemId !== itemId) }));
+    persistSaved(get().items);
     void syncToggle(itemId, true);
   },
-  clear: () => set({ items: [] }),
-  setItems: (items) => set({ items }),
+  clear: () => {
+    set({ items: [] });
+    persistSaved([]);
+  },
+  setItems: (items) => {
+    set({ items });
+    // Keep the session mirror in step (sign-out writes [] here, which
+    // wipes the previous session's list on a shared browser).
+    persistSaved(items);
+  },
   setHydrated: () => set({ hydrated: true }),
 }));
 

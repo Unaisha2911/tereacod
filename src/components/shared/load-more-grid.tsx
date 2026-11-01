@@ -24,6 +24,7 @@ export function LoadMoreGrid({
   emptyTitle = "No items found",
   emptyBody = "Try adjusting your filters or search terms.",
   loadMoreLabel = "Load more products",
+  pageSize = 16,
   className,
 }: {
   /** Items currently visible in the grid. */
@@ -40,6 +41,8 @@ export function LoadMoreGrid({
   emptyTitle?: string;
   emptyBody?: string;
   loadMoreLabel?: string;
+  /** Batch size the caller reveals per load — keeps the +N badge honest. */
+  pageSize?: number;
   className?: string;
 }) {
   const remaining = Math.max(0, total - items.length);
@@ -70,7 +73,7 @@ export function LoadMoreGrid({
             )}
             {loading ? "Loading…" : loadMoreLabel}
             <span className="rounded-full bg-violet-glow/15 px-2.5 py-0.5 text-[0.72rem] font-semibold text-violet-soft">
-              +{Math.min(16, remaining)}
+              +{Math.min(pageSize, remaining)}
             </span>
           </button>
           <p aria-live="polite" className="text-[0.78rem] text-muted-foreground">

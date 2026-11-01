@@ -10,7 +10,6 @@ import {
   Gauge,
   IdCard,
   LifeBuoy,
-  MailCheck,
   ShieldCheck,
   SlidersHorizontal,
 } from "lucide-react";
@@ -58,7 +57,6 @@ export function OverviewView() {
   // the server snapshot renders a neutral fallback, so markup matches.
   const greeting = useSyncExternalStore(emptySubscribe, () => greetingForHour(new Date().getHours()), () => null);
   const isStaff = useAuth((s) => s.isStaff);
-  const consolePath = useAuth((s) => s.consolePath);
   const [orders, setOrders] = useState<OrdersState>({ state: "loading" });
   const [retryCount, setRetryCount] = useState(0);
   const [profile, setProfile] = useState<ProfileState>({ state: "loading" });
@@ -138,14 +136,10 @@ export function OverviewView() {
   const user = profile.profile;
   const firstName = user.displayName.split(" ")[0];
 
-  // Contextual quick links: email verification only while unverified, the
-  // secret staff console only for staff sessions (the path comes from the
-  // session API — it is never hardcoded in the client bundle).
+  // Contextual quick links: the staff console for staff sessions — one
+  // unified login sends staff straight to /admin.
   const contextualLinks = [
-    ...(user.verification !== "verified"
-      ? [{ href: "/account/verify-email", label: "Verify email", icon: MailCheck }]
-      : []),
-    ...(isStaff && consolePath ? [{ href: consolePath, label: "Staff console", icon: Gauge }] : []),
+    ...(isStaff ? [{ href: "/admin", label: "Staff console", icon: Gauge }] : []),
   ];
 
   return (
