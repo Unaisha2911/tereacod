@@ -43,7 +43,7 @@ export const LEGAL_DOCUMENTS: LegalDocument[] = [
         id: "delivery",
         heading: "3. Delivery",
         paragraphs: [
-          "We deliver to all seven Emirates. Standard delivery completes within two to four business days of confirmation and is free on orders of AED 200 or more (AED 25 below that). Express next-day delivery is available where coverage allows, for AED 35.",
+          "We deliver to all seven Emirates — most orders arrive within 1 hour of confirmation in Dubai and the same day across the other Emirates. Standard delivery is free on orders of AED 300 or more (AED 25 below that); express next-day delivery is available where coverage allows, for AED 35.",
           "The courier will call before arrival and verify a valid Emirates ID at the door. If the person receiving the order cannot prove they are 18 or over, the delivery is not handed over and is returned to us; we will contact you to rearrange.",
         ],
       },

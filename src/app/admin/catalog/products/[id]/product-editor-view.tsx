@@ -37,7 +37,7 @@ import { FormField, Select, TextArea, TextInput } from "@/components/forms/field
 import { COUNTRIES } from "@/data/countries";
 import { ORIGIN_LINES } from "@/lib/catalog-origin";
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
+import { cn, formatAED } from "@/lib/utils";
 import type {
   AdminProductDetail,
   AdminProductDocument,
@@ -67,7 +67,17 @@ const AVAILABILITY_OPTIONS: Array<{ value: Availability; label: string }> = [
   { value: "unavailable", label: "Unavailable (editorial)" },
 ];
 
-/** Editor working state — variants carry a raw delta input for smooth typing. */
+/**
+ * Editor working state — variants carry a STRAIGHT (final) price input.
+ *
+ * The storefront prices any configuration as `base price + Σ price deltas`,
+ * so the editor lets the admin type each option's final price and derives
+ * the delta (`variant price − base price`) at save time. An EMPTY field
+ * means "same as the base price" (delta 0) — those options follow the base
+ * when it changes, while a filled field pins that option's price even if
+ * the base price moves. This is the "admin sets real prices" mental model
+ * while keeping the delta contract intact downstream.
+ */
 interface VariantRow {
   /** DB id, or a `new_` prefix for rows created in this session (not yet saved). */
   id: string;
@@ -75,7 +85,8 @@ interface VariantRow {
   type: AdminProductDetail["variants"][number]["type"];
   swatch: string | null;
   available: boolean;
-  deltaInput: string;
+  /** Final price in AED as typed. Empty = same as the base price (Δ0). */
+  priceInput: string;
   /** Per-variant gallery photo (colour/origin imagery). */
   imageMediaId: string | null;
   imageUrl: string | null;
@@ -143,7 +154,9 @@ function buildState(detail: AdminProductDetail): EditorState {
       type: v.type,
       swatch: v.swatch,
       available: v.available,
-      deltaInput: String(v.priceDeltaCents / 100),
+      // Δ0 rows render empty — they follow the base price, so a stale
+      // number in the input would lie after a base-price change.
+      priceInput: v.priceDeltaCents === 0 ? "" : String((detail.priceCents + v.priceDeltaCents) / 100),
       imageMediaId: v.imageMediaId,
       imageUrl: v.imageUrl,
     })),
@@ -237,14 +250,16 @@ export function ProductEditorView({ detail }: { detail: AdminProductDetail }) {
     }
     const restockQty = parsedStock === null ? undefined : Math.max(0, Math.round(parsedStock));
 
-    // Variant price deltas: a cleared field keeps the variant's ORIGINAL delta
-    // (empty used to silently become 0); anything typed must parse.
+    // Variant prices are typed as FINAL prices — anything typed must parse
+    // to a non-negative amount; an empty field means "same as base price".
     for (const v of state.variants) {
-      if (v.deltaInput.trim() !== "" && toCents(v.deltaInput) === null) {
+      if (v.priceInput.trim() === "") continue;
+      const cents = toCents(v.priceInput);
+      if (cents === null || cents < 0) {
         toast({
           variant: "destructive",
-          title: "Invalid variant price delta",
-          description: `Variant ${v.label} needs a valid price delta or empty to keep current.`,
+          title: "Invalid variant price",
+          description: `Variant ${v.label || "(unnamed)"} needs a valid price of 0 or more, or an empty field to use the base price.`,
         });
         return null;
       }
@@ -299,13 +314,13 @@ export function ProductEditorView({ detail }: { detail: AdminProductDetail }) {
         .filter((v) => !v.id.startsWith("new_"))
         .map((v) => {
           const original = detail.variants.find((dv) => dv.id === v.id);
+          // delta = final price − base price. Empty input = same as the base
+          // price (Δ0) — the option follows future base-price changes.
           const update: NonNullable<AdminProductPatch["variantUpdates"]>[number] = {
             id: v.id,
             available: v.available,
             priceDeltaCents:
-              v.deltaInput.trim() === ""
-                ? (original?.priceDeltaCents ?? 0)
-                : (toCents(v.deltaInput) ?? 0),
+              v.priceInput.trim() === "" ? 0 : (toCents(v.priceInput) ?? 0) - (priceCents ?? 0),
           };
           // Swatch/label/photo writes are colour/origin-only — flavour and
           // option rows keep their stored values (their ids live in carts).
@@ -327,7 +342,9 @@ export function ProductEditorView({ detail }: { detail: AdminProductDetail }) {
           label: v.label.trim(),
           swatch: v.type === "color" ? v.swatch : null,
           available: v.available,
-          priceDeltaCents: v.deltaInput.trim() === "" ? 0 : (toCents(v.deltaInput) ?? 0),
+          // Empty price on a brand-new row = same price as the base product.
+          priceDeltaCents:
+            v.priceInput.trim() === "" ? 0 : (toCents(v.priceInput) ?? 0) - (priceCents ?? 0),
           imageMediaId: v.imageMediaId,
         })),
       variantDeletes: state.deletedVariantIds.length > 0 ? state.deletedVariantIds : undefined,
@@ -453,6 +470,20 @@ export function ProductEditorView({ detail }: { detail: AdminProductDetail }) {
   const patchVariant = (id: string, p: Partial<VariantRow>) =>
     patch({ variants: state.variants.map((v) => (v.id === id ? { ...v, ...p } : v)) });
 
+  /** Live "= base ± X" hint for a variant's final-price input. Derived from
+   *  the CURRENT base price so re-typing the base re-prices every pinned row
+   *  without touching the variant inputs themselves. */
+  const priceHintFor = (variant: VariantRow): string | undefined => {
+    const baseCents = toCents(state.price);
+    if (baseCents === null) return undefined;
+    if (variant.priceInput.trim() === "") return "Same as base price";
+    const variantCents = toCents(variant.priceInput);
+    if (variantCents === null) return undefined;
+    const delta = variantCents - baseCents;
+    if (delta === 0) return "Same as base price";
+    return `= base ${formatAED(baseCents / 100)} ${delta > 0 ? "+" : "−"} ${formatAED(Math.abs(delta) / 100)}`;
+  };
+
   /* --------------------- colour/origin variant editing --------------------- */
 
   const draftCounter = useRef(0);
@@ -467,7 +498,7 @@ export function ProductEditorView({ detail }: { detail: AdminProductDetail }) {
           type,
           swatch: type === "color" ? "#7c3aed" : null,
           available: true,
-          deltaInput: "",
+          priceInput: "",
           imageMediaId: null,
           imageUrl: null,
         },
@@ -535,13 +566,15 @@ export function ProductEditorView({ detail }: { detail: AdminProductDetail }) {
               list={variant.type === "origin" ? "vap-origin-countries" : undefined}
             />
           </FormField>
-          <FormField label="Price delta (AED)" htmlFor={`${variant.id}-delta`}>
+          <FormField label="Price (AED)" htmlFor={`${variant.id}-price`} hint={priceHintFor(variant)}>
             <TextInput
-              id={`${variant.id}-delta`}
+              id={`${variant.id}-price`}
               type="number"
+              min={0}
               step="0.01"
-              value={variant.deltaInput}
-              onChange={(e) => patchVariant(variant.id, { deltaInput: e.target.value })}
+              placeholder="Base price"
+              value={variant.priceInput}
+              onChange={(e) => patchVariant(variant.id, { priceInput: e.target.value })}
             />
           </FormField>
           <div className="flex h-11 items-center gap-2">
@@ -758,7 +791,7 @@ export function ProductEditorView({ detail }: { detail: AdminProductDetail }) {
                 carts and orders, so they stay UPDATE-only. */}
             <FormSection
               title="Flavours & options (updates only)"
-              description="Carts and orders reference these variant ids, so rows cannot be added or removed here — toggle availability and adjust the price delta, then save."
+              description="Carts and orders reference these variant ids, so rows cannot be added or removed here — toggle availability and set the final price, then save."
             >
               <div className="space-y-2.5">
                 {lockedVariants.length === 0 && (
@@ -799,13 +832,15 @@ export function ProductEditorView({ detail }: { detail: AdminProductDetail }) {
                       />
                       <span className="text-[0.76rem] text-muted-foreground">{variant.available ? "Available" : "Hidden"}</span>
                     </div>
-                    <FormField label="Price delta (AED)" htmlFor={`${variant.id}-delta`}>
+                    <FormField label="Price (AED)" htmlFor={`${variant.id}-price`} hint={priceHintFor(variant)}>
                       <TextInput
-                        id={`${variant.id}-delta`}
+                        id={`${variant.id}-price`}
                         type="number"
+                        min={0}
                         step="0.01"
-                        value={variant.deltaInput}
-                        onChange={(e) => patchVariant(variant.id, { deltaInput: e.target.value })}
+                        placeholder="Base price"
+                        value={variant.priceInput}
+                        onChange={(e) => patchVariant(variant.id, { priceInput: e.target.value })}
                       />
                     </FormField>
                     <p className="hidden text-[0.72rem] text-muted-foreground sm:block" aria-hidden="true">
@@ -1284,7 +1319,12 @@ export function ProductEditorView({ detail }: { detail: AdminProductDetail }) {
 
           <section className="space-y-3.5 rounded-2xl border border-line bg-elevated/50 p-5">
             <h2 className="font-display text-[1rem] font-semibold text-foreground">Pricing &amp; flags</h2>
-            <FormField label="Price (AED)" htmlFor="p-price" error={priceError ?? undefined}>
+            <FormField
+              label="Price (AED)"
+              htmlFor="p-price"
+              error={priceError ?? undefined}
+              hint="Base price of the default configuration. Options on the Variants tab set their own final price."
+            >
               <TextInput
                 id="p-price"
                 type="number"

@@ -759,7 +759,7 @@ async function sha(value: string): Promise<string> {
 function buildFulfilmentLabel(method: DeliveryMethod): string {
   return method === "express"
     ? "Express delivery · Arrives next day"
-    : "Standard delivery · Arrives in 2–4 days";
+    : "Standard delivery · 1-hour in Dubai, same-day UAE-wide";
 }
 
 /* ------------------------------ order mapping ------------------------------ */

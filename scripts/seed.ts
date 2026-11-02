@@ -176,7 +176,7 @@ const kv = db.prepare(
 kv.run("settings:site", JSON.stringify(SITE_SETTINGS), now);
 kv.run(
   "settings:delivery",
-  JSON.stringify({ freeThresholdFils: 20000, standardFeeFils: 2500, expressFeeFils: 3500 }),
+  JSON.stringify({ freeThresholdFils: 30000, standardFeeFils: 2500, expressFeeFils: 3500 }),
   now
 );
 kv.run("settings:features", JSON.stringify({ maintenance: false, checkoutEnabled: true }), now);

@@ -122,14 +122,14 @@ export const FAQS: FaqEntry[] = [
     category: "Orders",
     question: "How long does delivery take?",
     answer:
-      "Standard delivery completes within two to four business days anywhere in the UAE, and express next-day delivery is available where coverage allows. A valid Emirates ID check is completed at the door, as required for nicotine products.",
+      "Most orders arrive within 1 hour in our Dubai delivery zone and the same day across the rest of the UAE. A valid Emirates ID check is completed at the door, as required for nicotine products.",
   },
   {
     id: "delivery-fees",
     category: "Orders",
     question: "What does delivery cost?",
     answer:
-      "Standard delivery is free on orders of AED 200 or more and AED 25 below that, across all seven Emirates. Express next-day delivery — where available — is AED 35. The cart and checkout show the exact fee for your order before you confirm.",
+      "Standard delivery is free on orders of AED 300 or more and AED 25 below that, across all seven Emirates. Express next-day delivery — where available — is AED 35. The cart and checkout show the exact fee for your order before you confirm.",
   },
   {
     id: "payment-methods",

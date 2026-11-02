@@ -13,9 +13,9 @@ import { SITE_ORIGIN, JsonLd, organizationJsonLd, websiteJsonLd } from "@/lib/se
 const BRAND = {
   name: "TereaCOD",
   legalName: "TereaCOD Trading L.L.C.",
-  tagline: "TEREA delivery across the UAE — cash & card on delivery",
+  tagline: "TEREA delivery across the UAE — free delivery at AED 300+, 1-hour delivery, cash or card on delivery",
   description:
-    "TereaCOD.ae is the UAE's TEREA delivery specialist. Order authentic TEREA heated tobacco sticks for IQOS ILUMA online with transparent AED pricing, age-verified UAE-wide delivery and same-day dispatch from Dubai — pay by cash or card on delivery.",
+    "TereaCOD.ae is the UAE's TEREA delivery specialist. Order authentic TEREA heated tobacco sticks for IQOS ILUMA online with transparent AED pricing, free delivery at AED 300+, 1-hour delivery from Dubai and age-verified UAE-wide delivery — pay by cash or card on delivery.",
 } as const;
 
 const inter = Inter({

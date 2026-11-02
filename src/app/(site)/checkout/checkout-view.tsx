@@ -24,6 +24,7 @@ import {
   TextInput,
 } from "@/components/forms/fields";
 import { cartService, deliveryFeeFor, useCart } from "@/services/cart";
+import { USP_LINE } from "@/lib/usp";
 import { useCatalogReady } from "@/lib/client-catalog";
 import {
   DEFAULT_DELIVERY_CONFIG,
@@ -694,6 +695,10 @@ export function CheckoutView() {
                 <dd className="font-display text-xl font-bold text-foreground">{formatAED(total)}</dd>
               </div>
             </dl>
+
+            <p className="mt-3 text-[0.72rem] leading-relaxed text-muted-foreground">
+              {USP_LINE}
+            </p>
 
             {submitError && (
               <div className="mt-4">

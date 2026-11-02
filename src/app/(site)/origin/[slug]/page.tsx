@@ -9,6 +9,7 @@ import { toCardItems } from "@/lib/catalog-card";
 import { SeoContent } from "@/components/shared/seo-content";
 import { getProducts } from "@/server/data";
 import { ORIGIN_LINES, originLineBySlug, originLineForItem } from "@/lib/catalog-origin";
+import { USP_FREE_DELIVERY, USP_ONE_HOUR_DELIVERY, USP_PAYMENT } from "@/lib/usp";
 import { breadcrumbJsonLd, canonical, itemListJsonLd, JsonLd, siteUrl } from "@/lib/seo";
 
 interface OriginPageProps {
@@ -100,10 +101,13 @@ export default async function OriginPage({ params }: OriginPageProps) {
               {items.length} {items.length === 1 ? "flavour" : "flavours"}
             </span>
             <span className="inline-flex min-h-9 items-center rounded-full border border-line bg-elevated/45 px-3.5 text-[0.8rem] text-muted-foreground">
-              UAE-wide delivery
+              {USP_FREE_DELIVERY}
             </span>
             <span className="inline-flex min-h-9 items-center rounded-full border border-line bg-elevated/45 px-3.5 text-[0.8rem] text-muted-foreground">
-              Cash or card on delivery
+              {USP_ONE_HOUR_DELIVERY}
+            </span>
+            <span className="inline-flex min-h-9 items-center rounded-full border border-line bg-elevated/45 px-3.5 text-[0.8rem] text-muted-foreground">
+              {USP_PAYMENT}
             </span>
           </div>
           {/* Cross-navigation between origin landing pages. */}
@@ -132,23 +136,11 @@ export default async function OriginPage({ params }: OriginPageProps) {
         <SeoContent
           title={`TEREA ${line.label} — delivery, pricing and the full flavour list`}
           blocks={line.seoBlocks}
-          links={[
-            ...otherLines.map((other) => ({
-              label: `TEREA ${other.flag} ${other.chipLabel} sticks`,
-              href: `/origin/${other.slug}`,
-              description: `Compare against the ${line.chipLabel} line with UAE delivery.`,
-            })),
-            {
-              label: "Heat-not-burn collection",
-              href: "/collections/heat-not-burn",
-              description: "The full TEREA shelf with an origin filter.",
-            },
-            {
-              label: "Delivery & payment FAQ",
-              href: "/help/faq",
-              description: "Cut-off times, COD rules and age verification.",
-            },
-          ]}
+          links={otherLines.map((other) => ({
+            label: `TEREA ${other.flag} ${other.chipLabel} sticks`,
+            href: `/origin/${other.slug}`,
+            description: `Compare against the ${line.chipLabel} line with UAE delivery.`,
+          }))}
         />
 
         <div className="py-14">

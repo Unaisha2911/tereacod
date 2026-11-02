@@ -48,17 +48,21 @@ export const ItemCard = memo(function ItemCard({ item, priority = false }: { ite
     e.preventDefault();
     e.stopPropagation();
     if (blocked) return;
-    // The default-variant lookup needs just THIS product: fetch the single
+    // The default configuration needs just THIS product: fetch the single
     // slug into the mirror (one small CDN-cached request) instead of paging
     // the whole catalog. Fire-and-forget: the line lands with the correct
     // variant as soon as the fetch resolves.
     void (async () => {
       await ensureCatalogSubset({ slugs: [item.slug] }).catch(() => undefined);
-      const variantId = cartService.firstAvailableVariantId(item.slug);
-      cartService.addItem(item.slug, variantId, 1);
+      // Mirror the product page's pre-selected configuration (first available
+      // option of EVERY group — colour AND origin) and use its delta-adjusted
+      // unit price in the confirmation: an origin option with a premium must
+      // not be announced at the base price.
+      const config = cartService.defaultVariantConfig(item.slug);
+      cartService.addItem(item.slug, config?.variantId ?? null, 1);
       toast({
         title: "Added to cart",
-        description: `${item.name} · ${formatAED(item.price)}`,
+        description: `${item.name} · ${formatAED(config?.unitPrice ?? item.price)}`,
         action: <ToastAction altText="View cart" onClick={() => router.push("/cart")}>View cart</ToastAction>,
       });
     })();

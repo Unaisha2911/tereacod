@@ -15,6 +15,7 @@ import {
   variantPriceDeltaTotal,
 } from "@/lib/variant-selection";
 import { formatAED, cn } from "@/lib/utils";
+import { USP_LINE } from "@/lib/usp";
 
 /**
  * ProductOrderActions — the ordering island for the product page.
@@ -55,8 +56,9 @@ export function ProductOrderActions({
   // Price follows EVERY selected option — colour and origin deltas both apply.
   const effectivePrice = item.price + variantPriceDeltaTotal(selectedVariantsList);
 
-  // Legacy static origin text applies only while the product has no
-  // selectable origin variants (they render as their own group instead).
+  // Product-level origin (Details tab) is passed to the picker only while
+  // the product has no selectable origin variants — with origin variants the
+  // pills come from the variants themselves.
   const hasOriginVariants = item.variants.some((v) => v.type === "origin");
   const staticOrigin = hasOriginVariants ? undefined : item.origin;
 
@@ -110,7 +112,7 @@ export function ProductOrderActions({
           </button>
         </div>
         <p className="text-center text-[0.72rem] leading-relaxed text-muted-foreground sm:text-left">
-          Free standard delivery at AED 200 or more · 18+ ID-verified delivery · Cash &amp; card on delivery
+          {USP_LINE} · 18+ ID-verified
         </p>
       </div>
     </>

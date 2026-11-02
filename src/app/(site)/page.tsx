@@ -16,7 +16,7 @@ import { canonical, itemListJsonLd, JsonLd } from "@/lib/seo";
 export const metadata: Metadata = {
   title: "TEREA Delivery UAE | Buy TEREA Sticks Online — Cash & Card on Delivery",
   description:
-    "Order TEREA sticks online in the UAE from TereaCOD — TEREA delivery UAE-wide with same-day dispatch from Dubai. Authentic IQOS TEREA heated tobacco sticks across every origin line — Uzbekistan, Tajikistan, Kyrgyzstan, Indonesia, Switzerland (Duty Free), Japan and Italy — priced in AED and paid by cash or card on delivery.",
+    "Order TEREA sticks online in the UAE from TereaCOD — TEREA delivery UAE-wide with 1-hour delivery from Dubai and free delivery at AED 300+. Authentic IQOS TEREA heated tobacco sticks across every origin line — Uzbekistan, Tajikistan, Kyrgyzstan, Indonesia, Switzerland (Duty Free), Japan and Italy — priced in AED and paid by cash or card on delivery.",
   ...canonical("/"),
 };
 

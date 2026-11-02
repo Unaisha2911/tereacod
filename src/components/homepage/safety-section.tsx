@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { Banknote, MapPinned, ShieldAlert, ShieldCheck, Truck, type LucideIcon } from "lucide-react";
+import { Banknote, MapPinned, ShieldAlert, ShieldCheck, Timer, Truck, type LucideIcon } from "lucide-react";
 import { RevealSection } from "@/components/atmosphere/reveal-section";
 import { SectionContainer } from "@/components/layout/page-container";
+import { USP_FREE_DELIVERY, USP_ONE_HOUR_DELIVERY } from "@/lib/usp";
 
 const SAFETY_LINKS = [
   { label: "Safety", href: "/safety" },
@@ -12,7 +13,8 @@ const SAFETY_LINKS = [
 ];
 
 const ORDERING_POINTS: Array<{ icon: LucideIcon; label: string }> = [
-  { icon: Truck, label: "Free delivery at AED 200 or more" },
+  { icon: Truck, label: USP_FREE_DELIVERY },
+  { icon: Timer, label: USP_ONE_HOUR_DELIVERY },
   { icon: ShieldCheck, label: "18+ age-verified delivery" },
   { icon: Banknote, label: "Cash & card on delivery" },
   { icon: MapPinned, label: "UAE-wide" },

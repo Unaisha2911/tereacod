@@ -13,7 +13,7 @@ import { cached, invalidateCache, CACHE_TTL } from "@/server/cache";
 import type { NavigationItem, SiteSettings } from "@/types";
 
 export const DEFAULT_DELIVERY_CONFIG = {
-  freeThresholdFils: 20_000, // AED 200
+  freeThresholdFils: 30_000, // AED 300
   standardFeeFils: 2_500, // AED 25
   expressFeeFils: 3_500, // AED 35
 };

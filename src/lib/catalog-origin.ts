@@ -218,7 +218,7 @@ export const ORIGIN_LINES: readonly OriginLine[] = [
         heading: "What is the TEREA Switzerland (Duty Free) line?",
         paragraphs: [
           "TEREA sticks are heat-not-burn tobacco sticks made exclusively for IQOS ILUMA devices — the tobacco is heated by induction, never burned. The Swiss duty-free line bundles the classic flavour families: smooth toasted tobaccos (Amber, Silver, Yellow), fruity menthol Waves (Purple Wave, Zing Wave, Summer Wave, Turquoise) and the click-capsule Pearl editions (Twilight Pearl, Starling Pearl, Tidal Pearl, Province Pearl) that release a burst of cooling flavour when the capsule is crushed.",
-          "Every listing on TereaCOD states its origin line on the product page and on the shelf, so you always know which sourcing line your sticks come from before you order. Browse the full shelf in the heat-not-burn collection, or compare the other origin lines side by side.",
+          "Every listing on TereaCOD states its origin line on the product page and on the shelf, so you always know which sourcing line your sticks come from before you order. Compare the other origin lines side by side with the origin filter on any listing page.",
         ],
       },
     ],

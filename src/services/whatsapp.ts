@@ -98,7 +98,7 @@ export function composeCheckoutMessage(
   lines.push(`Subtotal: ${formatAED(cart.totals.subtotal)}`);
 
   if (details?.deliveryMethod) {
-    const delivery = details.deliveryMethod === "express" ? "Express (next day)" : "Standard (2–4 days)";
+    const delivery = details.deliveryMethod === "express" ? "Express (next day)" : "Standard (1-hour Dubai · same-day UAE)";
     lines.push(`Delivery: ${delivery}`);
   }
   lines.push(`*Total: ${formatAED(total)}*`);

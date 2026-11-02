@@ -32,7 +32,7 @@ export function deliveryFeeFor(subtotalFils: number, method: DeliveryMethod, con
 }
 
 export const DELIVERY_METHOD_LABELS: Record<DeliveryMethod, DeliveryMethodInfo> = {
-  standard: { label: "Standard delivery", fee: 25, eta: "Arrives in 2–4 days" },
+  standard: { label: "Standard delivery", fee: 25, eta: "1-hour delivery in Dubai · same-day UAE-wide" },
   express: { label: "Express delivery", fee: 35, eta: "Arrives next day" },
 };
 

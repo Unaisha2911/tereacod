@@ -12,10 +12,23 @@
  *      SQL dump alone is not enough. Applied with:
  *        bun scripts/kv-remote.ts --remote
  *
- * Semantics: the dump makes remote D1 an exact copy of the local seeded DB
- * for every non-ephemeral table (FK-safe DELETE + INSERT). Re-running against
- * a live store RESETS seed-managed content (orders, users, tickets …) — this
- * is a bootstrap / demo-reset tool, not a merge tool.
+ * Semantics: the dump makes remote D1 an exact copy of the local seeded DB.
+ * EVERY non-ephemeral table is wiped first (children before parents), then
+ * every table that holds rows locally is re-inserted (parents first). The
+ * wipe deliberately covers ALL content tables — even ones the local seed
+ * leaves empty — because the remote target may still hold rows from an
+ * earlier deployment (e.g. a former demo catalog), and a leftover child row
+ * (products referencing a category, order payments, …) aborts the apply with
+ * "FOREIGN KEY constraint failed" the moment its parent is deleted. Tables
+ * in SKIP_TABLES are never touched; every FK edge from them into the wipe
+ * scope is ON DELETE CASCADE / SET NULL, so the wipe stays FK-safe. This is
+ * a bootstrap / demo-reset tool, not a merge tool.
+ *
+ * Safety guard: an unseeded local DB (no navigation / RBAC / admin /
+ * settings rows) would wipe the storefront chrome on the remote and
+ * re-insert nothing. The export refuses that — run `bun run db:seed` first
+ * (idempotent, catalog untouched) or override deliberately with
+ * ALLOW_PARTIAL_SEED_EXPORT=1.
  *
  * NO explicit transaction statements: production D1 rejects
  * BEGIN/COMMIT/SAVEPOINT in `wrangler d1 execute --file` ("please use
@@ -126,44 +139,78 @@ const tableNames = master
     return true;
   });
 
-// Load rows (only tables that actually contain data).
+// WIPE scope — every user table that is not ephemeral/skip-listed, INCLUDING
+// tables the local seed does not fill: the remote target may still hold rows
+// from an earlier deployment, and any leftover child row (e.g. old demo
+// products referencing a category) aborts the apply with
+// "FOREIGN KEY constraint failed" the moment its parent is deleted.
+const wipeNames = tableNames;
+
+// INSERT scope — only tables that actually contain data locally.
 const tables: TableInfo[] = [];
-for (const name of tableNames) {
+const rowsByName = new Map<string, TableInfo>();
+for (const name of wipeNames) {
   const count = (db.prepare(`SELECT COUNT(*) AS c FROM ${quoteIdent(name)}`).get() as { c: number }).c;
   if (count === 0) continue;
   const columns = (db.prepare(`PRAGMA table_info(${quoteIdent(name)})`).all() as Array<{ name: string }>).map(
     (c) => c.name
   );
   const rows = db.prepare(`SELECT * FROM ${quoteIdent(name)}`).all() as Array<Record<string, Value>>;
-  tables.push({ name, rows, columns });
+  const info: TableInfo = { name, rows, columns };
+  tables.push(info);
+  rowsByName.set(name, info);
 }
 
-// Topological order: parents (referenced) before children (referencing).
-// Ties broken by original sqlite_master order for deterministic output.
-const position = new Map(tables.map((t, i) => [t.name, i]));
+/* ------------------------------ safety guard ------------------------------ */
+
+// An unseeded local DB exports a dump that wipes navigation/legal/RBAC/admin
+// on the remote and re-inserts nothing — breaking the storefront chrome and
+// the admin login. Refuse unless the operator overrides deliberately.
+const isSeeded =
+  (rowsByName.get("navigation_items")?.rows.length ?? 0) > 0 &&
+  (rowsByName.get("roles")?.rows.length ?? 0) > 0 &&
+  (rowsByName.get("users")?.rows.length ?? 0) > 0 &&
+  (rowsByName.get("kv_store")?.rows.length ?? 0) > 0;
+if (!isSeeded && !process.env.ALLOW_PARTIAL_SEED_EXPORT) {
+  console.error("");
+  console.error("✗ Local DB looks UNSEEDED (no navigation/roles/users/settings rows).");
+  console.error("  Applying this dump would wipe those tables on the remote and");
+  console.error("  re-insert nothing — breaking storefront chrome and admin login.");
+  console.error("");
+  console.error("  Fix:    bun run db:seed      # idempotent; catalog is untouched");
+  console.error("  Then:   bun run db:seed:export");
+  console.error("  Override (deliberate): ALLOW_PARTIAL_SEED_EXPORT=1 bun run db:seed:export");
+  closeLocalDb();
+  process.exit(1);
+}
+
+// Topological order over the WIPE scope: parents (referenced) before
+// children (referencing). Ties broken by original sqlite_master order for
+// deterministic output.
+const position = new Map(wipeNames.map((name, i) => [name, i]));
 const parentsOf = new Map<string, Set<string>>();
-for (const t of tables) {
-  const fks = db.prepare(`PRAGMA foreign_key_list(${quoteIdent(t.name)})`).all() as Array<{ table: string }>;
+for (const name of wipeNames) {
+  const fks = db.prepare(`PRAGMA foreign_key_list(${quoteIdent(name)})`).all() as Array<{ table: string }>;
   const parents = new Set<string>();
-  for (const fk of fks) if (position.has(fk.table) && fk.table !== t.name) parents.add(fk.table);
-  parentsOf.set(t.name, parents);
+  for (const fk of fks) if (position.has(fk.table) && fk.table !== name) parents.add(fk.table);
+  parentsOf.set(name, parents);
 }
 
 const ordered: string[] = [];
 const placed = new Set<string>();
-while (ordered.length < tables.length) {
+while (ordered.length < wipeNames.length) {
   let progressed = false;
-  for (const t of tables) {
-    if (placed.has(t.name)) continue;
-    const parents = parentsOf.get(t.name)!;
+  for (const name of wipeNames) {
+    if (placed.has(name)) continue;
+    const parents = parentsOf.get(name)!;
     if ([...parents].every((p) => placed.has(p))) {
-      ordered.push(t.name);
-      placed.add(t.name);
+      ordered.push(name);
+      placed.add(name);
       progressed = true;
     }
   }
   if (!progressed) {
-    throw new Error(`Circular foreign-key dependency among: ${tables.filter((t) => !placed.has(t.name)).map((t) => t.name).join(", ")}`);
+    throw new Error(`Circular foreign-key dependency among: ${wipeNames.filter((t) => !placed.has(t)).join(", ")}`);
   }
 }
 
@@ -174,24 +221,30 @@ const totalRows = tables.reduce((sum, t) => sum + t.rows.length, 0);
 
 lines.push(`-- TereaCOD — D1 seed dump (generated by scripts/export-d1-seed.ts)`);
 lines.push(`-- Source: db/tereacod.db | generated: ${new Date().toISOString()}`);
-lines.push(`-- Tables: ${tables.length} | rows: ${totalRows}`);
+lines.push(`-- Tables: ${tables.length} seeded / ${wipeNames.length} wiped | rows: ${totalRows}`);
 lines.push(`--`);
-lines.push(`-- ⚠ Applying this file RESETS the tables below to the local seed content.`);
-lines.push(`--   Target must be the bootstrap D1 database (or a deliberate demo reset).`);
+lines.push(`-- ⚠ Applying this file RESETS ${wipeNames.length} content tables to the local seed`);
+lines.push(`--   content (tables with no local rows end up EMPTY). Target must be the`);
+lines.push(`--   bootstrap D1 database (or a deliberate demo reset).`);
 lines.push(`-- Apply: wrangler d1 execute DB --remote --file scripts/seed-d1.sql`);
-lines.push(`-- NOTE: statements are FK-order-dependent (children deleted first, parents`);
-lines.push(`-- inserted first) — no explicit BEGIN/COMMIT, remote D1 forbids those.`);
+lines.push(`-- NOTE: statements are FK-order-dependent (ALL tables wiped children-first,`);
+lines.push(`-- then parents inserted before children) — no explicit BEGIN/COMMIT,`);
+lines.push(`-- remote D1 forbids those.`);
 lines.push(``);
 
-// Phase 1 — wipe: children before parents (RESTRICT edges stay satisfiable).
+// Phase 1 — wipe: EVERY content table, children before parents (RESTRICT
+// edges stay satisfiable) — including tables the local seed leaves empty,
+// because the remote may still hold stale rows from an earlier deployment.
 lines.push(``);
 for (const name of [...ordered].reverse()) {
   lines.push(`DELETE FROM ${quoteIdent(name)};`);
 }
 
 // Phase 2 — insert: parents before children (FK targets exist before use).
+// Tables without local rows were wiped above and stay empty.
 for (const name of ordered) {
-  const table = tables.find((t) => t.name === name)!;
+  const table = rowsByName.get(name);
+  if (!table) continue;
   const cols = table.columns.map(quoteIdent).join(", ");
   lines.push(``);
   lines.push(`-- ${table.name} (${table.rows.length} rows)`);
@@ -250,13 +303,16 @@ if (!process.env.ADMIN_PASSWORD) {
   console.log("  admin hash derives from the documented default password. Rotate it right");
   console.log("  after applying this dump: bun run admin:password:set:remote");
 }
+console.log(`  wipe: ${wipeNames.length} tables (children first)`);
 for (const name of ordered) {
-  const t = tables.find((x) => x.name === name)!;
+  const t = rowsByName.get(name);
+  if (!t) continue;
   console.log(`  ${String(t.rows.length).padStart(6)}  ${name}`);
 }
-console.log(`→ ${path.relative(ROOT, OUT_SQL)} (${totalRows} rows, ${tables.length} tables)`);
+console.log(`→ ${path.relative(ROOT, OUT_SQL)} (${totalRows} rows inserted, ${wipeNames.length} tables wiped)`);
 console.log(`→ ${path.relative(ROOT, OUT_KV_DIR)}/ (${Object.keys(manifest).join(", ")})`);
 console.log("");
 console.log("Next (after `bun run db:migrate:remote`):");
 console.log("  1. bun run db:seed:remote     # wrangler d1 execute DB --remote --file scripts/seed-d1.sql");
 console.log("  2. bun run db:seed:kv:remote  # settings:site / delivery / features → Workers KV");
+console.log("  3. bun run admin:password:set:remote  # rotate the seeded admin password");

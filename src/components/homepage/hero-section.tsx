@@ -7,11 +7,13 @@ import { VaporHeroScene } from "@/components/atmosphere/vapor-hero-scene";
 import { MotionBoundary } from "@/components/atmosphere/motion-boundary";
 import { PageContainer } from "@/components/layout/page-container";
 import { staggerContainer, staggerItem } from "@/lib/motion";
+import { USP_FREE_DELIVERY, USP_ONE_HOUR_DELIVERY, USP_PAYMENT } from "@/lib/usp";
 
 const HERO_MICRO_LABELS = [
-  "Same-day dispatch from Dubai",
+  USP_FREE_DELIVERY,
+  USP_ONE_HOUR_DELIVERY,
   "100% authentic TEREA sticks",
-  "Cash & card on delivery · AED pricing",
+  USP_PAYMENT,
 ];
 
 /**

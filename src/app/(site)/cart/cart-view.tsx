@@ -11,6 +11,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { OrderItemImage } from "@/components/account/order-item-image";
 import { useToast } from "@/hooks/use-toast";
 import { cartService, deliveryFeeFor, useCart } from "@/services/cart";
+import { USP_LINE } from "@/lib/usp";
 import { useCatalogReady } from "@/lib/client-catalog";
 import {
   DEFAULT_DELIVERY_CONFIG,
@@ -275,7 +276,7 @@ export function CartView() {
             onOpen={() => openWhatsApp(composeCartMessage(cart))}
           />
           <p className="mt-3 text-center text-[0.72rem] leading-relaxed text-muted-foreground">
-            18+ age-verified delivery · Cash &amp; card on delivery · UAE-wide
+            {USP_LINE} · 18+ ID-verified
           </p>
         </aside>
       </div>

@@ -1,10 +1,14 @@
 import { create } from "zustand";
-import type { Availability, CartDetail, CartLine, CartLineDetail, CartTotals, DeliveryMethod, ItemVariant } from "@/types";
+import type { Availability, CartDetail, CartLine, CartLineDetail, CartTotals, DeliveryMethod } from "@/types";
 import {
   combinedVariantLabel,
+  initialVariantSelection,
+  joinVariantIds,
+  selectedVariantIds,
   splitVariantIds,
   variantPriceDeltaTotal,
 } from "@/lib/variant-selection";
+import type { ItemVariant } from "@/types";
 import {
   ensureCatalogSubset,
   findInCatalog,
@@ -30,7 +34,7 @@ export const STANDARD_DELIVERY_FEE = 25;
 export const EXPRESS_DELIVERY_FEE = 35;
 
 export const DELIVERY_METHODS: Record<DeliveryMethod, { label: string; fee: number; eta: string }> = {
-  standard: { label: "Standard delivery", fee: STANDARD_DELIVERY_FEE, eta: "Arrives in 2–4 days" },
+  standard: { label: "Standard delivery", fee: STANDARD_DELIVERY_FEE, eta: "1-hour delivery in Dubai · same-day UAE-wide" },
   express: { label: "Express delivery", fee: EXPRESS_DELIVERY_FEE, eta: "Arrives next day" },
 };
 
@@ -313,11 +317,30 @@ export const cartService = {
     };
   },
 
-  /** First purchasable variant of a product, or null when it has none. */
-  firstAvailableVariantId(productSlug: string): string | null {
+  /**
+   * Default "add" configuration — the EXACT configuration the product page
+   * pre-selects: the first AVAILABLE option of EVERY present group (colour
+   * AND origin, joined with "|"). Quick-add must mirror it — resolving only
+   * the first variant left every other group unselected, so a listing card
+   * could add "Midnight Blue" while the product page default was
+   * "Midnight Blue + Japan" at a different (origin-premium) price.
+   *
+   * Returns the joined variant id plus the delta-adjusted unit price for the
+   * confirmation toast, or null when the product is not in the mirror.
+   */
+  defaultVariantConfig(productSlug: string): { variantId: string | null; unitPrice: number } | null {
     const product = findInCatalog(productSlug);
     if (!product) return null;
-    return product.variants.find((v) => v.available)?.id ?? null;
+    const ids = selectedVariantIds(initialVariantSelection(product.variants));
+    if (ids.length === 0) return { variantId: null, unitPrice: product.price };
+    const byId = new Map(product.variants.map((v) => [v.id, v]));
+    const resolved = ids
+      .map((id) => byId.get(id))
+      .filter((v): v is ItemVariant => Boolean(v));
+    return {
+      variantId: joinVariantIds(ids),
+      unitPrice: product.price + variantPriceDeltaTotal(resolved),
+    };
   },
 
   /** Live unit count for badges (all lines, blocked included). */

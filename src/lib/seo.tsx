@@ -1,4 +1,9 @@
-import type { CatalogItem } from "@/types";
+import type { CatalogItem, ItemVariant } from "@/types";
+import {
+  initialVariantSelection,
+  selectedVariantIds,
+  variantPriceDeltaTotal,
+} from "@/lib/variant-selection";
 
 /**
  * SEO / STRUCTURED-DATA TOOLKIT
@@ -104,8 +109,23 @@ const AVAILABILITY_SCHEMA: Record<CatalogItem["availability"], string> = {
   unavailable: "https://schema.org/Discontinued",
 };
 
-/** Product + Offer graph for a catalog listing page. */
+/**
+ * Product + Offer graph for a catalog listing page.
+ *
+ * The Offer price is the delta-adjusted price of the DEFAULT configuration —
+ * the product page pre-selects the first available option of every variant
+ * group, and origin (or colour) options can carry a price delta. Announcing
+ * the bare base price would disagree with the price the page actually shows
+ * and charges whenever the default selection includes an origin premium.
+ */
 export function productJsonLd(item: CatalogItem, brandName?: string): JsonLdObject {
+  const defaultIds = selectedVariantIds(initialVariantSelection(item.variants ?? []));
+  const byId = new Map((item.variants ?? []).map((v) => [v.id, v]));
+  const defaultDelta = variantPriceDeltaTotal(
+    defaultIds.map((id) => byId.get(id)).filter((v): v is ItemVariant => Boolean(v))
+  );
+  const offerPrice = item.price + defaultDelta;
+
   return {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -119,7 +139,7 @@ export function productJsonLd(item: CatalogItem, brandName?: string): JsonLdObje
       "@type": "Offer",
       url: siteUrl(`/products/${item.slug}`),
       priceCurrency: "AED",
-      price: item.price,
+      price: offerPrice,
       availability: AVAILABILITY_SCHEMA[item.availability] ?? "https://schema.org/InStock",
       itemCondition: "https://schema.org/NewCondition",
       seller: { "@type": "Organization", name: "TereaCOD" },
