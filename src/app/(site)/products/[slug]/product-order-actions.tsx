@@ -15,7 +15,7 @@ import {
   variantPriceDeltaTotal,
 } from "@/lib/variant-selection";
 import { formatAED, cn } from "@/lib/utils";
-import { USP_LINE } from "@/lib/usp";
+import { UspStrip } from "@/components/shared/usp-strip";
 
 /**
  * ProductOrderActions — the ordering island for the product page.
@@ -111,9 +111,12 @@ export function ProductOrderActions({
             Buy now
           </button>
         </div>
-        <p className="text-center text-[0.72rem] leading-relaxed text-muted-foreground sm:text-left">
-          {USP_LINE} · 18+ ID-verified
-        </p>
+        <div className="space-y-2.5">
+          <UspStrip size="sm" />
+          <p className="text-center text-[0.7rem] text-muted-foreground sm:text-left">
+            18+ — ID verified at the door on every delivery.
+          </p>
+        </div>
       </div>
     </>
   );

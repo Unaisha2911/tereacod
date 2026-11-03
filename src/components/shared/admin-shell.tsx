@@ -84,7 +84,16 @@ function isActive(pathname: string, href: string, basePath: string) {
   return href === basePath ? pathname === basePath : pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function NavList({ onNavigate, variant }: { onNavigate?: () => void; variant: "sidebar" | "drawer" }) {
+function NavList({
+  onNavigate,
+  variant,
+  collapsed = false,
+}: {
+  onNavigate?: () => void;
+  variant: "sidebar" | "drawer";
+  /** Sidebar mode only — collapses entries to icon-only rail. */
+  collapsed?: boolean;
+}) {
   const pathname = usePathname();
   const basePath = useConsolePath();
   const nav = buildAdminNav(basePath);
@@ -93,10 +102,15 @@ function NavList({ onNavigate, variant }: { onNavigate?: () => void; variant: "s
   // between them when the drawer opens.
   const layoutId = `admin-nav-active-${variant}`;
   return (
-    <nav aria-label="Admin sections" className="flex-1 space-y-6 overflow-y-auto px-3 py-2">
+    <nav aria-label="Admin sections" className="flex-1 space-y-6 overflow-y-auto overflow-x-hidden px-3 py-2">
       {nav.map((group) => (
         <div key={group.label}>
-          <p className="px-3 pb-2 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-muted-foreground">{group.label}</p>
+          {collapsed ? (
+            // Icon-only rail — the group heading becomes a quiet divider.
+            <div className="mx-2 border-t border-line" aria-hidden="true" />
+          ) : (
+            <p className="px-3 pb-2 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-muted-foreground">{group.label}</p>
+          )}
           <ul className="space-y-0.5">
             {group.entries.map((entry) => {
               const active = isActive(pathname, entry.href, basePath);
@@ -106,8 +120,10 @@ function NavList({ onNavigate, variant }: { onNavigate?: () => void; variant: "s
                     href={entry.href}
                     onClick={onNavigate}
                     aria-current={active ? "page" : undefined}
+                    title={collapsed ? entry.label : undefined}
                     className={cn(
                       "relative flex min-h-10 items-center gap-3 rounded-lg px-3 text-[0.86rem] font-medium transition-colors",
+                      collapsed && "justify-center px-0",
                       active
                         ? "bg-violet-glow/14 text-foreground"
                         : "text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground"
@@ -122,7 +138,7 @@ function NavList({ onNavigate, variant }: { onNavigate?: () => void; variant: "s
                       />
                     )}
                     <entry.icon className={cn("size-[1.05rem] shrink-0", active && "text-violet-soft")} aria-hidden="true" />
-                    {entry.label}
+                    <span className={cn("truncate", collapsed && "sr-only")}>{entry.label}</span>
                   </Link>
                 </li>
               );
@@ -134,21 +150,35 @@ function NavList({ onNavigate, variant }: { onNavigate?: () => void; variant: "s
   );
 }
 
-function SidebarInner({ onNavigate }: { onNavigate?: () => void }) {
+function SidebarInner({ onNavigate, collapsed = false }: { onNavigate?: () => void; collapsed?: boolean }) {
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-16 items-center gap-3 border-b border-line px-5">
+      <div
+        className={cn(
+          "flex h-16 shrink-0 items-center gap-3 overflow-hidden border-b border-line transition-all duration-300",
+          collapsed ? "justify-center px-0" : "px-5"
+        )}
+      >
         <Logo compact />
-        <div className="leading-tight">
-          <p className="font-display text-sm font-bold tracking-[0.24em] text-foreground">TereaCOD</p>
-          <p className="text-[0.62rem] uppercase tracking-[0.2em] text-violet-soft">Control room</p>
-        </div>
+        {!collapsed && (
+          <div className="leading-tight">
+            <p className="font-display text-sm font-bold tracking-[0.24em] text-foreground">TereaCOD</p>
+            <p className="text-[0.62rem] uppercase tracking-[0.2em] text-violet-soft">Control room</p>
+          </div>
+        )}
       </div>
-      <NavList onNavigate={onNavigate} variant="sidebar" />
+      <NavList onNavigate={onNavigate} variant="sidebar" collapsed={collapsed} />
       <div className="border-t border-line p-4">
-        <p className="text-[0.68rem] leading-relaxed text-muted-foreground/80">
-          Live operations console — every figure reads from the operational database in real time.
-        </p>
+        {collapsed ? (
+          <p className="text-center text-[0.62rem] uppercase tracking-[0.18em] text-muted-foreground/70" title="Live operations console">
+            <span aria-hidden="true">•••</span>
+            <span className="sr-only">Live operations console</span>
+          </p>
+        ) : (
+          <p className="text-[0.68rem] leading-relaxed text-muted-foreground/80">
+            Live operations console — every figure reads from the operational database in real time.
+          </p>
+        )}
       </div>
     </div>
   );
@@ -198,6 +228,25 @@ export function AdminShell({ basePath, children }: { basePath: string; children:
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
 
+  // Restore the last collapse choice after mount (localStorage) — reading it
+  // during the first render would diverge from the SSR markup. Deferred via
+  // microtask so the effect body never sets state synchronously.
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("admin-sidebar");
+      if (stored === "collapsed") queueMicrotask(() => setCollapsed(true));
+    } catch {
+      /* private mode — default to expanded */
+    }
+  }, []);
+  useEffect(() => {
+    try {
+      localStorage.setItem("admin-sidebar", collapsed ? "collapsed" : "expanded");
+    } catch {
+      /* ignore */
+    }
+  }, [collapsed]);
+
   const inner = pathname.startsWith(`${basePath}/`) ? pathname.slice(basePath.length) : "";
   const crumbs = ["Console", ...inner.split("/").filter(Boolean)];
 
@@ -208,11 +257,11 @@ export function AdminShell({ basePath, children }: { basePath: string; children:
       <aside
         aria-label="Admin sidebar"
         className={cn(
-          "fixed inset-y-0 left-0 z-40 hidden border-r border-line bg-abyss/90 backdrop-blur-xl transition-[width] duration-300 lg:block",
+          "fixed inset-y-0 left-0 z-40 hidden overflow-hidden border-r border-line bg-abyss/90 backdrop-blur-xl transition-[width] duration-300 lg:block",
           collapsed ? "w-[4.5rem]" : "w-64"
         )}
       >
-        <SidebarInner onNavigate={() => undefined} />
+        <SidebarInner onNavigate={() => undefined} collapsed={collapsed} />
       </aside>
 
       {/* Mobile drawer */}

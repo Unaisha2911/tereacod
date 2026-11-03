@@ -34,7 +34,8 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
           reduction to cut scroll-compositing cost on the homepage. */}
       <AmbientSmoke preset="ambient" palette="mixed" intensity={0.7} zIndexClass="-z-10" position="fixed" />
       <SiteHeader headerNav={header} mobileNav={mobile} footerColumns={footerCols} legalNav={legal} />
-      <main id="main-content" className="flex-1 pt-16">{children}</main>
+      {/* pt clears the fixed header (announcement strip 2.25rem + nav 4rem). */}
+      <main id="main-content" className="flex-1 pt-[6.25rem]">{children}</main>
       <SiteFooter />
       <BottomNavigation items={mobile} />
       {/* Conversational ordering CTA — fixed bottom-right, above the mobile nav */}

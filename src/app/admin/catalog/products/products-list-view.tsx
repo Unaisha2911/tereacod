@@ -49,6 +49,13 @@ function statusBadge(product: AdminProductSummary) {
   );
 }
 
+/** "🇯🇵 Japan" for known sourcing lines — falls back to the raw db value. */
+function originLabel(origin: string | null): string {
+  if (!origin) return "";
+  const line = ORIGIN_LINES.find((l) => l.dbValue === origin);
+  return line ? `${line.flag} ${line.label}` : origin;
+}
+
 function TableSkeleton() {
   return (
     <div aria-hidden="true" className="overflow-hidden rounded-2xl border border-line">
@@ -377,6 +384,24 @@ export function ProductsListView() {
         cell: (row) => <code className="font-mono text-[0.76rem] text-muted-foreground">{row.sku}</code>,
       },
       {
+        key: "origin",
+        header: "Origin",
+        cell: (row) => {
+          if (!row.origin) return <span className="text-muted-foreground/50">—</span>;
+          const line = ORIGIN_LINES.find((l) => l.dbValue === row.origin);
+          return (
+            <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-[0.8rem] text-muted-foreground">
+              {line && (
+                <span aria-hidden="true" className="text-[0.9rem] leading-none">
+                  {line.flag}
+                </span>
+              )}
+              {line ? line.label : row.origin}
+            </span>
+          );
+        },
+      },
+      {
         key: "price",
         header: "Price",
         sortable: true,
@@ -437,6 +462,7 @@ export function ProductsListView() {
         {statusBadge(row)}
       </div>
       <p className="mt-1 font-mono text-[0.74rem] text-muted-foreground">{row.sku}</p>
+      {row.origin && <p className="mt-0.5 text-[0.74rem] text-muted-foreground">{originLabel(row.origin)}</p>}
       <div className="mt-3 flex items-center justify-between gap-3 border-t border-line/60 pt-3 text-[0.8rem] text-muted-foreground">
         <span>
           {formatAED(row.priceCents / 100)} · {row.qtyOnHand} in stock

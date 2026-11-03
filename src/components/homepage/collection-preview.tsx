@@ -21,7 +21,7 @@ export function CollectionPreview({ CATALOG_ITEMS }: { CATALOG_ITEMS: CatalogCar
     <SectionContainer spacing="lg">
       {/* Perf trim: the per-section smoke layer was removed — the fixed
           page-level ambient smoke already carries the atmosphere here. */}
-      <section id="products" aria-labelledby="collection-heading" className="relative z-10 scroll-mt-24">
+      <section id="products" aria-labelledby="collection-heading" className="relative z-10 scroll-mt-28">
         <RevealSection className="flex flex-wrap items-end justify-between gap-6">
           <NeonHeading
             id="collection-heading"

@@ -11,7 +11,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { OrderItemImage } from "@/components/account/order-item-image";
 import { useToast } from "@/hooks/use-toast";
 import { cartService, deliveryFeeFor, useCart } from "@/services/cart";
-import { USP_LINE } from "@/lib/usp";
+import { UspStrip } from "@/components/shared/usp-strip";
 import { useCatalogReady } from "@/lib/client-catalog";
 import {
   DEFAULT_DELIVERY_CONFIG,
@@ -275,9 +275,8 @@ export function CartView() {
             disabled={purchasableCount === 0}
             onOpen={() => openWhatsApp(composeCartMessage(cart))}
           />
-          <p className="mt-3 text-center text-[0.72rem] leading-relaxed text-muted-foreground">
-            {USP_LINE} · 18+ ID-verified
-          </p>
+          <UspStrip size="sm" className="mt-3 justify-center" />
+          <p className="mt-2 text-center text-[0.7rem] text-muted-foreground">18+ ID-verified</p>
         </aside>
       </div>
     </PageContainer>

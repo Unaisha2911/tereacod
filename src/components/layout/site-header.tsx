@@ -4,19 +4,21 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
-import { Bookmark, Menu, Search, ShoppingBag, UserRound } from "lucide-react";
+import { Banknote, Bookmark, Menu, Search, ShoppingBag, Truck, UserRound, Zap } from "lucide-react";
 import { Logo } from "./logo";
 import { DesktopNavigation } from "./desktop-navigation";
 import { MobileNavigation } from "./mobile-navigation";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/services/cart";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { USP_FREE_DELIVERY, USP_ONE_HOUR_DELIVERY, USP_PAYMENT } from "@/lib/usp";
 import type { NavigationItem } from "@/types";
 
 /**
- * SiteHeader — transparent over the hero, solidifies on scroll.
- * Height stays constant (no layout shift); the border/backdrop blur in.
- * Navigation data arrives from the server-rendered AppShell.
+ * SiteHeader — announcement strip (delivery promises) + nav row.
+ * Transparent over the hero, solidifies on scroll. Total height is
+ * 2.25rem + 4rem (announcement + nav); the shell's <main> pads by the
+ * same amount. Navigation data arrives from the server-rendered AppShell.
  */
 export function SiteHeader({
   headerNav,
@@ -61,16 +63,41 @@ export function SiteHeader({
 
   return (
     <motion.header
-      initial={reduced ? false : { y: -72, opacity: 0 }}
+      initial={reduced ? false : { y: -104, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
       className={cn(
-        "fixed inset-x-0 top-0 z-50 h-16 transition-colors duration-500",
+        "fixed inset-x-0 top-0 z-50 transition-colors duration-500",
         scrolled ? "glass-strong shadow-[0_8px_40px_-12px_rgba(0,0,0,0.6)]" : "bg-transparent"
       )}
       style={!scrolled ? { borderBottom: "1px solid transparent" } : undefined}
     >
-      <div className="mx-auto flex h-full max-w-6xl items-center gap-3 px-4 sm:px-6 lg:px-8">
+      {/* Announcement strip — the ordering promises, visible on every page.
+          The 1-hour promise gets the emphasized pill (the headline USP). */}
+      <div
+        className="border-b border-line/70 bg-[linear-gradient(90deg,rgba(139,92,246,0.18),rgba(111,214,242,0.10)_50%,rgba(139,92,246,0.18))]"
+        role="note"
+        aria-label="Delivery and payment promises"
+      >
+        <div className="mx-auto flex h-9 max-w-6xl items-center justify-center gap-1.5 overflow-x-auto px-3 text-[0.6rem] font-medium text-muted-foreground sm:tracking-wide [scrollbar-width:none] sm:gap-2 sm:px-6 sm:text-[0.75rem] lg:px-8 [&::-webkit-scrollbar]:hidden">
+          <span className="inline-flex items-center gap-1 whitespace-nowrap sm:gap-1.5">
+            <Truck className="size-3 shrink-0 text-violet-soft sm:size-3.5" aria-hidden="true" />
+            {USP_FREE_DELIVERY}
+          </span>
+          <span aria-hidden="true" className="size-1 shrink-0 rounded-full bg-muted-foreground/50" />
+          <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-violet-glow/45 bg-violet-glow/15 px-2 py-0.5 font-semibold text-foreground shadow-[0_0_10px_rgba(139,92,246,0.35)] sm:gap-1.5 sm:px-2.5">
+            <Zap className="size-3 shrink-0 text-violet-soft sm:size-3.5" aria-hidden="true" />
+            {USP_ONE_HOUR_DELIVERY}
+          </span>
+          <span aria-hidden="true" className="size-1 shrink-0 rounded-full bg-muted-foreground/50" />
+          <span className="inline-flex items-center gap-1 whitespace-nowrap sm:gap-1.5">
+            <Banknote className="size-3 shrink-0 text-violet-soft sm:size-3.5" aria-hidden="true" />
+            {USP_PAYMENT}
+          </span>
+        </div>
+      </div>
+
+      <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 sm:px-6 lg:px-8">
         <Logo />
 
         <DesktopNavigation items={headerNav} className="ml-6" />

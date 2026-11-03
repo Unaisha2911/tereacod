@@ -68,7 +68,7 @@ export default async function CompliancePage() {
       {/* (a) Age restrictions */}
       <SectionContainer spacing="sm" className="pt-8">
         <RevealSection>
-          <section id="age-restrictions" aria-labelledby="age-restrictions-heading" className="scroll-mt-24 rounded-2xl border border-line bg-elevated/50 p-5 sm:p-6">
+          <section id="age-restrictions" aria-labelledby="age-restrictions-heading" className="scroll-mt-28 rounded-2xl border border-line bg-elevated/50 p-5 sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 id="age-restrictions-heading" className="flex items-center gap-2.5 font-display text-h3 font-semibold text-foreground">
                 <ShieldCheck className="size-5 text-violet-soft" aria-hidden="true" />
@@ -97,7 +97,7 @@ export default async function CompliancePage() {
       {/* (b) Health warnings */}
       <SectionContainer spacing="sm">
         <RevealSection>
-          <section id="health-warnings" aria-labelledby="health-warnings-heading" className="scroll-mt-24 rounded-2xl border border-warning/25 bg-warning/[0.05] p-5 sm:p-6">
+          <section id="health-warnings" aria-labelledby="health-warnings-heading" className="scroll-mt-28 rounded-2xl border border-warning/25 bg-warning/[0.05] p-5 sm:p-6">
             <h2 id="health-warnings-heading" className="flex items-center gap-2.5 font-display text-h3 font-semibold text-warning">
               <AlertTriangle className="size-5" aria-hidden="true" />
               Health warnings
@@ -236,7 +236,7 @@ export default async function CompliancePage() {
       {/* (f) Document availability + last reviewed */}
       <SectionContainer spacing="sm">
         <RevealSection>
-          <section id="availability" aria-labelledby="availability-heading" className="scroll-mt-24 rounded-2xl border border-line bg-elevated/50 p-5 sm:p-6">
+          <section id="availability" aria-labelledby="availability-heading" className="scroll-mt-28 rounded-2xl border border-line bg-elevated/50 p-5 sm:p-6">
             <h2 id="availability-heading" className="font-display text-h3 font-semibold text-foreground">
               Document availability
             </h2>

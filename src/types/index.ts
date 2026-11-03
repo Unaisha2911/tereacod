@@ -204,6 +204,8 @@ export interface AdminProductSummary {
   brandName: string;
   categoryId: string;
   categoryName: string;
+  /** Sourcing line chosen in the admin dropdown (products.origin column). */
+  origin: string | null;
   priceCents: number;
   compareAtCents: number | null;
   /** published_at IS NOT NULL */
@@ -223,7 +225,6 @@ export interface AdminProductDetail extends AdminProductSummary {
   tagline: string;
   description: string;
   nicotineStrength: string | null;
-  origin: string | null;
   ageRestricted: boolean;
   keywords: string | null;
   lowStockThreshold: number;

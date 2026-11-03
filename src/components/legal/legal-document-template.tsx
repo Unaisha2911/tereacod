@@ -114,7 +114,7 @@ export function LegalDocumentTemplate({ doc, otherDocs }: { doc: LegalDocument; 
                 key={section.id}
                 id={section.id}
                 aria-labelledby={`${section.id}-heading`}
-                className={cn("scroll-mt-24", i > 0 && "mt-10")}
+                className={cn("scroll-mt-28", i > 0 && "mt-10")}
               >
                 <h2 id={`${section.id}-heading`} className="font-display text-h3 font-semibold text-foreground">
                   {section.heading}

@@ -31,7 +31,7 @@ export function HeroSection() {
   return (
     <section
       aria-labelledby="hero-heading"
-      className="relative -mt-16 flex min-h-[100svh] items-center overflow-hidden"
+      className="relative -mt-[6.25rem] flex min-h-[100svh] items-center overflow-hidden"
     >
       {/* MotionBoundary pauses the whole vapor engine once the hero scrolls
           out of view — 20+ composited/blur layers must not keep animating

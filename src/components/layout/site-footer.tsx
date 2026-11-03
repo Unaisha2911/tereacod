@@ -1,11 +1,10 @@
 import Link from "next/link";
-import { Banknote, Timer, Truck } from "lucide-react";
 import { Logo } from "./logo";
 import { getSettings, footerColumns, legalNav } from "@/server/data";
 import { Instagram, Twitter, Linkedin, ExternalLink } from "lucide-react";
 import { WhatsAppIcon } from "@/components/shared/whatsapp-icon";
 import { buildWhatsAppLink, composeSupportMessage } from "@/services/whatsapp";
-import { USP_FREE_DELIVERY, USP_ONE_HOUR_DELIVERY, USP_PAYMENT } from "@/lib/usp";
+import { UspStrip } from "@/components/shared/usp-strip";
 
 const SOCIAL_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   Instagram,
@@ -26,24 +25,9 @@ export async function SiteFooter() {
 
   return (
     <footer className="relative mt-auto border-t border-line bg-abyss">
-      {/* Delivery promises — the ordering USPs, visible on every page. */}
-      <ul
-        aria-label="Delivery and payment"
-        className="mx-auto flex max-w-6xl flex-wrap items-center gap-2 px-4 pt-6 sm:px-6 lg:px-8"
-      >
-        <li className="inline-flex min-h-9 items-center gap-2 rounded-full border border-line bg-foreground/[0.03] px-3.5 text-[0.78rem] font-medium text-muted-foreground">
-          <Truck className="size-3.5 shrink-0 text-violet-soft" aria-hidden="true" />
-          {USP_FREE_DELIVERY}
-        </li>
-        <li className="inline-flex min-h-9 items-center gap-2 rounded-full border border-line bg-foreground/[0.03] px-3.5 text-[0.78rem] font-medium text-muted-foreground">
-          <Timer className="size-3.5 shrink-0 text-violet-soft" aria-hidden="true" />
-          {USP_ONE_HOUR_DELIVERY}
-        </li>
-        <li className="inline-flex min-h-9 items-center gap-2 rounded-full border border-line bg-foreground/[0.03] px-3.5 text-[0.78rem] font-medium text-muted-foreground">
-          <Banknote className="size-3.5 shrink-0 text-violet-soft" aria-hidden="true" />
-          {USP_PAYMENT}
-        </li>
-      </ul>
+      {/* Delivery promises — the ordering USPs, visible on every page.
+          UspStrip keeps the 1-hour promise visually emphasized. */}
+      <UspStrip className="mx-auto max-w-6xl px-4 pt-6 sm:px-6 lg:px-8" />
       {/* Bottom padding clears the fixed mobile bottom nav (h-14 + safe-area);
           md+ drops it once the nav is hidden. */}
       <div className="mx-auto max-w-6xl px-4 pt-10 pb-24 sm:px-6 sm:pt-12 md:pb-10 lg:px-8">

@@ -236,7 +236,7 @@ export function DiscoverView({
       )}
 
       {/* Results — 16 per batch behind a Load more control (no page numbers) */}
-      <section ref={resultsRef} aria-label="Catalog results" className="scroll-mt-24 pt-10">
+      <section ref={resultsRef} aria-label="Catalog results" className="scroll-mt-28 pt-10">
         <p aria-live="polite" className="mb-5 min-h-5 text-[0.8rem] text-muted-foreground">
           {sorted.length > 0
             ? `Showing ${visible.length} of ${sorted.length} ${sorted.length === 1 ? "product" : "products"}`
@@ -291,23 +291,11 @@ export function DiscoverView({
             ],
           },
         ]}
-        links={[
-          ...ORIGIN_LINES.map((line) => ({
-            label: `TEREA ${line.flag} ${line.chipLabel} sticks`,
-            href: `/origin/${line.slug}`,
-            description: `The ${line.chipLabel} origin line with UAE delivery.`,
-          })),
-          {
-            label: "Heat-not-burn collection",
-            href: "/collections/heat-not-burn",
-            description: "The full TEREA shelf on one page.",
-          },
-          {
-            label: "Delivery & payment FAQ",
-            href: "/help/faq",
-            description: "Cut-off times, COD rules and age verification.",
-          },
-        ]}
+        links={ORIGIN_LINES.map((line) => ({
+          label: `TEREA ${line.flag} ${line.chipLabel} sticks`,
+          href: `/origin/${line.slug}`,
+          description: `The ${line.chipLabel} origin line with UAE delivery.`,
+        }))}
       />
 
       <div className="pb-8" />

@@ -5,7 +5,6 @@ import { ItemGallery } from "@/components/shared/item-gallery";
 import { ProductOrderActions } from "./product-order-actions";
 import { initialVariantSelection, type VariantSelection } from "./variant-picker";
 import {
-  combinedVariantLabel,
   selectedVariants,
   variantPriceDeltaTotal,
 } from "@/lib/variant-selection";
@@ -45,7 +44,6 @@ export function ProductDetailShell({
   const selected = selectedVariants(selection, item.variants);
   const priceDelta = variantPriceDeltaTotal(selected);
   const effectivePrice = item.price + priceDelta;
-  const optionLabel = combinedVariantLabel(selected);
 
   const handleSelectionChange = (next: VariantSelection, changedType?: string) => {
     setSelection(next);
@@ -85,13 +83,6 @@ export function ProductDetailShell({
             </>
           )}
         </div>
-        {priceDelta !== 0 && (
-          <p className="-mt-2 text-[0.72rem] text-muted-foreground" aria-live="polite">
-            {priceDelta > 0 ? "Includes +" : "Includes −"}
-            {formatAED(Math.abs(priceDelta))} for {optionLabel}
-          </p>
-        )}
-
         {belowPrice}
         <ProductOrderActions item={item} selection={selection} onSelectionChange={handleSelectionChange} />
       </div>

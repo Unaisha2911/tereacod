@@ -26,7 +26,7 @@ export function BrandIntroSection() {
 
       <SectionAtmosphere variant="ice" intensity={0.4} />
 
-      <section id="the-brand" aria-labelledby="brand-intro-heading" className="relative z-10 scroll-mt-24">
+      <section id="the-brand" aria-labelledby="brand-intro-heading" className="relative z-10 scroll-mt-28">
         <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
           <RevealSection>
             <NeonHeading

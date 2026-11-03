@@ -24,7 +24,7 @@ import {
   TextInput,
 } from "@/components/forms/fields";
 import { cartService, deliveryFeeFor, useCart } from "@/services/cart";
-import { USP_LINE } from "@/lib/usp";
+import { UspStrip } from "@/components/shared/usp-strip";
 import { useCatalogReady } from "@/lib/client-catalog";
 import {
   DEFAULT_DELIVERY_CONFIG,
@@ -696,9 +696,7 @@ export function CheckoutView() {
               </div>
             </dl>
 
-            <p className="mt-3 text-[0.72rem] leading-relaxed text-muted-foreground">
-              {USP_LINE}
-            </p>
+            <UspStrip size="sm" className="mt-3" />
 
             {submitError && (
               <div className="mt-4">

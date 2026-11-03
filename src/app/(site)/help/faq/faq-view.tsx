@@ -132,7 +132,7 @@ export function FaqView({
         {filtered.length > 0 ? (
           <div className="mt-5 space-y-3">
             {filtered.map((faq) => (
-              <article key={faq.id} id={faq.id} className="scroll-mt-24">
+              <article key={faq.id} id={faq.id} className="scroll-mt-28">
                 <InformationAccordion
                   // Remount with the panel open when this article is the
                   // deep-linked one (defaultValue only applies at mount).

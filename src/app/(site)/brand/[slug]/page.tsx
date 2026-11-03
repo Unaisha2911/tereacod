@@ -175,18 +175,11 @@ export default async function BrandPage({ params }: BrandPageProps) {
               ],
             },
           ]}
-          links={[
-            ...ORIGIN_LINES.map((line) => ({
-              label: `TEREA ${line.chipLabel} sticks`,
-              href: `/origin/${line.slug}`,
-              description: `The ${line.chipLabel} origin line with UAE delivery.`,
-            })),
-            {
-              label: "Heat-not-burn collection",
-              href: "/collections/heat-not-burn",
-              description: "The full TEREA shelf on one page.",
-            },
-          ]}
+          links={ORIGIN_LINES.map((line) => ({
+            label: `TEREA ${line.chipLabel} sticks`,
+            href: `/origin/${line.slug}`,
+            description: `The ${line.chipLabel} origin line with UAE delivery.`,
+          }))}
         />
       </SectionContainer>
 

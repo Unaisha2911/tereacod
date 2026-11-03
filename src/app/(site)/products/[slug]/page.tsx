@@ -209,7 +209,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
             {item.specs.length > 0 && (
               <section
                 aria-labelledby="mobile-specs-heading"
-                className="scroll-mt-24 lg:hidden"
+                className="scroll-mt-28 lg:hidden"
               >
                 <h2
                   id="mobile-specs-heading"
@@ -229,7 +229,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
         </ProductDetailShell>
 
         {/* Product details */}
-        <section id="product-details" aria-labelledby="product-details-heading" className="scroll-mt-24 pt-16">
+        <section id="product-details" aria-labelledby="product-details-heading" className="scroll-mt-28 pt-16">
           <h2 id="product-details-heading" className="text-h2 font-bold">
             Product details
           </h2>

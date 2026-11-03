@@ -673,6 +673,7 @@ interface AdminProductListRow {
   brand_name: string | null;
   category_id: string;
   category_name: string | null;
+  origin: string | null;
   price_cents: number;
   compare_at_cents: number | null;
   published_at: string | null;
@@ -689,6 +690,7 @@ const ADMIN_PRODUCT_SELECT = `
   SELECT p.id, p.slug, p.name, p.sku,
          p.brand_id, b.name AS brand_name,
          p.category_id, c.name AS category_name,
+         p.origin,
          p.price_cents, p.compare_at_cents, p.published_at,
          p.is_featured, p.is_new, p.editorial_availability,
          p.low_stock_threshold, p.version, p.updated_at,
@@ -717,6 +719,7 @@ function toSummary(row: AdminProductListRow): AdminProductSummary {
     brandName: row.brand_name ?? "",
     categoryId: row.category_id,
     categoryName: row.category_name ?? "",
+    origin: row.origin ?? null,
     priceCents: row.price_cents,
     compareAtCents: row.compare_at_cents,
     published: row.published_at !== null,
