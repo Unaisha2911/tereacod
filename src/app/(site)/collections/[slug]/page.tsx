@@ -61,10 +61,12 @@ export async function generateMetadata({ params }: CollectionPageProps): Promise
 
 /** Collection detail — every stocked product on one category shelf.
  *
- *  Listing UX: origin-line filter chips + sort + a 16-per-batch "Load
- *  more" grid (no numbered pagination). SEO: ItemList JSON-LD up top,
- *  keyword-rich editorial copy below the Load more control, plus origin
- *  landing-page links so crawlers can reach /origin/* from every shelf. */
+ *  Listing UX: origin-line LINK chips (each opens the line's dedicated
+ *  /origin/<slug> page pre-combined with this collection via ?collection)
+ *  + sort + a 16-per-batch "Load more" grid (no numbered pagination).
+ *  SEO: ItemList JSON-LD up top, keyword-rich editorial copy below the
+ *  Load more control, plus origin landing-page links so crawlers can
+ *  reach /origin/* from every shelf. */
 export default async function CollectionPage({ params }: CollectionPageProps) {
   const { slug } = await params;
   const category = await getCategoryBySlugRepo(slug);
@@ -109,13 +111,15 @@ export default async function CollectionPage({ params }: CollectionPageProps) {
               Multiple origin lines
             </span>
           </div>
-          {/* Origin landing pages — crawlable facet links from every shelf. */}
+          {/* Origin landing pages — crawlable facet links from every shelf.
+              Each link carries THIS collection (?collection=…) so the
+              origin page opens as the combined collection × origin view. */}
           <nav aria-label="Shop by origin line" className="flex flex-wrap items-center gap-2 pt-4">
             <span className="text-[0.78rem] uppercase tracking-[0.14em] text-muted-foreground">Origin lines</span>
             {ORIGIN_LINES.map((line) => (
               <Link
                 key={line.slug}
-                href={`/origin/${line.slug}`}
+                href={`/origin/${line.slug}?collection=${category.slug}`}
                 className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-line px-3.5 text-[0.8rem] text-muted-foreground transition-colors hover:border-violet-glow/50 hover:text-foreground"
               >
                 <span aria-hidden="true">{line.flag}</span>
@@ -128,6 +132,7 @@ export default async function CollectionPage({ params }: CollectionPageProps) {
         <CatalogBrowser
           items={toCardItems(items)}
           showOriginFilter
+          originFilterContext={{ collection: category.slug }}
           emptyTitle="Nothing in this collection yet"
           emptyBody="New records are added as their documentation completes. Explore the full range in the meantime."
         />

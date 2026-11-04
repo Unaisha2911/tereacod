@@ -60,10 +60,13 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
 
   return (
     <AppShell>
-      {/* Page-wide smoke texture — referenced from CSS masks, which browsers
-          discover late, so preload it for first paint. Lives HERE (not the
-          root layout): the admin console ships no smoke atmosphere. */}
+      {/* Page-wide smoke textures — the fixed AmbientSmoke in the app shell
+          is the ONLY smoke on the site (hero/section layers were removed
+          for homepage speed) and references these from CSS masks, which
+          browsers discover late, so preload both for first paint. Lives
+          HERE (not the root layout): the admin console ships no smoke. */}
       <link rel="preload" as="image" href="/smoke/smoke-wisps.png" fetchPriority="high" />
+      <link rel="preload" as="image" href="/smoke/smoke-plume.webp" />
       <AppBootstrap>{children}</AppBootstrap>
     </AppShell>
   );

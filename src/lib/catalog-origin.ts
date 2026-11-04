@@ -306,19 +306,41 @@ export function originLineBySlug(slug: string): OriginLine | null {
 }
 
 /**
- * Map a product's `origin` value to its origin line (null when unknown).
+ * Origin sources — the two places a listing carries origins:
+ *
+ *  1. `origin`        — the product-level sourcing line (admin Details
+ *                       dropdown → products.origin column)
+ *  2. origin variants — product_variants rows with type="origin" (multi-
+ *                       origin listings ship one variant per sourcing
+ *                       line, each with its own premium/photo)
+ *
+ * A listing may carry BOTH (product line + per-origin variants) and a
+ * multi-origin listing belongs under EVERY line it stocks — the filters
+ * are facets, not buckets. Full CatalogItem (variants) and the compact
+ * CatalogCardItem projection (variantOrigins) both satisfy this shape.
+ */
+export interface OriginResolvable {
+  origin?: string | null;
+  /** Origin-type variant labels (full CatalogItem carries its variants). */
+  variants?: Array<{ type: string; label: string }>;
+  /** Card projection — origin-type variant labels only. */
+  variantOrigins?: string[];
+}
+
+/**
+ * Map one origin label (product column value, variant label, legacy
+ * composite string) to its origin line (null when unknown).
  *
  * Exact `dbValue` match first; legacy catalogs authored before the
  * seven-line origin system stored composite strings (e.g. "Uzbekistan,
  * Tajikistan, Kazakhstan, Indonesia & Duty Free") — those fall back to a
  * keyword match so existing shelves keep their origin chips and filters.
  */
-export function originLineForItem(item: Pick<CatalogItem, "origin">): OriginLine | null {
-  if (!item.origin) return null;
-  const exact = ORIGIN_LINES.find((line) => line.dbValue === item.origin);
+function originLineForLabel(label: string): OriginLine | null {
+  const exact = ORIGIN_LINES.find((line) => line.dbValue === label);
   if (exact) return exact;
 
-  const value = item.origin.toLowerCase();
+  const value = label.toLowerCase();
   if (value.includes("duty free")) return originLineBySlug("switzerland-duty-free");
   if (value.includes("japan")) return originLineBySlug("japan");
   if (value.includes("indonesia")) return originLineBySlug("indonesia");
@@ -329,18 +351,53 @@ export function originLineForItem(item: Pick<CatalogItem, "origin">): OriginLine
   return null;
 }
 
-/** Map a product's `origin` value to the line slug (null when unknown). */
-export function originSlugForItem(item: Pick<CatalogItem, "origin">): string | null {
-  return originLineForItem(item)?.slug ?? null;
+/**
+ * EVERY origin line a listing belongs to — product-level origin first,
+ * then each origin-type variant. Multi-origin listings (Japan + Italy
+ * variants) resolve to [japan, italy] so they surface under both
+ * filters and on both landing pages.
+ */
+export function originLinesForItem(item: OriginResolvable): OriginLine[] {
+  const lines = new Map<string, OriginLine>();
+  const consider = (label?: string | null) => {
+    if (!label) return;
+    const line = originLineForLabel(label);
+    if (line) lines.set(line.slug, line);
+  };
+  consider(item.origin);
+  if (item.variants) for (const variant of item.variants) if (variant.type === "origin") consider(variant.label);
+  if (item.variantOrigins) for (const label of item.variantOrigins) consider(label);
+  return [...lines.values()];
 }
 
-/** Count products per origin line slug (plus "all") for filter chips. */
-export function originCountsFor(items: Array<Pick<CatalogItem, "origin">>): Record<string, number> {
+/** All origin line slugs the listing belongs to (multi-origin safe). */
+export function originSlugsForItem(item: OriginResolvable): string[] {
+  return originLinesForItem(item).map((line) => line.slug);
+}
+
+/**
+ * The SINGLE line shown on chips/cards: the product-level origin when
+ * set, otherwise the first origin-type variant. A multi-origin listing
+ * displays its first line everywhere and still filters under all of them.
+ */
+export function originLineForItem(item: OriginResolvable): OriginLine | null {
+  const productLine = item.origin ? originLineForLabel(item.origin) : null;
+  if (productLine) return productLine;
+  return originLinesForItem(item)[0] ?? null;
+}
+
+/**
+ * Count products per origin line slug for filter chips (facet counts —
+ * a multi-origin listing counts toward EVERY line it stocks, so the
+ * line counts may add up to more than the "all" total).
+ */
+export function originCountsFor(items: OriginResolvable[]): Record<string, number> {
   const counts: Record<string, number> = { all: items.length };
   for (const line of ORIGIN_LINES) counts[line.slug] = 0;
   for (const item of items) {
-    const slug = originSlugForItem(item);
-    if (slug) counts[slug] = (counts[slug] ?? 0) + 1;
+    for (const line of originLinesForItem(item)) {
+      counts[line.slug] = (counts[line.slug] ?? 0) + 1;
+    }
   }
   return counts;
 }

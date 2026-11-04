@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Select } from "@/components/forms/fields";
 import { SORT_OPTION_LIST, sortCatalogItems, type SortKey } from "@/lib/catalog-sort";
-import { originCountsFor, originSlugForItem } from "@/lib/catalog-origin";
+import { originCountsFor } from "@/lib/catalog-origin";
 import { OriginFilterChips } from "./origin-filter-chips";
 import { LoadMoreGrid } from "./load-more-grid";
 import type { CatalogCardItem } from "@/lib/catalog-card";
@@ -13,14 +13,17 @@ const PAGE_SIZE = 16;
 /**
  * CatalogBrowser — client island for in-memory product lists.
  *
- * Origin-line filter chips + sort control + a 16-per-batch Load more
- * grid (no numbered pagination). Used by collection pages, origin
- * landing pages and brand pages; discover/search accumulate server
- * pages instead. Changing any filter resets the reveal to the first 16.
+ * Origin-line LINK chips (each lands on the line's /origin/<slug> page,
+ * carrying this shelf's collection/brand as combined-facet context) +
+ * sort control + a 16-per-batch Load more grid (no numbered pagination).
+ * Used by collection pages, origin landing pages and brand pages; discover
+ * runs its own view and search accumulates server pages instead.
  */
 export function CatalogBrowser({
   items,
   showOriginFilter = false,
+  /** Active sibling filters carried into the origin landing pages. */
+  originFilterContext,
   showSort = true,
   columns = 3,
   emptyTitle = "No items found",
@@ -29,8 +32,10 @@ export function CatalogBrowser({
 }: {
   /** Full in-memory list for this page. */
   items: CatalogCardItem[];
-  /** Show the origin-line filter chips (collections / brands). */
+  /** Show the origin-line link chips (collections / brands). */
   showOriginFilter?: boolean;
+  /** Carried into the origin pages: { collection, brand } of this shelf. */
+  originFilterContext?: { collection?: string; brand?: string };
   /** Show the sort control (default on). */
   showSort?: boolean;
   columns?: 3 | 4;
@@ -38,27 +43,19 @@ export function CatalogBrowser({
   emptyBody?: string;
   loadMoreLabel?: string;
 }) {
-  const [origin, setOrigin] = useState("all");
   const [sort, setSort] = useState<SortKey>("featured");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
+  // Facet counts — a multi-origin listing counts toward EVERY line it
+  // stocks, so its chips surface on every line page it belongs to.
   const counts = useMemo(
     () => (showOriginFilter ? originCountsFor(items) : undefined),
     [items, showOriginFilter]
   );
 
-  const filtered = useMemo(
-    () => (origin === "all" ? items : items.filter((item) => originSlugForItem(item) === origin)),
-    [items, origin]
-  );
-  const sorted = useMemo(() => sortCatalogItems(filtered, sort), [filtered, sort]);
+  const sorted = useMemo(() => sortCatalogItems(items, sort), [items, sort]);
   const visible = useMemo(() => sorted.slice(0, visibleCount), [sorted, visibleCount]);
   const hasMore = visibleCount < sorted.length;
-
-  const onOriginChange = (next: string) => {
-    setOrigin(next);
-    setVisibleCount(PAGE_SIZE); // re-reveal from the top on every filter change
-  };
 
   const onSortChange = (next: string) => {
     setSort(next as SortKey);
@@ -68,7 +65,7 @@ export function CatalogBrowser({
   return (
     <div className="space-y-6">
       {showOriginFilter && (
-        <OriginFilterChips value={origin} onChange={onOriginChange} counts={counts} />
+        <OriginFilterChips counts={counts} context={originFilterContext} />
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-3">

@@ -3,8 +3,6 @@
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import { ChevronDown } from "lucide-react";
-import { VaporHeroScene } from "@/components/atmosphere/vapor-hero-scene";
-import { MotionBoundary } from "@/components/atmosphere/motion-boundary";
 import { PageContainer } from "@/components/layout/page-container";
 import { staggerContainer, staggerItem } from "@/lib/motion";
 import { USP_FREE_DELIVERY, USP_ONE_HOUR_DELIVERY, USP_PAYMENT } from "@/lib/usp";
@@ -18,11 +16,18 @@ const HERO_MICRO_LABELS = [
 
 /**
  * HeroSection — full-viewport electric opener.
- * VaporHeroScene (smoke only: tinted photographic smoke, rising vapor
- * plumes, sliding fog banks over a static neon wash) sits absolutely
- * behind the copy. Headlines use the neon display face:
- * line one is a lit neon sign, line two a hollow LED tube with a slow
- * flicker. Entrance is a staggered rise, disabled under reduced motion.
+ *
+ * PERF MODEL: the hero carries a single STATIC neon colour wash (one div,
+ * four radial-gradient stops — zero animation, zero blur layers, zero
+ * image fetches). All moving smoke now lives in the ONE fixed page-level
+ * AmbientSmoke in the app shell, which drifts behind every section; the
+ * former per-hero engine (3 photographic textures + 8 blurred plumes +
+ * 2 fog banks ≈ 20 composited layers) was removed to keep the homepage
+ * payload and GPU cost minimal.
+ *
+ * Headlines use the neon display face: line one is a lit neon sign, line
+ * two a hollow LED tube with a slow flicker. Entrance is a staggered
+ * rise, disabled under reduced motion.
  */
 export function HeroSection() {
   const reduced = useReducedMotion();
@@ -33,13 +38,19 @@ export function HeroSection() {
       aria-labelledby="hero-heading"
       className="relative -mt-[6.25rem] flex min-h-[100svh] items-center overflow-hidden"
     >
-      {/* MotionBoundary pauses the whole vapor engine once the hero scrolls
-          out of view — 20+ composited/blur layers must not keep animating
-          (GPU memory + scroll compositing) while the visitor is further
-          down the page. */}
-      <MotionBoundary preset="cinematic">
-        <VaporHeroScene />
-      </MotionBoundary>
+      {/* Static neon colour wash — lighting only, no animation. The moving
+          smoke comes from the fixed page-level AmbientSmoke behind it. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(58% 44% at 18% 24%, rgba(139,92,246,0.24), transparent 68%)," +
+            "radial-gradient(46% 40% at 84% 18%, rgba(215,95,212,0.16), transparent 66%)," +
+            "radial-gradient(44% 38% at 44% 10%, rgba(255,42,84,0.12), transparent 70%)," +
+            "radial-gradient(60% 42% at 62% 88%, rgba(111,214,242,0.14), transparent 70%)",
+        }}
+      />
 
       {/* Legibility scrim — keeps atmosphere visible, text readable */}
       <div

@@ -150,6 +150,7 @@ export default async function BrandPage({ params }: BrandPageProps) {
           <CatalogBrowser
             items={toCardItems(items)}
             showOriginFilter
+            originFilterContext={{ brand: brand.slug }}
             emptyTitle={`No ${brand.name} products listed yet`}
             emptyBody="This brand's regional range is being curated — check the collections in the meantime."
           />

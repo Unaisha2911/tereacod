@@ -353,17 +353,6 @@
   animation: neon-flicker var(--dur, 6s) linear infinite;
 }
 
-@utility anim-vapor {
-  animation: vapor-rise var(--dur, 16s) linear infinite;
-  animation-delay: var(--delay, 0s);
-  will-change: transform, opacity;
-}
-
-@utility anim-sway {
-  animation: vapor-sway var(--dur, 9s) ease-in-out infinite;
-  animation-delay: var(--delay, 0s);
-}
-
 @utility anim-led {
   animation: led-pulse var(--dur, 2.6s) ease-in-out infinite;
   animation-delay: var(--delay, 0s);
@@ -808,20 +797,6 @@
   80%       { opacity: 1; }
 }
 
-/* Vapor plume rising through the frame, fading in/out at the ends. */
-@keyframes vapor-rise {
-  0%   { transform: translate3d(0, 105%, 0) scaleY(0.9); opacity: 0; }
-  12%  { opacity: var(--vapor-opacity, 0.55); }
-  85%  { opacity: calc(var(--vapor-opacity, 0.55) * 0.55); }
-  100% { transform: translate3d(0, -125%, 0) scaleY(1.06); opacity: 0; }
-}
-
-/* Lateral sway for plumes, applied on a nested element. */
-@keyframes vapor-sway {
-  0%, 100% { transform: translate3d(-4%, 0, 0) rotate(-2deg); }
-  50%      { transform: translate3d(5%, 0, 0) rotate(2.5deg); }
-}
-
 /* LED indicator dot — soft charging pulse. */
 @keyframes led-pulse {
   0%, 100% { opacity: 0.55; box-shadow: 0 0 4px 1px currentColor; }
@@ -874,15 +849,9 @@
   .anim-drift-a, .anim-drift-b, .anim-drift-c,
   .anim-churn-a, .anim-churn-b, .anim-fog-x,
   .anim-breathe, .anim-ring, .anim-float,
-  .anim-flicker, .anim-vapor, .anim-sway,
-  .anim-led {
+  .anim-flicker, .anim-led {
     animation: none !important;
     transform: none !important;
-  }
-  .anim-vapor {
-    /* Park plumes mid-frame at a calm opacity instead of mid-animation. */
-    transform: translate3d(0, 0, 0) !important;
-    opacity: 0.22 !important;
   }
   .skeleton-sheen::after {
     animation: none !important;

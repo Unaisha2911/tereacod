@@ -57,9 +57,9 @@ export default async function HomePage() {
     <>
       {/* ItemList rich result — mirrors the featured strip rendered below. */}
       <JsonLd data={itemListJsonLd(featuredItems, "Featured TEREA sticks — TereaCOD UAE")} />
-      {/* Hero-only smoke textures — React hoists these <link>s to <head>. */}
-      <link rel="preload" as="image" href="/smoke/smoke-plume.webp" />
-      <link rel="preload" as="image" href="/smoke/smoke-wisps.png" />
+      {/* Smoke note: the homepage carries NO hero/section smoke layers —
+          the fixed page-level AmbientSmoke (app shell) is the only smoke,
+          and its textures are preloaded once in the (site) layout. */}
       <HeroSection />
       <CollectionPreview CATALOG_ITEMS={featuredItems} />
       {/* Generic collection grid — hidden entirely while the only categories

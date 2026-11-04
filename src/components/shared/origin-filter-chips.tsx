@@ -1,38 +1,57 @@
 "use client";
 
+import Link from "next/link";
 import { ORIGIN_LINES } from "@/lib/catalog-origin";
 import { cn } from "@/lib/utils";
 
 /**
- * OriginFilterChips — chip row for the TEREA origin (sourcing) lines.
- * "All origins" plus one chip per known line with a live product count.
- * Used on the discover grid, collection pages and brand pages; the
- * origin landing pages (/origin/<slug>) cross-link the same lines.
+ * OriginFilterChips — LINK chip row for the TEREA origin (sourcing) lines.
+ *
+ * Every chip NAVIGATES to the line's dedicated landing page
+ * (/origin/<slug>) — origins are first-class pages with their own hero
+ * copy, SEO blocks and URL, so filtering by origin lands there instead of
+ * narrowing the list in place. The current page's other active filters
+ * travel along as query params (?collection=…&brand=…&q=…), which makes
+ * combined faceting work across pages: a collection shelf's Japan chip
+ * opens the Japan line pre-narrowed to that collection, and the origin
+ * page keeps the combination clearable via its active-filter bar.
+ *
+ * Counts are facet counts (multi-origin listings count toward EVERY line
+ * they stock) and zero-count lines stay hidden unless they are the page
+ * you are already on.
  */
 export function OriginFilterChips({
-  value,
-  onChange,
   counts,
-  ariaLabel = "Filter by origin line",
+  context,
+  activeSlug,
+  ariaLabel = "Shop by origin line",
   className,
 }: {
-  /** Active line slug or "all". */
-  value: string;
-  onChange: (next: string) => void;
-  /** Product counts per slug (and "all") — hides zero-count lines when omitted. */
+  /** Facet counts per line slug — hides zero-count lines when omitted. */
   counts?: Record<string, number>;
+  /** Other active filters carried into the origin page's combined view. */
+  context?: Record<string, string | undefined>;
+  /** Slug of the line whose page you are already on (aria-current). */
+  activeSlug?: string;
   ariaLabel?: string;
   className?: string;
 }) {
-  const options = [
-    { slug: "all", label: "All origins", flag: "", count: counts?.all },
-    ...ORIGIN_LINES.map((line) => ({
-      slug: line.slug,
-      label: line.chipLabel,
-      flag: line.flag,
-      count: counts?.[line.slug],
-    })),
-  ].filter((option) => counts ? (option.count ?? 0) > 0 || option.slug === "all" || option.slug === value : true);
+  const hrefFor = (slug: string) => {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(context ?? {})) {
+      if (value) params.set(key, value);
+    }
+    const qs = params.toString();
+    return qs ? `/origin/${slug}?${qs}` : `/origin/${slug}`;
+  };
+
+  const options = ORIGIN_LINES.map((line) => ({
+    slug: line.slug,
+    label: line.chipLabel,
+    flag: line.flag,
+    href: hrefFor(line.slug),
+    count: counts?.[line.slug],
+  })).filter((option) => (counts ? (option.count ?? 0) > 0 || option.slug === activeSlug : true));
 
   return (
     <div
@@ -44,13 +63,12 @@ export function OriginFilterChips({
       )}
     >
       {options.map((option) => {
-        const active = value === option.slug;
+        const active = option.slug === activeSlug;
         return (
-          <button
+          <Link
             key={option.slug}
-            type="button"
-            aria-pressed={active}
-            onClick={() => onChange(option.slug)}
+            href={option.href}
+            aria-current={active ? "page" : undefined}
             className={cn(
               "inline-flex min-h-11 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-4 text-[0.8rem] font-medium transition-colors",
               active
@@ -74,7 +92,7 @@ export function OriginFilterChips({
                 {option.count}
               </span>
             )}
-          </button>
+          </Link>
         );
       })}
     </div>

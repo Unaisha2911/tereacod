@@ -386,8 +386,19 @@ export async function listProducts(query: CatalogQueryInput = {}): Promise<Pagin
     params.push(query.brandSlug);
   }
   if (query.originLine) {
-    where.push(`p.origin = ?`);
-    params.push(query.originLine);
+    // Origin is a FACET over both origin sources: the product-level
+    // sourcing line (products.origin) AND per-origin variant labels —
+    // multi-origin listings (Japan + Italy variants) must surface under
+    // every line they stock. Variant labels resolve loosely (exact or
+    // contained) so authored labels like "Japan (Domestic)" still match.
+    where.push(
+      `(p.origin = ? OR EXISTS (
+         SELECT 1 FROM product_variants pv
+         WHERE pv.product_id = p.id AND pv.type = 'origin'
+           AND (LOWER(pv.label) = LOWER(?) OR pv.label LIKE '%' || ? || '%')
+       ))`
+    );
+    params.push(query.originLine, query.originLine, query.originLine);
   }
   if (query.availability && query.availability !== "all") {
     const STOCK = `(SELECT COALESCE(SUM(iv.qty_on_hand - iv.qty_reserved), 0)

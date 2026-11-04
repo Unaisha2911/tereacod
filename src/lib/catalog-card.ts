@@ -9,10 +9,13 @@ import type { CatalogItem } from "@/types";
  * subset before handing items to client islands, so the RSC payload stops
  * carrying detail-page data for every card on every shelf.
  *
- * Structural: a full CatalogItem still satisfies CatalogCardItem, so
- * API-backed client views (search results) flow through unchanged.
+ * `variantOrigins` is the compact origin-variant label list (multi-origin
+ * listings resolve EVERY sourcing line they stock from it — see
+ * lib/catalog-origin). Optional so a full CatalogItem still satisfies
+ * CatalogCardItem structurally and API-backed client views (search
+ * results) flow through unchanged.
  */
-export type CatalogCardItem = Pick<
+type CatalogCardFields = Pick<
   CatalogItem,
   | "id"
   | "slug"
@@ -30,6 +33,8 @@ export type CatalogCardItem = Pick<
   | "categorySlug"
 >;
 
+export type CatalogCardItem = CatalogCardFields & { variantOrigins?: string[] };
+
 /** Project one catalog item down to its card-rendering fields. */
 export function toCardItem(item: CatalogItem): CatalogCardItem {
   return {
@@ -46,6 +51,12 @@ export function toCardItem(item: CatalogItem): CatalogCardItem {
     isNew: item.isNew,
     nicotineStrength: item.nicotineStrength,
     origin: item.origin,
+    // Origin-type variant labels — compact so the RSC payload stays small
+    // while multi-origin cards still resolve EVERY sourcing line they
+    // stock (chips + filters + landing pages, see lib/catalog-origin).
+    variantOrigins: item.variants
+      .filter((variant) => variant.type === "origin")
+      .map((variant) => variant.label),
     categorySlug: item.categorySlug,
   };
 }

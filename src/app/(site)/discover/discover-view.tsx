@@ -14,11 +14,10 @@ import { SeoContent } from "@/components/shared/seo-content";
 import { FilterBar } from "@/components/shared/admin-primitives";
 import { Select } from "@/components/forms/fields";
 import { SORT_OPTIONS, sortCatalogItems, type SortKey } from "@/lib/catalog-sort";
-import { ORIGIN_LINES, originCountsFor, originSlugForItem } from "@/lib/catalog-origin";
+import { ORIGIN_LINES, originCountsFor } from "@/lib/catalog-origin";
 import { scrollIntoViewSmooth } from "@/lib/motion";
 import type { CatalogCardItem } from "@/lib/catalog-card";
 import type { Availability, CatalogCategory } from "@/types";
-import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 16;
 
@@ -37,9 +36,10 @@ const AVAILABILITY_OPTIONS: Array<{ value: AvailabilityFilter; label: string }> 
  *
  * The catalog arrives SERVER-RENDERED (card projection from the page) —
  * no first-paint spinner, no client catalog download, fully crawlable.
- * Every filter (collection / origin line / availability / sort) then runs
- * in memory for instant updates. 16 products are revealed per batch behind
- * a single "Load more" control — no numbered pagination anywhere.
+ * Collection and origin filters are LINK chips: each one lands on its
+ * dedicated page (/collections/<slug>, /origin/<slug>) — those pages
+ * exist for crawling and carry their own combined facets — while sort,
+ * availability and Load more stay instant in-memory controls here.
  */
 export function DiscoverView({
   initialItems,
@@ -50,8 +50,6 @@ export function DiscoverView({
 }) {
   const router = useRouter();
 
-  const [category, setCategory] = useState("all");
-  const [origin, setOrigin] = useState("all");
   const [sort, setSort] = useState<SortValue>("featured");
   const [availability, setAvailability] = useState<AvailabilityFilter>("all");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -60,21 +58,9 @@ export function DiscoverView({
   const items = initialItems;
   const categories = initialCategories;
 
-  const categoryFiltered = useMemo(
-    () => (category === "all" ? items : items.filter((item) => item.categorySlug === category)),
-    [items, category]
-  );
-  const originCounts = useMemo(() => originCountsFor(categoryFiltered), [categoryFiltered]);
-  const filtered = useMemo(
-    () =>
-      origin === "all"
-        ? categoryFiltered
-        : categoryFiltered.filter((item) => originSlugForItem(item) === origin),
-    [categoryFiltered, origin]
-  );
   const availabilityFiltered = useMemo(
-    () => (availability === "all" ? filtered : filtered.filter((item) => item.availability === availability)),
-    [filtered, availability]
+    () => (availability === "all" ? items : items.filter((item) => item.availability === availability)),
+    [items, availability]
   );
   const sorted = useMemo(() => sortCatalogItems(availabilityFiltered, sort), [availabilityFiltered, sort]);
   const visible = useMemo(() => sorted.slice(0, visibleCount), [sorted, visibleCount]);
@@ -90,18 +76,11 @@ export function DiscoverView({
       return;
     }
     scrollIntoViewSmooth(resultsRef.current);
-  }, [category, origin, sort, availability]);
+  }, [sort, availability]);
 
   const revealFirstBatch = () => setVisibleCount(PAGE_SIZE);
 
-  const selectCategory = (slug: string) => {
-    setCategory(slug);
-    revealFirstBatch();
-  };
-
   const resetFilters = () => {
-    setCategory("all");
-    setOrigin("all");
     setSort("featured");
     setAvailability("all");
     revealFirstBatch();
@@ -113,14 +92,16 @@ export function DiscoverView({
     router.push(q ? `/search?q=${encodeURIComponent(q)}` : "/search");
   };
 
-  const categoryChips = [{ slug: "all", name: "All" }, ...categories.map((c) => ({ slug: c.slug, name: c.name }))];
+  // Facet counts over the whole shelf — multi-origin listings count
+  // toward every line they stock.
+  const originCounts = useMemo(() => originCountsFor(items), [items]);
 
   return (
     <PageContainer>
       <PageHeading
         eyebrow="TereaCOD"
         title="Discover the range"
-        lead="Every product we stock — heat-not-burn tobacco sticks for IQOS ILUMA across every origin line. Filter by collection, origin, sort and search the full range."
+        lead="Every product we stock — heat-not-burn tobacco sticks for IQOS ILUMA across every origin line. Collection and origin filters land on their dedicated pages; availability and sort narrow the grid instantly."
       />
 
       {/* Search entry — navigates to the dedicated search route */}
@@ -144,43 +125,25 @@ export function DiscoverView({
         </div>
       </form>
 
-      {/* Collection chips — horizontally scrollable on small screens */}
+      {/* Collection chips — each lands on the collection's own page */}
       <div
         role="group"
-        aria-label="Filter by collection"
+        aria-label="Browse collections"
         className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0"
       >
-        {categoryChips.map((chip) => {
-          const active = category === chip.slug;
-          return (
-            <button
-              key={chip.slug}
-              type="button"
-              aria-pressed={active}
-              onClick={() => selectCategory(chip.slug)}
-              className={cn(
-                "min-h-11 shrink-0 whitespace-nowrap rounded-full border px-4 text-[0.8rem] font-medium transition-colors",
-                active
-                  ? "border-violet-glow/50 bg-violet-glow/15 text-foreground"
-                  : "border-line text-muted-foreground hover:border-line-strong hover:text-foreground"
-              )}
-            >
-              {chip.name}
-            </button>
-          );
-        })}
+        {categories.map((c) => (
+          <Link
+            key={c.slug}
+            href={`/collections/${c.slug}`}
+            className="min-h-11 shrink-0 whitespace-nowrap rounded-full border border-line px-4 text-[0.8rem] font-medium text-muted-foreground transition-colors hover:border-line-strong hover:text-foreground"
+          >
+            {c.name}
+          </Link>
+        ))}
       </div>
 
-      {/* Origin line chips — filter across the whole sourcing range */}
-      <OriginFilterChips
-        className="mt-3"
-        ariaLabel="Filter by origin line"
-        value={origin}
-        onChange={(next) => {
-          setOrigin(next);
-          revealFirstBatch();
-        }}
-      />
+      {/* Origin line chips — each lands on the line's dedicated page */}
+      <OriginFilterChips className="mt-3" ariaLabel="Shop by origin line" counts={originCounts} />
 
       {/* Sort + availability controls */}
       <div className="mb-10 mt-5 flex flex-wrap items-center gap-x-6 gap-y-3">
@@ -213,27 +176,25 @@ export function DiscoverView({
         />
       </div>
 
-      {/* Collections intro — only on the unfiltered view */}
-      {category === "all" && origin === "all" && (
-        <section aria-labelledby="collections-heading" className="pb-4">
-          <div className="mb-4 flex items-baseline justify-between gap-3">
-            <h2 id="collections-heading" className="font-display text-h3 font-semibold text-foreground">
-              Collections
-            </h2>
-            <Link
-              href="/collections"
-              className="shrink-0 text-[0.8rem] text-muted-foreground transition-colors hover:text-foreground"
-            >
-              All collections
-            </Link>
-          </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
-            {categories.map((c, i) => (
-              <CategoryCard key={c.id} category={c} index={i} />
-            ))}
-          </div>
-        </section>
-      )}
+      {/* Collections intro — every collection card, always in view */}
+      <section aria-labelledby="collections-heading" className="pb-4">
+        <div className="mb-4 flex items-baseline justify-between gap-3">
+          <h2 id="collections-heading" className="font-display text-h3 font-semibold text-foreground">
+            Collections
+          </h2>
+          <Link
+            href="/collections"
+            className="shrink-0 text-[0.8rem] text-muted-foreground transition-colors hover:text-foreground"
+          >
+            All collections
+          </Link>
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
+          {categories.map((c, i) => (
+            <CategoryCard key={c.id} category={c} index={i} />
+          ))}
+        </div>
+      </section>
 
       {/* Results — 16 per batch behind a Load more control (no page numbers) */}
       <section ref={resultsRef} aria-label="Catalog results" className="scroll-mt-28 pt-10">
@@ -257,7 +218,7 @@ export function DiscoverView({
             <EmptyState
               icon={PackageSearch}
               title="Nothing matches these filters"
-              body="Try a different category, widen the availability filter, or clear everything and start again."
+              body="Try widening the availability filter, or clear everything and start again."
               actionLabel="Clear filters"
               onAction={resetFilters}
             />
@@ -280,7 +241,7 @@ export function DiscoverView({
           {
             heading: "Order TEREA sticks online with delivery across the UAE",
             paragraphs: [
-              "TereaCOD stocks the complete TEREA heat-not-burn range for IQOS ILUMA — every flavour across all seven sourcing lines (Uzbekistan, Tajikistan, Kyrgyzstan, Indonesia, Switzerland duty-free, Japan and Italy), all shipped from Dubai with UAE-wide delivery. Filter by collection or origin line above, load more to keep browsing, and check out in under a minute with cash or card on delivery.",
+              "TereaCOD stocks the complete TEREA heat-not-burn range for IQOS ILUMA — every flavour across all seven sourcing lines (Uzbekistan, Tajikistan, Kyrgyzstan, Indonesia, Switzerland duty-free, Japan and Italy), all shipped from Dubai with UAE-wide delivery. Open any collection or origin line above to browse its dedicated page, load more to keep browsing, and check out in under a minute with cash or card on delivery.",
               "Same-day dispatch applies to orders placed before the daily cut-off; deliveries reach Dubai, Abu Dhabi, Sharjah, Ajman, Ras Al Khaimah, Fujairah, Umm Al Quwain and Al Ain. Pack pricing starts at AED 45 with any origin premium shown on the listing — never added at the door.",
             ],
           },

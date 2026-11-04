@@ -4,7 +4,6 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { RevealSection } from "@/components/atmosphere/reveal-section";
-import { SectionAtmosphere } from "@/components/atmosphere/section-atmosphere";
 import { NeonDivider } from "./neon-divider";
 import { NeonHeading } from "./neon-heading";
 import { SectionContainer } from "@/components/layout/page-container";
@@ -12,7 +11,9 @@ import { SectionContainer } from "@/components/layout/page-container";
 /**
  * BrandIntroSection — editorial two-column TereaCOD story (the
  * "why us" band). Opens with an LED divider that transitions out
- * of the section above; ice-toned atmosphere drifts behind the copy.
+ * of the section above; the fixed page-level ambient smoke (app
+ * shell) drifts behind the copy — this section ships NO per-section
+ * smoke layer so the homepage stays light.
  * The image slot is wrapped in an intentional gradient frame so a
  * missing /brand/craft.jpg still reads as a designed placeholder.
  */
@@ -23,8 +24,6 @@ export function BrandIntroSection() {
     <SectionContainer spacing="lg">
       {/* Section transition: LED divider with charging indicator dots */}
       <NeonDivider className="absolute inset-x-6 top-0 z-[1] sm:inset-x-10" />
-
-      <SectionAtmosphere variant="ice" intensity={0.4} />
 
       <section id="the-brand" aria-labelledby="brand-intro-heading" className="relative z-10 scroll-mt-28">
         <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
