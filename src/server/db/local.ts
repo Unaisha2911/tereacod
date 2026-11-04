@@ -108,23 +108,110 @@ async function openRaw(): Promise<SqliteDatabase> {
   if (instance) return instance;
   if (!existsSync(DB_DIR)) mkdirSync(DB_DIR, { recursive: true });
   const db = await openDatabase(DB_FILE);
-  db.exec("PRAGMA journal_mode = WAL;");
+  // busy_timeout MUST come first: the pragmas below take locks on a fresh
+  // database file, and `next build` collects page data with SEVEN parallel
+  // workers that all open this same new file. Without a timeout already
+  // installed, they throw SQLITE_BUSY immediately — CI surfaced this as
+  // "Error: database is locked → Failed to collect page data".
+  db.exec("PRAGMA busy_timeout = 15000;");
+  // journal_mode = WAL additionally needs a brief EXCLUSIVE lock, and SQLite
+  // does NOT invoke the busy handler for it — a racing worker can fail it
+  // outright even with busy_timeout set. Whoever sets WAL first wins; the
+  // losers just re-check, so retry until the mode actually reads back "wal".
+  for (let attempt = 1; attempt <= 10; attempt++) {
+    try {
+      db.exec("PRAGMA journal_mode = WAL;");
+      break;
+    } catch (error) {
+      const mode = (db.prepare("PRAGMA journal_mode").get() as { journal_mode?: string })?.journal_mode;
+      if (mode === "wal") break;
+      if (attempt === 10 || !isBusyError(error)) throw error;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100 * attempt);
+    }
+  }
   db.exec("PRAGMA foreign_keys = ON;");
-  // The dev server and bun scripts (seed, smoke) share the database file;
-  // without a busy timeout any lock contention surfaces as an immediate
-  // SQLITE_BUSY throw instead of a short, almost-always-successful wait.
-  db.exec("PRAGMA busy_timeout = 5000;");
   instance = db;
   return db;
 }
 
+/** SQLITE_BUSY / "database is locked" — retryable with a short backoff. */
+function isBusyError(error: unknown): boolean {
+  const code = (error as { code?: string })?.code;
+  const message = (error as Error)?.message ?? "";
+  return code === "SQLITE_BUSY" || code === "ERR_SQLITE_BUSY" || /database is locked/i.test(message);
+}
+
+/** Synchronous sleep usable from the sync migration path (Bun/Node ≥ 22). */
+function sleepSync(ms: number): void {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+/**
+ * Applies ONE migration file under BEGIN IMMEDIATE.
+ *
+ * IMMEDIATE is the crux: the write lock is taken BEFORE any read, so two
+ * racing workers can never interleave inside one script. The natural
+ * alternative — BEGIN (deferred) + first-statement upgrade — hits WAL's
+ * snapshot rule: a txn that READ before another worker committed cannot
+ * upgrade to write at all (SQLITE_BUSY_SNAPSHOT, which busy_timeout cannot
+ * fix and bun surfaces as a bare "database is locked"), and the aborted
+ * script left half-applied schemas behind (CI symptom: the index statement
+ * after CREATE TABLE job_queue failing with "no such table").
+ *
+ * With the lock held: re-read the applied set (fresh, serialized), skip if
+ * another worker already landed this file, else exec + mark. Transient
+ * conflicts retry with backoff; genuine SQL errors surface with the file
+ * name after the short retry window.
+ */
+function applyMigrationFile(db: SqliteDatabase, file: string, sql: string, attempt = 1): void {
+  const MAX_ATTEMPTS = 8;
+  try {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      const applied = new Set(
+        (db.prepare(`SELECT name FROM _migrations`).all() as Array<{ name: string }>).map((r) => r.name)
+      );
+      if (applied.has(file)) {
+        db.exec("COMMIT"); // already applied by a racing worker — skip
+        return;
+      }
+      db.exec(sql);
+      db.prepare(`INSERT INTO _migrations (name, applied_at) VALUES (?, ?)`).run(
+        file,
+        new Date().toISOString()
+      );
+      db.exec("COMMIT");
+    } catch (error) {
+      try {
+        db.exec("ROLLBACK");
+      } catch {
+        /* the transaction may already be gone — nothing to unwind */
+      }
+      throw error;
+    }
+  } catch (error) {
+    if (attempt < MAX_ATTEMPTS) {
+      sleepSync(120 * attempt + Math.round(Math.random() * 200));
+      applyMigrationFile(db, file, sql, attempt + 1);
+      return;
+    }
+    // Final attempt failed — attach file context, preserve the SQLITE code.
+    const original = error as Error & { code?: string };
+    if (isBusyError(error)) throw original;
+    const wrapped = new Error(
+      `Migration ${file} failed: ${original?.message ?? String(error)}`
+    ) as Error & { code?: string };
+    wrapped.code = original?.code;
+    throw wrapped;
+  }
+}
+
 async function applyMigrations(db: SqliteDatabase): Promise<void> {
   if (migrationsApplied) return;
-  db.exec(
-    `CREATE TABLE IF NOT EXISTS _migrations (name TEXT PRIMARY KEY, applied_at TEXT NOT NULL);`
-  );
-  const appliedRows = db.prepare(`SELECT name FROM _migrations`).all() as Array<{ name: string }>;
-  const applied = new Set(appliedRows.map((r) => r.name));
+  // Marker table first (idempotent; autocommit — busy_timeout covers the
+  // wait when a racing worker holds the lock). Needed before the per-file
+  // applied-set reads below.
+  db.exec(`CREATE TABLE IF NOT EXISTS _migrations (name TEXT PRIMARY KEY, applied_at TEXT NOT NULL);`);
 
   let files: string[] = [];
   try {
@@ -134,20 +221,8 @@ async function applyMigrations(db: SqliteDatabase): Promise<void> {
   }
 
   for (const file of files) {
-    if (applied.has(file)) continue;
     const sql = readFileSync(path.join(MIGRATIONS_DIR, file), "utf8");
-    db.exec("BEGIN");
-    try {
-      db.exec(sql);
-      db.prepare(`INSERT INTO _migrations (name, applied_at) VALUES (?, ?)`).run(
-        file,
-        new Date().toISOString()
-      );
-      db.exec("COMMIT");
-    } catch (error) {
-      db.exec("ROLLBACK");
-      throw new Error(`Migration ${file} failed: ${(error as Error).message}`);
-    }
+    applyMigrationFile(db, file, sql);
   }
   migrationsApplied = true;
 }

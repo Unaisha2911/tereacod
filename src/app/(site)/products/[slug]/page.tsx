@@ -9,7 +9,7 @@ import { AvailabilityBadge } from "@/components/shared/status-badge";
 import { ItemGrid } from "@/components/shared/item-grid";
 import { toCardItems } from "@/lib/catalog-card";
 import { originLineForItem } from "@/lib/catalog-origin";
-import { getBrands, getCategoryBySlugRepo, getProductBySlug, getProducts } from "@/server/data";
+import { getBrands, getCategoryBySlugRepo, getProductBySlug } from "@/server/data";
 import { getProductsBySlugs } from "@/server/repos/catalog";
 import { breadcrumbJsonLd, canonical, faqJsonLd, JsonLd, productJsonLd, siteUrl } from "@/lib/seo";
 import { ProductDetailShell } from "./product-detail-shell";
@@ -19,9 +19,11 @@ interface ProductPageProps {
   params: Promise<{ slug: string }>;
 }
 
-export async function generateStaticParams() {
-  return (await getProducts()).map((item) => ({ slug: item.slug }));
-}
+// No generateStaticParams: the catalog is authored in the admin console after
+// go-live, so a build-time enumeration reads an EMPTY local database in CI
+// (returning nothing) while still contending for the fresh SQLite file with
+// the parallel page-data workers — the source of a "database is locked"
+// build failure. Product slugs resolve per request at runtime instead.
 
 export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {
   const { slug } = await params;

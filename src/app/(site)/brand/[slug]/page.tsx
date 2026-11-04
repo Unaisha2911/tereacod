@@ -10,7 +10,7 @@ import { CatalogBrowser } from "@/components/shared/catalog-browser";
 import { toCardItems } from "@/lib/catalog-card";
 import { SeoContent } from "@/components/shared/seo-content";
 import { BRAND_ACCENT_GLOW, BRAND_ACCENT_HEX } from "@/components/shared/brand-card";
-import { getBrandBySlugRepo, getBrandItems, getBrands, getProducts } from "@/server/data";
+import { getBrandBySlugRepo, getBrandItems, getProducts } from "@/server/data";
 import { ORIGIN_LINES } from "@/lib/catalog-origin";
 import { breadcrumbJsonLd, canonical, itemListJsonLd, JsonLd, siteUrl } from "@/lib/seo";
 import type { Brand } from "@/types";
@@ -19,9 +19,9 @@ interface BrandPageProps {
   params: Promise<{ slug: string }>;
 }
 
-export async function generateStaticParams() {
-  return (await getBrands()).map((brand) => ({ slug: brand.slug }));
-}
+// No generateStaticParams — brand slugs resolve per request at runtime
+// (the catalog is admin-authored; build-time enumeration reads an empty
+// local database in CI and races the parallel page-data workers).
 
 export async function generateMetadata({ params }: BrandPageProps): Promise<Metadata> {
   const { slug } = await params;

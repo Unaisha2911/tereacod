@@ -8,7 +8,7 @@ import { SectionAtmosphere } from "@/components/atmosphere/section-atmosphere";
 import { CatalogBrowser } from "@/components/shared/catalog-browser";
 import { toCardItems } from "@/lib/catalog-card";
 import { SeoContent } from "@/components/shared/seo-content";
-import { getCategories, getCategoryBySlugRepo, getProducts } from "@/server/data";
+import { getCategoryBySlugRepo, getProducts } from "@/server/data";
 import { ORIGIN_LINES } from "@/lib/catalog-origin";
 import { breadcrumbJsonLd, canonical, itemListJsonLd, JsonLd, siteUrl } from "@/lib/seo";
 
@@ -16,9 +16,10 @@ interface CollectionPageProps {
   params: Promise<{ slug: string }>;
 }
 
-export async function generateStaticParams() {
-  return (await getCategories()).map((category) => ({ slug: category.slug }));
-}
+// No generateStaticParams — collection slugs resolve per request at runtime
+// (the catalog is admin-authored; a build-time enumeration would read an
+// empty local database in CI and contend with the parallel page-data
+// workers for the fresh SQLite file).
 
 export async function generateMetadata({ params }: CollectionPageProps): Promise<Metadata> {
   const { slug } = await params;
