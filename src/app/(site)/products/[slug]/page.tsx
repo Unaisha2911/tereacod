@@ -5,10 +5,9 @@ import { PageContainer } from "@/components/layout/page-container";
 import { Breadcrumbs, type BreadcrumbItem } from "@/components/layout/breadcrumbs";
 import { InformationAccordion, type AccordionPanel } from "@/components/shared/information-accordion";
 import { SpecificationList } from "@/components/shared/specification-list";
-import { AvailabilityBadge } from "@/components/shared/status-badge";
 import { ItemGrid } from "@/components/shared/item-grid";
 import { toCardItems } from "@/lib/catalog-card";
-import { originLineForItem } from "@/lib/catalog-origin";
+import { originChipDataForItem } from "@/lib/catalog-origin";
 import { getBrands, getCategoryBySlugRepo, getProductBySlug } from "@/server/data";
 import { getProductsBySlugs } from "@/server/repos/catalog";
 import { breadcrumbJsonLd, canonical, faqJsonLd, JsonLd, productJsonLd, siteUrl } from "@/lib/seo";
@@ -66,11 +65,13 @@ export default async function ProductPage({ params }: ProductPageProps) {
   const item = await getProductBySlug(slug);
   if (!item) notFound();
 
-  // Product-level sourcing line (admin "Details" dropdown → products.origin).
-  // Shown as a chip under the price so the origin is visible even when the
-  // listing carries no origin-type variants — matching the chips on every
-  // listing card and the /origin landing pages.
-  const originLine = originLineForItem(item);
+  // Product detail badge row data. The origin chip under the price is
+  // SELECTION-REACTIVE: the server precomputes a compact line-resolution
+  // table (product-level Details origin + every origin variant → line),
+  // and the client shell flips the chip's flag/label and /origin/<slug>
+  // link the moment a different Origin pill is picked. Compact on purpose —
+  // the full origin lines (SEO copy) never cross the server→client edge.
+  const originChip = originChipDataForItem(item);
 
   const [category, brand, related] = await Promise.all([
     getCategoryBySlugRepo(item.categorySlug),
@@ -142,39 +143,17 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
         <ProductDetailShell
           item={item}
+          originChip={originChip}
           belowPrice={
-            <>
-              <p className="font-mono text-meta uppercase tracking-[0.08em] text-muted-foreground">
-                SKU {item.sku}
-                {item.model ? (
-                  <>
-                    {" \u00b7 "}
-                    Model {item.model}
-                  </>
-                ) : null}
-              </p>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <AvailabilityBadge availability={item.availability} />
-                {originLine && (
-                  <Link
-                    href={`/origin/${originLine.slug}`}
-                    title={`Origin: ${originLine.label}`}
-                    aria-label={`View all ${originLine.label} origin products`}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-violet-glow/40 bg-foreground/[0.03] px-2.5 py-1 text-[0.72rem] font-medium tracking-wide text-violet-soft transition-colors hover:border-violet-glow/70"
-                  >
-                    <span aria-hidden="true" className="text-[0.8rem] leading-none">{originLine.flag}</span>
-                    {originLine.label}
-                  </Link>
-                )}
-                {item.nicotineStrength && (
-                  <span className="inline-flex items-center rounded-full border border-line px-2.5 py-1 text-[0.72rem] font-medium tracking-wide text-muted-foreground">
-                    {item.nicotineStrength}
-                  </span>
-                )}
-                <ProductSaveButton itemId={item.id} name={item.name} />
-              </div>
-            </>
+            <p className="font-mono text-meta uppercase tracking-[0.08em] text-muted-foreground">
+              SKU {item.sku}
+              {item.model ? (
+                <>
+                  {" \u00b7 "}
+                  Model {item.model}
+                </>
+              ) : null}
+            </p>
           }
 >
           {/* Brand chip — a real link when the brand resolves in the

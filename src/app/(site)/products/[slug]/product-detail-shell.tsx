@@ -2,13 +2,17 @@
 
 import { useState, type ReactNode } from "react";
 import { ItemGallery } from "@/components/shared/item-gallery";
+import { AvailabilityBadge } from "@/components/shared/status-badge";
 import { ProductOrderActions } from "./product-order-actions";
+import { ProductSaveButton } from "./product-save-button";
+import { SelectedOriginChip } from "./selected-origin-chip";
 import { initialVariantSelection, type VariantSelection } from "./variant-picker";
 import {
   selectedVariants,
   variantPriceDeltaTotal,
 } from "@/lib/variant-selection";
 import { formatAED } from "@/lib/utils";
+import type { OriginChipData } from "@/lib/catalog-origin";
 import type { CatalogItem } from "@/types";
 
 /**
@@ -25,17 +29,24 @@ import type { CatalogItem } from "@/types";
  * The price block is rendered HERE (not in the server children) so it can
  * react to the selection: a colour or origin option with its own price
  * delta updates the displayed price immediately. `belowPrice` receives the
- * server-rendered SKU/badge rows that belong under the price.
+ * server-rendered rows that belong under the price.
+ *
+ * The badge row (availability + origin chip + nicotine + save) also lives
+ * HERE: the origin chip must follow the selected Origin pill, and selection
+ * state is owned by this component — server children cannot react to it.
  */
 export function ProductDetailShell({
   item,
   children,
   belowPrice,
+  originChip,
 }: {
   item: CatalogItem;
   children: ReactNode;
   /** Server-rendered rows shown under the reactive price (SKU, badges). */
   belowPrice?: ReactNode;
+  /** Compact origin-line resolution table for the reactive origin chip. */
+  originChip: OriginChipData;
 }) {
   const [selection, setSelection] = useState<VariantSelection>(() => initialVariantSelection(item.variants));
   /** Photo of the last-touched colour/origin with imagery; null = default order. */
@@ -84,6 +95,22 @@ export function ProductDetailShell({
           )}
         </div>
         {belowPrice}
+
+        {/* Badge row — availability, the SELECTION-REACTIVE origin chip
+            (flips flag/label/link when an Origin pill is pressed), the
+            nicotine tag and the save control. Rendered by the shell (not
+            server children) because it tracks selection state. */}
+        <div className="flex flex-wrap items-center gap-2">
+          <AvailabilityBadge availability={item.availability} />
+          <SelectedOriginChip data={originChip} selectedVariantId={selection.origin} />
+          {item.nicotineStrength && (
+            <span className="inline-flex items-center rounded-full border border-line px-2.5 py-1 text-[0.72rem] font-medium tracking-wide text-muted-foreground">
+              {item.nicotineStrength}
+            </span>
+          )}
+          <ProductSaveButton itemId={item.id} name={item.name} />
+        </div>
+
         <ProductOrderActions item={item} selection={selection} onSelectionChange={handleSelectionChange} />
       </div>
     </div>

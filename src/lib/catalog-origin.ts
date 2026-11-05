@@ -401,3 +401,67 @@ export function originCountsFor(items: OriginResolvable[]): Record<string, numbe
   }
   return counts;
 }
+
+// ---------------------------------------------------------------------------
+// ORIGIN CHIP (product detail page)
+// ---------------------------------------------------------------------------
+
+/**
+ * Compact, serializable origin chip descriptor. Deliberately carries ONLY
+ * the chip-rendering fields (slug/label/flag) — the full OriginLine shape
+ * embeds kilobytes of SEO copy per line, and this data crosses the
+ * server→client boundary on every product page.
+ */
+export interface OriginChipOption {
+  slug: string;
+  label: string;
+  flag: string;
+}
+
+/**
+ * Everything the product page's reactive origin chip needs:
+ *
+ *  - `defaultOption` — what the chip shows when no origin variant is
+ *    selected: the product-level (Details) line, falling back to the first
+ *    origin-variant line when the Details origin is unset. Mirrors
+ *    `originLineForItem` semantics.
+ *  - `byVariantId` — selected origin variant id → the line it represents,
+ *    so the chip follows the Origin pill the visitor picks (a Japan/Italy
+ *    listing shows Italy's chip the moment Italy is selected).
+ *
+ * Variants whose label does not resolve to a known line are simply absent
+ * from `byVariantId` — the chip falls back to `defaultOption` for them.
+ */
+export interface OriginChipData {
+  defaultOption: OriginChipOption | null;
+  byVariantId: Record<string, OriginChipOption>;
+}
+
+/** Build the reactive chip payload for one product (server side). */
+export function originChipDataForItem(item: {
+  origin?: string | null;
+  variants?: Array<{ id: string; type: string; label: string }>;
+}): OriginChipData {
+  const toOption = (line: OriginLine): OriginChipOption => ({
+    slug: line.slug,
+    label: line.label,
+    flag: line.flag,
+  });
+
+  const byVariantId: Record<string, OriginChipOption> = {};
+  let firstVariantLine: OriginLine | null = null;
+  for (const variant of item.variants ?? []) {
+    if (variant.type !== "origin") continue;
+    const line = originLineForLabel(variant.label);
+    if (!line) continue;
+    byVariantId[variant.id] = toOption(line);
+    if (!firstVariantLine) firstVariantLine = line;
+  }
+
+  const productLine = item.origin ? originLineForLabel(item.origin) : null;
+  const defaultLine = productLine ?? firstVariantLine;
+  return {
+    defaultOption: defaultLine ? toOption(defaultLine) : null,
+    byVariantId,
+  };
+}
