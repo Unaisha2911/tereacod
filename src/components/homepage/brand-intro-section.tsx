@@ -47,7 +47,7 @@ export function BrandIntroSection() {
             </p>
             <Link
               href="/about"
-              className="group mt-8 inline-flex items-center gap-1.5 rounded-full border border-violet-glow/40 px-5 py-2.5 text-sm font-medium text-violet-soft shadow-[0_0_14px_rgba(139,92,246,0.18)] transition-all hover:border-violet-glow/70 hover:text-foreground hover:shadow-[0_0_22px_rgba(139,92,246,0.4)]"
+              className="group mt-8 inline-flex items-center gap-1.5 rounded-full border border-violet-glow/40 px-5 py-2.5 text-sm font-medium text-violet-soft shadow-[0_0_14px_rgba(139,92,246,0.18)] transition-[border-color,color,box-shadow] hover:border-violet-glow/70 hover:text-foreground hover:shadow-[0_0_22px_rgba(139,92,246,0.4)]"
             >
               About TereaCOD
               <span aria-hidden="true" className="transition-transform group-hover:translate-x-0.5">→</span>

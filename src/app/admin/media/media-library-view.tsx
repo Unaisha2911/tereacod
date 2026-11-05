@@ -480,7 +480,7 @@ export function MediaLibraryView() {
           type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading}
-          className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground transition-all hover:brightness-110 disabled:opacity-50"
+          className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground transition-[filter] hover:brightness-110 disabled:opacity-50"
         >
           <UploadCloud className="size-4" aria-hidden="true" />
           {uploading ? "Uploading…" : "Upload"}
@@ -746,7 +746,7 @@ export function MediaLibraryView() {
                     type="button"
                     onClick={() => void saveAlt()}
                     disabled={savingAlt}
-                    className="inline-flex min-h-10 items-center rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground transition-all hover:brightness-110 disabled:opacity-50"
+                    className="inline-flex min-h-10 items-center rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground transition-[filter] hover:brightness-110 disabled:opacity-50"
                   >
                     {savingAlt ? "Saving…" : "Save alt"}
                   </button>

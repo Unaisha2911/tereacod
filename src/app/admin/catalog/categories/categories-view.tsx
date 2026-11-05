@@ -94,15 +94,21 @@ function CategoryFormDialog({
   const [saving, setSaving] = useState(false);
 
   // Hydrate the fields from the target row whenever the dialog opens.
+  // Deferred one task so the reset can't cascade a synchronous re-render
+  // mid-open (react-hooks set-state-in-effect) — the fields populate
+  // before the dialog's open animation settles.
   useEffect(() => {
     if (!open) return;
     const category = mode.kind === "edit" ? mode.category : null;
-    setName(category?.name ?? "");
-    setSlug(category?.slug ?? "");
-    setDescription(category?.description ?? "");
-    setLongDescription(category?.longDescription ?? "");
-    setAccent(category?.accent ?? "violet");
-    setFeatured(Boolean(category?.featured));
+    const id = setTimeout(() => {
+      setName(category?.name ?? "");
+      setSlug(category?.slug ?? "");
+      setDescription(category?.description ?? "");
+      setLongDescription(category?.longDescription ?? "");
+      setAccent(category?.accent ?? "violet");
+      setFeatured(Boolean(category?.featured));
+    }, 0);
+    return () => clearTimeout(id);
   }, [open, mode]);
 
   const submit = async () => {

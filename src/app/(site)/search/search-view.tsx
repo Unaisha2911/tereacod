@@ -212,7 +212,7 @@ export function SearchView() {
       } else if (e.key === "Enter" && activeSuggestion >= 0) {
         e.preventDefault();
         const picked = suggestions.items[activeSuggestion];
-        if (picked) window.location.assign(`/products/${picked.slug}`);
+        if (picked) router.push(`/products/${picked.slug}`);
       }
     }
   };

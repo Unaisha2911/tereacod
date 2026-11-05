@@ -99,7 +99,7 @@ function SuccessConfirmation({ reference }: { reference: string | null }) {
           <div className="flex flex-wrap items-center justify-center gap-3">
             <Link
               href="/account/orders"
-              className="inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground transition-all hover:brightness-110"
+              className="inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground transition-[filter] hover:brightness-110"
             >
               <ReceiptText className="size-4" aria-hidden="true" />
               Order history

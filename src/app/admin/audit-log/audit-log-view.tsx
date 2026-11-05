@@ -117,6 +117,15 @@ export function AuditLogView() {
   const [selected, setSelected] = useState<AuditEvent | null>(null);
   const [attempt, setAttempt] = useState(0);
 
+  // Query identity for the in-flight request. `loading` is DERIVED from the
+  // gap between the requested query and the last rendered one instead of a
+  // synchronous setState("loading") in the fetch effect (react-hooks
+  // set-state-in-effect — a sync reset there cascades an extra render pass
+  // before the async work). Same skeleton-on-every-query-change behaviour.
+  const queryKey = `${debouncedSearch}|${severity}|${page}|${attempt}`;
+  const [renderedKey, setRenderedKey] = useState(queryKey);
+  const loading = state === "loading" || renderedKey !== queryKey;
+
   // Debounce keystrokes before they hit the server-paged query.
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search.trim()), 220);
@@ -125,7 +134,6 @@ export function AuditLogView() {
 
   useEffect(() => {
     let alive = true;
-    setState("loading");
     adminService
       .auditLog({ search: debouncedSearch, severity, page, pageSize: PAGE_SIZE })
       .then((result) => {
@@ -133,15 +141,19 @@ export function AuditLogView() {
           setEvents(result.items);
           setTotal(result.total);
           setState("ready");
+          setRenderedKey(queryKey);
         }
       })
       .catch(() => {
-        if (alive) setState("error");
+        if (alive) {
+          setState("error");
+          setRenderedKey(queryKey);
+        }
       });
     return () => {
       alive = false;
     };
-  }, [debouncedSearch, severity, page, attempt]);
+  }, [debouncedSearch, severity, page, attempt, queryKey]);
 
   const retry = useCallback(() => setAttempt((a) => a + 1), []);
 
@@ -283,7 +295,7 @@ export function AuditLogView() {
         <FilterBar options={SEVERITY_OPTIONS} value={severity} onChange={onSeverity} ariaLabel="Filter audit events by severity" />
       </div>
 
-      {state === "loading" && <TableSkeleton />}
+      {loading && <TableSkeleton />}
       {state === "error" && (
         <ErrorState
           title="Audit log unavailable"

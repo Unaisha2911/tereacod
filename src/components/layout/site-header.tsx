@@ -116,7 +116,7 @@ export function SiteHeader({
                 placeholder="Search TEREA sticks and flavours…"
                 aria-label="Search TEREA sticks and flavours"
                 className={cn(
-                  "h-10 w-44 rounded-full border border-line bg-foreground/[0.04] pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground/70 transition-all duration-300 focus:border-violet-glow/50 focus:bg-foreground/[0.06] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-violet-glow/60 xl:w-56",
+                  "h-10 w-44 rounded-full border border-line bg-foreground/[0.04] pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground/70 transition-[border-color,background-color] duration-300 focus:border-violet-glow/50 focus:bg-foreground/[0.06] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-violet-glow/60 xl:w-56",
                   searchOpen && quickSearch && "w-64 xl:w-72"
                 )}
               />

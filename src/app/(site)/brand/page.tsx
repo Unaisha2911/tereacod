@@ -103,7 +103,7 @@ export default async function BrandDirectoryPage() {
               <div className="mt-6 flex flex-wrap gap-3">
                 <Link
                   href="/collections"
-                  className="inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground transition-all hover:brightness-110"
+                  className="inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground transition-[filter] hover:brightness-110"
                 >
                   Browse all collections
                   <ArrowRight className="size-4" aria-hidden="true" />

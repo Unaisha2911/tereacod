@@ -56,7 +56,7 @@ export function Logo({
           stroke="url(#tc-logo-grad)"
           strokeWidth="2.2"
           fill="rgba(139,92,246,0.07)"
-          className="transition-all duration-500 group-hover:fill-[rgba(139,92,246,0.2)]"
+          className="transition-[fill] duration-500 group-hover:fill-[rgba(139,92,246,0.2)]"
         />
         <path d="M22.5 24.5 H41.5 V29.5 H34.5 V43.5 H29.5 V29.5 H22.5 Z" fill="#F4F2FF" />
         <path d="M50.5 6 L44.5 14 H48 L45 20 L52.5 11.5 H48.5 L50.5 6 Z" fill="#6fd6f2" />

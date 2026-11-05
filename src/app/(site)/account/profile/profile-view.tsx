@@ -205,7 +205,7 @@ export function ProfileView() {
           <button
             type="submit"
             disabled={saving || !isDirty}
-            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-primary px-6 font-medium text-primary-foreground transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-primary px-6 font-medium text-primary-foreground transition-[filter] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {saving ? (
               <LoadingIndicator label="Saving" size="sm" className="text-primary-foreground/90" />

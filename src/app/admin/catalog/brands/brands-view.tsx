@@ -97,18 +97,24 @@ function BrandFormDialog({
   const [saving, setSaving] = useState(false);
 
   // Hydrate the fields from the target row whenever the dialog opens.
+  // Deferred one task so the reset can't cascade a synchronous re-render
+  // mid-open (react-hooks set-state-in-effect) — the fields populate
+  // before the dialog's open animation settles.
   useEffect(() => {
     if (!open) return;
     const brand = mode.kind === "edit" ? mode.brand : null;
-    setName(brand?.name ?? "");
-    setSlug(brand?.slug ?? "");
-    setTagline(brand?.tagline ?? "");
-    setBlurb(brand?.blurb ?? "");
-    setDescription(brand?.description ?? "");
-    setOrigin(brand?.origin ?? "");
-    setEstablished(brand?.established ?? "");
-    setAccent(brand?.accent ?? "violet");
-    setFeatured(Boolean(brand?.featured));
+    const id = setTimeout(() => {
+      setName(brand?.name ?? "");
+      setSlug(brand?.slug ?? "");
+      setTagline(brand?.tagline ?? "");
+      setBlurb(brand?.blurb ?? "");
+      setDescription(brand?.description ?? "");
+      setOrigin(brand?.origin ?? "");
+      setEstablished(brand?.established ?? "");
+      setAccent(brand?.accent ?? "violet");
+      setFeatured(Boolean(brand?.featured));
+    }, 0);
+    return () => clearTimeout(id);
   }, [open, mode]);
 
   const submit = async () => {

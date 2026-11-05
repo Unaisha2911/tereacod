@@ -9,16 +9,22 @@ import { Logo } from "./logo";
  * REQUIRED compliance surface for a nicotine storefront: first-time
  * visitors must confirm they are of legal age before browsing.
  *
- * Zero-flash strategy: a tiny inline script in the (site) layout runs
- * BEFORE first paint and adds `age-gate-locked` to <html> when no consent
- * is stored. CSS then shows this overlay and locks body scroll from the
- * very first frame — no hydration mismatch (the markup is identical on
- * server and client; visibility is CSS-driven), no content flash.
+ * Delayed-entry strategy: the site renders and scrolls freely on arrival;
+ * after a 5-second countdown (measured from FIRST PAINT via the
+ * window.__ageGateT0 stamp the root-layout boot script writes, so slow
+ * devices don't stack hydration latency on top of the delay) the overlay
+ * fades in and locks body scroll until consent is stored. Returning
+ * visitors with stored consent never see it.
+ *
+ * Visibility is CSS-driven from `html.age-gate-locked` (set when the
+ * countdown fires, removed on consent) — the markup is identical on server
+ * and client, so there is no hydration mismatch and no content flash.
  *
  * Consent state is read through useSyncExternalStore (localStorage is
  * external state — no setState-in-effect): after hydration React swaps
- * from the server snapshot (locked) to the real consent value, and
- * cross-tab storage changes re-render the gate live.
+ * from the server snapshot (not consented) to the real consent value, and
+ * cross-tab storage changes re-render the gate live (a consent landing in
+ * another tab during the countdown cancels the reveal entirely).
  *
  * "Yes, I'm 18 or older" stores the consent and unlocks the site for
  * good (the prompt never returns). "No" swaps the card to a refusal
@@ -26,6 +32,9 @@ import { Logo } from "./logo";
  */
 
 const STORAGE_KEY = "tereacod.age-gate.v1";
+
+/** How long a first-time visitor browses before the gate appears. */
+const AGE_GATE_DELAY_MS = 5_000;
 
 /** Same-tab + cross-tab notifications for the consent store. */
 const consentListeners = new Set<() => void>();
@@ -53,20 +62,34 @@ function notifyConsent(): void {
 }
 
 export function AgeGate() {
-  // Server snapshot assumes locked (matches the pre-paint boot script);
+  // Server snapshot assumes not consented (conservative default);
   // useSyncExternalStore re-renders with the real value after hydration.
   const consented = useSyncExternalStore(subscribeConsent, consentSnapshot, () => false);
   const locked = !consented;
   const [denied, setDenied] = useState(false);
+  const [revealed, setRevealed] = useState(false);
 
-  // Keep the pre-paint html class in sync with the consent value after
-  // hydration (external-system sync — no state updates here).
+  // Countdown to the reveal, measured from first paint. If consent lands
+  // during the wait (another tab accepted, or storage was pre-populated and
+  // hydration caught up), the [consented] swap clears this timer and the
+  // gate never appears.
   useEffect(() => {
-    document.documentElement.classList.toggle("age-gate-locked", locked);
+    if (consented) return;
+    const t0 = (window as unknown as { __ageGateT0?: number }).__ageGateT0;
+    const wait = Math.max(0, AGE_GATE_DELAY_MS - (typeof t0 === "number" ? Date.now() - t0 : 0));
+    const timer = setTimeout(() => setRevealed(true), wait);
+    return () => clearTimeout(timer);
+  }, [consented]);
+
+  // Keep the html lock class in sync: the page only locks once the overlay
+  // is actually visible (consent missing AND countdown elapsed).
+  const active = locked && revealed;
+  useEffect(() => {
+    document.documentElement.classList.toggle("age-gate-locked", active);
     return () => {
-      if (locked) document.documentElement.classList.remove("age-gate-locked");
+      if (active) document.documentElement.classList.remove("age-gate-locked");
     };
-  }, [locked]);
+  }, [active]);
 
   const accept = () => {
     try {
@@ -88,7 +111,7 @@ export function AgeGate() {
       aria-modal="true"
       aria-labelledby="age-gate-title"
       aria-describedby="age-gate-body"
-      aria-hidden={!locked}
+      aria-hidden={!active}
     >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(58%_44%_at_18%_24%,rgba(139,92,246,0.2),transparent_68%),radial-gradient(46%_40%_at_84%_18%,rgba(215,95,212,0.14),transparent_66%)]" aria-hidden="true" />
       <div className="relative z-10 w-full max-w-md px-5">
@@ -115,7 +138,7 @@ export function AgeGate() {
                 <button
                   type="button"
                   onClick={accept}
-                  className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-primary font-medium text-primary-foreground transition-all hover:brightness-110 hover:shadow-[0_0_24px_rgba(139,92,246,0.45)]"
+                  className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-primary font-medium text-primary-foreground transition-[filter,box-shadow] hover:brightness-110 hover:shadow-[0_0_24px_rgba(139,92,246,0.45)]"
                 >
                   Yes, I&apos;m 18 or older — enter
                 </button>

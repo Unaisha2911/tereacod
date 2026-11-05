@@ -198,7 +198,7 @@ export function PreferencesView() {
         <button
           type="submit"
           disabled={saving}
-          className="inline-flex min-h-12 items-center justify-center rounded-full bg-primary px-6 font-medium text-primary-foreground transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex min-h-12 items-center justify-center rounded-full bg-primary px-6 font-medium text-primary-foreground transition-[filter] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {saving ? <LoadingIndicator label="Saving" size="sm" className="text-primary-foreground/90" /> : "Save preferences"}
         </button>

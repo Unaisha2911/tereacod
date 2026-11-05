@@ -92,7 +92,7 @@ export function ForgotPasswordView() {
         <button
           type="submit"
           disabled={submitting}
-          className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-primary font-medium text-primary-foreground transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-primary font-medium text-primary-foreground transition-[filter] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {submitting ? (
             <LoadingIndicator label="Sending request" size="sm" className="text-primary-foreground/90" />

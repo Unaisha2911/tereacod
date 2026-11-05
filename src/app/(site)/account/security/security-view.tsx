@@ -178,7 +178,7 @@ export function SecurityView() {
           <button
             type="submit"
             disabled={pwSaving}
-            className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-primary font-medium text-primary-foreground transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:px-6"
+            className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-primary font-medium text-primary-foreground transition-[filter] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:px-6"
           >
             {pwSaving ? (
               <LoadingIndicator label="Updating" size="sm" className="text-primary-foreground/90" />

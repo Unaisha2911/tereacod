@@ -86,7 +86,7 @@ function OriginCard({
             </span>
             <span
               aria-hidden="true"
-              className="flex size-8 items-center justify-center rounded-full border border-line-strong text-muted-foreground transition-all duration-300 group-hover/glow:rotate-45 group-hover/glow:border-current group-hover/glow:text-foreground"
+              className="flex size-8 items-center justify-center rounded-full border border-line-strong text-muted-foreground transition-[transform,border-color,color] duration-300 group-hover/glow:rotate-45 group-hover/glow:border-current group-hover/glow:text-foreground"
             >
               <ArrowUpRight className="size-3.5" />
             </span>

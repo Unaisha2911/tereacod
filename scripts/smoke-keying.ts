@@ -18,17 +18,18 @@ const SRC_DIR = path.resolve("scripts/smoke-src");
 const OUT_DIR = path.resolve("public/smoke");
 
 /**
- * Output formats: plume/column are noise-heavy but grayscale-friendly —
- * chroma-stripped WebP beats PNG (~7% smaller). Wisps has an alpha-noise
- * floor where WebP never wins, so it stays palette PNG.
+ * Output format: AVIF for every plate. The alpha-noise floor that made
+ * WebP lose to palette PNG is irrelevant to AVIF — it compresses the
+ * same plates ~60% smaller at identical resolution (wisps: 195KB PNG →
+ * 79KB AVIF, plume: 120KB WebP → 41KB, column: 126KB → 37KB).
  */
-const PLATES: Array<{ file: string; out: string; width: number; gain: number; format: "png" | "webp" }> = [
-  { file: "smoke-raw-1.png", out: "smoke-plume.webp", width: 1200, gain: 1.12, format: "webp" },
-  { file: "smoke-raw-2.png", out: "smoke-wisps.png", width: 1200, gain: 1.18, format: "png" },
-  { file: "smoke-raw-3.png", out: "smoke-column.webp", width: 860, gain: 1.1, format: "webp" },
+const PLATES: Array<{ file: string; out: string; width: number; gain: number }> = [
+  { file: "smoke-raw-1.png", out: "smoke-plume.avif", width: 1200, gain: 1.12 },
+  { file: "smoke-raw-2.png", out: "smoke-wisps.avif", width: 1200, gain: 1.18 },
+  { file: "smoke-raw-3.png", out: "smoke-column.avif", width: 860, gain: 1.1 },
 ];
 
-async function keyPlate({ file, out, width, gain, format }: (typeof PLATES)[number]) {
+async function keyPlate({ file, out, width, gain }: (typeof PLATES)[number]) {
   const src = path.join(SRC_DIR, file);
   const dst = path.join(OUT_DIR, out);
 
@@ -56,19 +57,12 @@ async function keyPlate({ file, out, width, gain, format }: (typeof PLATES)[numb
   }
 
   // Palette PNG first (256-colour quantisation smooths sensor noise),
-  // then transcode: chroma-stripped WebP on the smoothed input is ~7%
-  // smaller than either codec on the raw key. WebP plates ship the
-  // transcode; PNG plates ship the palette PNG directly.
+  // then transcode to AVIF on the smoothed input — the quantised alpha
+  // gives AVIF a cleaner signal to predict than the raw keyed noise.
   const palettePng = await sharp(px, { raw: { width: info.width, height: info.height, channels: 4 } })
     .png({ compressionLevel: 9, palette: true, quality: 85, effort: 9 })
     .toBuffer();
-  if (format === "webp") {
-    // Textures are luminance-keyed WHITE vapor — no chroma information, so
-    // grayscale (CSP removal) + moderate quality is the right encoding.
-    await sharp(palettePng).grayscale().webp({ quality: 75, alphaQuality: 85, effort: 6 }).toFile(dst);
-  } else {
-    await sharp(palettePng).toFile(dst);
-  }
+  await sharp(palettePng).avif({ quality: 55, effort: 6 }).toFile(dst);
 
   const kb = (fs.statSync(dst).size / 1024).toFixed(0);
   console.log(`✓ ${out} — ${info.width}x${info.height}, ${kb} KB`);

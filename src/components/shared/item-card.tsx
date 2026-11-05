@@ -125,7 +125,7 @@ export const ItemCard = memo(function ItemCard({ item, priority = false }: { ite
           aria-pressed={saved}
           aria-label={saved ? `Remove ${item.name} from saved items` : `Save ${item.name}`}
           className={cn(
-            "absolute right-3 top-3 inline-flex size-9 items-center justify-center rounded-full border transition-all",
+            "absolute right-3 top-3 inline-flex size-9 items-center justify-center rounded-full border transition-colors",
             // Invisible hit-area expansion keeps the 36px visual while
             // giving thumbs a ~48px touch target.
             "before:absolute before:-inset-2 before:rounded-full before:content-['']",
@@ -172,7 +172,7 @@ export const ItemCard = memo(function ItemCard({ item, priority = false }: { ite
                 aria-label={blocked ? `${item.name} is currently unavailable` : `Add ${item.name} to cart`}
                 title={blocked ? "Currently unavailable" : "Add to cart"}
                 className={cn(
-                  "relative inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-line-strong bg-black/60 text-muted-foreground transition-all hover:border-violet-glow/50 hover:text-violet-soft",
+                  "relative inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-line-strong bg-black/60 text-muted-foreground transition-colors hover:border-violet-glow/50 hover:text-violet-soft",
                   "before:absolute before:-inset-2 before:rounded-full before:content-['']",
                   blocked && "cursor-not-allowed opacity-40 hover:border-line-strong hover:text-muted-foreground"
                 )}

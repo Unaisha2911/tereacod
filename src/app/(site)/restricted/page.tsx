@@ -27,7 +27,7 @@ export default function RestrictedPage() {
       <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
         <Link
           href="/account/sign-in"
-          className="inline-flex min-h-12 items-center gap-2 rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground transition-all hover:brightness-110"
+          className="inline-flex min-h-12 items-center gap-2 rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground transition-[filter] hover:brightness-110"
         >
           <Lock className="size-4" aria-hidden="true" />
           Sign in

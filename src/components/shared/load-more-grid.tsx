@@ -60,7 +60,7 @@ export function LoadMoreGrid({
             aria-label={`${loadMoreLabel} — ${remaining} more available`}
             className={cn(
               "group inline-flex min-h-12 items-center gap-2.5 rounded-full border border-line-strong bg-foreground/[0.03] px-8",
-              "text-sm font-medium text-foreground shadow-[0_0_12px_rgba(139,92,246,0.12)] transition-all",
+              "text-sm font-medium text-foreground shadow-[0_0_12px_rgba(139,92,246,0.12)] transition-[border-color,box-shadow]",
               "hover:border-violet-glow/55 hover:shadow-[0_0_20px_rgba(139,92,246,0.3)]",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-glow/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
               "disabled:pointer-events-none disabled:opacity-60"

@@ -131,10 +131,14 @@ export function SettingsView({ settings }: { settings: SiteSettings }) {
 
   // Latest-values ref + dirtiness baseline: a slow GET (or a manual retry)
   // must never clobber in-flight edits, so hydration is skipped while dirty.
-  const valuesRef = useRef<Array<string | boolean>>(
+  // The initial server snapshot is computed exactly once (lazy useState) and
+  // seeds BOTH refs — reading `valuesRef.current` during render to seed the
+  // baseline is flagged by the react-hooks refs rule.
+  const [initialSnapshot] = useState(() =>
     snapshot(settings, { freeThreshold: "200", standardFee: "25", expressFee: "35" }, { maintenance: false, checkoutEnabled: true })
   );
-  const baselineRef = useRef<Array<string | boolean>>(valuesRef.current);
+  const valuesRef = useRef<Array<string | boolean>>(initialSnapshot);
+  const baselineRef = useRef<Array<string | boolean>>(initialSnapshot);
 
   useEffect(() => {
     valuesRef.current = snapshot(

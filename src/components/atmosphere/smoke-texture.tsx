@@ -19,10 +19,14 @@ import { cn } from "@/lib/utils";
 
 export type SmokeTextureAsset = "plume" | "wisps" | "column";
 
+/* AVIF plates — the alpha-noisy vapor key compresses ~60% better in AVIF
+   than PNG/WebP at identical resolution (wisps: 195KB PNG → 79KB AVIF).
+   AVIF support (2026): Chrome 85+, Firefox 93+, Safari 16.4+; older Safari
+   fails the mask load and simply renders the decorative layer hidden. */
 const ASSET_SRC: Record<SmokeTextureAsset, string> = {
-  plume: "/smoke/smoke-plume.webp",
-  wisps: "/smoke/smoke-wisps.png",
-  column: "/smoke/smoke-column.webp",
+  plume: "/smoke/smoke-plume.avif",
+  wisps: "/smoke/smoke-wisps.avif",
+  column: "/smoke/smoke-column.avif",
 };
 
 export interface SmokeTextureProps {

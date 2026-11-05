@@ -69,16 +69,36 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        // Baseline hardening (QA audit Task 26). A nonce-based CSP is the
-        // follow-up once the deploy target is fixed; these ship now.
+        // Baseline hardening (QA audit Task 26) + Lighthouse trust & safety.
+        // HSTS carries `preload` so the domain is eligible for the browser
+        // preload list; CSP ships in enforcement mode with the two inline
+        // allowances a Next app inherently needs (framework bootstrap +
+        // styled/JSON-LD inline content) plus the Cloudflare Web Analytics
+        // beacon. Nonce-based script CSP is the later hardening step.
         source: "/(.*)",
         headers: [
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "X-Frame-Options", value: "SAMEORIGIN" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=()" },
-          { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
+          { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
           { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
+          {
+            key: "Content-Security-Policy",
+            value:
+              "default-src 'self'; " +
+              "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; " +
+              "style-src 'self' 'unsafe-inline'; " +
+              "img-src 'self' data: blob:; " +
+              "font-src 'self' data:; " +
+              "connect-src 'self' https://cloudflareinsights.com; " +
+              "worker-src 'self' blob:; " +
+              "base-uri 'self'; " +
+              "form-action 'self'; " +
+              "frame-ancestors 'self'; " +
+              "object-src 'none'; " +
+              "upgrade-insecure-requests",
+          },
         ],
       },
     ];

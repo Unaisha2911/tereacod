@@ -63,10 +63,13 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
       {/* Page-wide smoke textures — the fixed AmbientSmoke in the app shell
           is the ONLY smoke on the site (hero/section layers were removed
           for homepage speed) and references these from CSS masks, which
-          browsers discover late, so preload both for first paint. Lives
+          browsers discover late, so preload both — but at LOW priority:
+          they are decorative backdrop, and a high-priority preload raced
+          the LCP headline for bandwidth (Pingdom waterfall showed the
+          wisps plate fetching ahead of above-the-fold content). Lives
           HERE (not the root layout): the admin console ships no smoke. */}
-      <link rel="preload" as="image" href="/smoke/smoke-wisps.png" fetchPriority="high" />
-      <link rel="preload" as="image" href="/smoke/smoke-plume.webp" />
+      <link rel="preload" as="image" href="/smoke/smoke-wisps.avif" fetchPriority="low" />
+      <link rel="preload" as="image" href="/smoke/smoke-plume.avif" fetchPriority="low" />
       <AppBootstrap>{children}</AppBootstrap>
     </AppShell>
   );

@@ -98,13 +98,19 @@ function CreateProductDialog({
 
   useEffect(() => {
     if (!open) return;
-    setName("");
-    setSku("");
-    setPrice("");
-    setTagline("");
-    setOrigin("");
-    setBrandId(brands[0]?.id ?? "");
-    setCategoryId(categories[0]?.id ?? "");
+    // Deferred one task so the reset can't cascade a synchronous re-render
+    // mid-open (react-hooks set-state-in-effect) — the fields populate
+    // before the dialog's open animation settles.
+    const id = setTimeout(() => {
+      setName("");
+      setSku("");
+      setPrice("");
+      setTagline("");
+      setOrigin("");
+      setBrandId(brands[0]?.id ?? "");
+      setCategoryId(categories[0]?.id ?? "");
+    }, 0);
+    return () => clearTimeout(id);
   }, [open, brands, categories]);
 
   const priceCents = Math.round(Number(price) * 100);
@@ -231,7 +237,7 @@ function CreateProductDialog({
             <button
               type="submit"
               disabled={!valid || saving}
-              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground transition-all hover:brightness-110 disabled:opacity-50"
+              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground transition-[filter] hover:brightness-110 disabled:opacity-50"
             >
               <Plus className="size-4" aria-hidden="true" />
               {saving ? "Creating…" : "Create draft"}
@@ -257,7 +263,6 @@ export function ProductsListView() {
 
   const [result, setResult] = useState<AdminProductSummary[] | null>(null);
   const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -296,9 +301,17 @@ export function ProductsListView() {
   // the last page lands on the new final page instead of a stale empty one.
   const safePage = Math.min(page, pageCount);
 
+  // Fetch identity. `loading` is DERIVED from the gap between the requested
+  // query and the last rendered one — a synchronous setLoading(true) inside
+  // the fetch effect cascades an extra render pass before the async work
+  // (react-hooks set-state-in-effect). Stale rows stay visible during a
+  // refetch, exactly like before.
+  const fetchKey = `${query}|${status}|${safePage}|${reloadKey}`;
+  const [renderedKey, setRenderedKey] = useState<string | null>(null);
+  const loading = renderedKey !== fetchKey;
+
   useEffect(() => {
     let alive = true;
-    setLoading(true);
     adminService
       .products({ q: query || undefined, status, page: safePage, pageSize: PAGE_SIZE })
       .then((data) => {
@@ -306,17 +319,18 @@ export function ProductsListView() {
         setResult(data.items);
         setTotal(data.total);
         setError(null);
+        setRenderedKey(fetchKey);
       })
       .catch((e: unknown) => {
-        if (alive) setError(e instanceof Error ? e.message : "Failed to load products.");
-      })
-      .finally(() => {
-        if (alive) setLoading(false);
+        if (alive) {
+          setError(e instanceof Error ? e.message : "Failed to load products.");
+          setRenderedKey(fetchKey);
+        }
       });
     return () => {
       alive = false;
     };
-  }, [query, status, safePage, reloadKey]);
+  }, [query, status, safePage, reloadKey, fetchKey]);
 
   const hasFilters = query !== "" || status !== "all";
 
@@ -497,7 +511,7 @@ export function ProductsListView() {
         <button
           type="button"
           onClick={() => setCreateOpen(true)}
-          className="inline-flex min-h-10 items-center gap-2 rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground transition-all hover:brightness-110"
+          className="inline-flex min-h-10 items-center gap-2 rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground transition-[filter] hover:brightness-110"
         >
           <Plus className="size-4" aria-hidden="true" />
           Add product

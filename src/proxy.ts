@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 /**
- * TereaCOD — edge gate for authenticated surfaces.
+ * TereaCOD — proxy gate for authenticated surfaces (Next 16 convention:
+ * src/proxy.ts replaces the deprecated middleware.ts naming).
  *
  * Two jobs, in order:
  *  1. Unified console entry: /admin/* is a normal (unlisted) URL. Anonymous
@@ -14,7 +15,7 @@ import { NextResponse, type NextRequest } from "next/server";
  *     the (site) loading skeleton) would otherwise soften an in-page
  *     redirect into a 200.
  *
- * Edge modules cannot import src/server/env.ts (node deps), so the cookie
+ * Proxy modules cannot import src/server/env.ts (node deps), so the cookie
  * name is derived here. This MUST stay in sync with SESSION_COOKIE there —
  * if you change one, change both.
  */
@@ -30,7 +31,7 @@ function sessionCookieName(): string {
   return process.env.APP_ENV === "production" ? "__Host-session" : "tereacod_session";
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   if (request.cookies.has(sessionCookieName())) {
     return NextResponse.next();
   }

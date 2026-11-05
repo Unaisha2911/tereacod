@@ -1307,7 +1307,7 @@ export function ProductEditorView({ detail }: { detail: AdminProductDetail }) {
               type="button"
               onClick={() => void onSave()}
               disabled={saving}
-              className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full bg-primary text-sm font-medium text-primary-foreground transition-all hover:brightness-110 disabled:opacity-60"
+              className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full bg-primary text-sm font-medium text-primary-foreground transition-[filter] hover:brightness-110 disabled:opacity-60"
             >
               <Save className="size-4" aria-hidden="true" />
               {saving ? "Saving…" : "Save"}

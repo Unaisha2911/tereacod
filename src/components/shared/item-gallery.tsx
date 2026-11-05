@@ -111,7 +111,7 @@ export function ItemGallery({
               aria-label={`View image ${i + 1} of ${safeImages.length}`}
               onClick={() => setActive(i)}
               className={cn(
-                "relative aspect-square w-20 shrink-0 overflow-hidden rounded-xl border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-glow/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                "relative aspect-square w-20 shrink-0 overflow-hidden rounded-xl border transition-[border-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-glow/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                 i === active ? "border-violet-glow/70 ring-2 ring-violet-glow/30" : "border-line opacity-70 hover:opacity-100"
               )}
             >

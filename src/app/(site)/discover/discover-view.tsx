@@ -118,7 +118,7 @@ export function DiscoverView({
           />
           <button
             type="submit"
-            className="absolute right-1.5 inline-flex h-9 items-center rounded-full bg-primary px-5 text-[0.8rem] font-medium text-primary-foreground transition-all hover:brightness-110"
+            className="absolute right-1.5 inline-flex h-9 items-center rounded-full bg-primary px-5 text-[0.8rem] font-medium text-primary-foreground transition-[filter] hover:brightness-110"
           >
             Search
           </button>

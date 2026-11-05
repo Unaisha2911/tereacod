@@ -10,7 +10,7 @@ export function OfflineActions() {
       <button
         type="button"
         onClick={() => window.location.reload()}
-        className="inline-flex min-h-12 items-center gap-2 rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground transition-all hover:brightness-110"
+        className="inline-flex min-h-12 items-center gap-2 rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground transition-[filter] hover:brightness-110"
       >
         <RotateCcw className="size-4" aria-hidden="true" />
         Retry connection

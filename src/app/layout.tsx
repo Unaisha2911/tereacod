@@ -129,15 +129,27 @@ export default function RootLayout({
         {/* NOTE: the page-wide smoke texture preload moved to the (site)
             layout — the admin console ships no smoke atmosphere and must
             not pay 196KB of preload on every console navigation. */}
-        {/* Age-gate pre-paint boot (raw <head> script — outside the React
-            hydration tree, so it can never cause a hydration mismatch):
-            locks the page (html.age-gate-locked) BEFORE first paint when no
-            18+ consent is stored, so the gate overlay in AppShell covers the
-            site from the very first frame. Skipped on /admin — the console
-            has no gate and must never inherit the scroll lock. */}
+        {/* __name helper shim — FIRST script so it precedes every inline
+            script the toolchain may emit. Bundlers (esbuild/SWC keepNames)
+            can reference `__name` from injected inline scripts without
+            shipping the helper, crashing with "ReferenceError: __name is
+            not defined" on load (Lighthouse Best Practices console error).
+            Same semantics as esbuild's helper; inert when unused. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{if(!location.pathname.startsWith("/admin")&&localStorage.getItem("tereacod.age-gate.v1")!=="1"){document.documentElement.classList.add("age-gate-locked")}}catch(e){if(!location.pathname.startsWith("/admin")){document.documentElement.classList.add("age-gate-locked")}}`,
+            __html: `if(typeof window.__name==="undefined"){window.__name=function(target,value){try{Object.defineProperty(target,"name",{value:value,configurable:true})}catch(e){}return target}}`,
+          }}
+        />
+        {/* Age-gate boot (raw <head> script — outside the React hydration
+            tree): stamps the first-paint timestamp so the AgeGate overlay
+            can start its 5-second countdown from PAGE LOAD, not from
+            hydration (slow devices must not stack JS latency on top of
+            the delay). The gate no longer locks the page pre-paint —
+            visitors browse freely until the countdown elapses. Skipped
+            bookkeeping on /admin — the console has no gate. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{if(!location.pathname.startsWith("/admin"))window.__ageGateT0=Date.now()}catch(e){}`,
           }}
         />
       </head>

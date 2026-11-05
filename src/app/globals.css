@@ -354,8 +354,21 @@
 }
 
 @utility anim-led {
+  /* Static glow in the base style — animating box-shadow is a non-composited
+     repaint every frame (33 Lighthouse "non-composited animation" flags on
+     the homepage); pulsing OPACITY alone is GPU-composited and cheap. */
+  box-shadow: 0 0 6px 1px currentColor;
   animation: led-pulse var(--dur, 2.6s) ease-in-out infinite;
   animation-delay: var(--delay, 0s);
+}
+
+/* Hero entrance — CSS-only staggered rise. The hero is a server component,
+   so its content is visible the moment CSS lands (no hydration wait): the
+   LCP headline paints within its ~80ms stagger slot instead of after
+   hydration + a JS animation start (measured: 2,470ms element render delay). */
+@utility hero-rise {
+  animation: hero-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--d, 0s);
 }
 
 :root {
@@ -797,10 +810,18 @@
   80%       { opacity: 1; }
 }
 
-/* LED indicator dot — soft charging pulse. */
+/* LED indicator dot — soft charging pulse. Opacity-only so the animation
+   stays composited (the static glow lives in the .anim-led utility). */
 @keyframes led-pulse {
-  0%, 100% { opacity: 0.55; box-shadow: 0 0 4px 1px currentColor; }
-  50%      { opacity: 1;    box-shadow: 0 0 9px 2px currentColor; }
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+
+/* Hero entrance — fade + 20px rise, matching the former framer-motion
+   staggerItem so the hero looks identical without the hydration cost. */
+@keyframes hero-rise {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .anim-drift-a { animation: smoke-drift-a var(--dur, 34s) var(--ease-smooth) infinite; }
@@ -849,7 +870,7 @@
   .anim-drift-a, .anim-drift-b, .anim-drift-c,
   .anim-churn-a, .anim-churn-b, .anim-fog-x,
   .anim-breathe, .anim-ring, .anim-float,
-  .anim-flicker, .anim-led {
+  .anim-flicker, .anim-led, .hero-rise {
     animation: none !important;
     transform: none !important;
   }
@@ -877,9 +898,10 @@
 /* ============================================================================
    AGE GATE — site-entry 18+ confirmation overlay.
    Visibility is CSS-driven from the html.age-gate-locked class that the
-   pre-paint inline script in AgeGate sets (zero flash, no hydration
-   mismatch): the overlay covers the site from the very first frame and
-   body scroll is locked until consent is stored.
+   AgeGate component sets once its 5-second countdown elapses (consent
+   missing): the site renders and scrolls freely until then, then the
+   overlay fades in over the page and body scroll is locked until consent
+   is stored. Returning visitors with stored consent never see it.
    ========================================================================== */
 html.age-gate-locked,
 html.age-gate-locked body {
@@ -903,6 +925,14 @@ html.age-gate-locked body {
 
 html.age-gate-locked .age-gate {
   display: flex;
+  /* Entrance runs on compositor-friendly properties only (opacity /
+     transform — no paint-heavy box-shadow animation). */
+  animation: age-gate-in 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes age-gate-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .age-gate__card {
@@ -914,6 +944,26 @@ html.age-gate-locked .age-gate {
     0 30px 90px rgba(0, 0, 0, 0.6),
     0 0 60px rgba(139, 92, 246, 0.14);
   padding: 2.25rem 1.75rem;
+  /* Card rises into the faded backdrop; opacity/transform only. */
+  animation: age-gate-card-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes age-gate-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.age-gate-locked .age-gate,
+  .age-gate__card {
+    animation: none;
+  }
 }
 
 @media (max-width: 640px) {

@@ -34,7 +34,7 @@ export function CategoryCard({ category, index = 0 }: { category: CatalogCategor
             </span>
             <span
               aria-hidden="true"
-              className="flex size-9 items-center justify-center rounded-full border border-line-strong text-muted-foreground transition-all duration-300 group-hover/glow:rotate-45 group-hover/glow:border-current group-hover/glow:text-foreground"
+              className="flex size-9 items-center justify-center rounded-full border border-line-strong text-muted-foreground transition-[transform,border-color,color] duration-300 group-hover/glow:rotate-45 group-hover/glow:border-current group-hover/glow:text-foreground"
             >
               <ArrowUpRight className="size-4" />
             </span>

@@ -179,7 +179,7 @@ export function Checkbox({
         disabled={disabled}
         onClick={() => onChange(!checked)}
         className={cn(
-          "relative mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md border transition-all before:absolute before:-inset-2.5 before:rounded-lg before:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-glow/50",
+          "relative mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md border transition-[border-color,background-color,color] before:absolute before:-inset-2.5 before:rounded-lg before:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-glow/50",
           checked ? "border-violet-glow bg-violet-glow text-white" : "border-line-strong bg-foreground/[0.03] hover:border-violet-glow/50",
           disabled && "cursor-not-allowed opacity-50"
         )}
