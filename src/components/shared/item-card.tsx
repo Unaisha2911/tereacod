@@ -12,7 +12,7 @@ import { GlowSurface } from "@/components/atmosphere/glow-surface";
 import { savedItemsService, useSavedItems } from "@/services/saved-items";
 import { cartService } from "@/services/cart";
 import { ensureCatalogSubset } from "@/lib/client-catalog";
-import { originLineForItem } from "@/lib/catalog-origin";
+import { originLinesForItem } from "@/lib/catalog-origin";
 import { ToastAction } from "@/components/ui/toast";
 import { useToast } from "@/hooks/use-toast";
 import type { CatalogCardItem } from "@/lib/catalog-card";
@@ -33,10 +33,12 @@ export const ItemCard = memo(function ItemCard({ item, priority = false }: { ite
   const saved = useSavedItems((s) => s.items.some((i) => i.itemId === item.id));
 
   const blocked = item.availability === "out_of_stock" || item.availability === "unavailable";
-  // Sourcing line for the flag chip (null → no chip). Shared logic with
-  // the origin filter chips / landing pages, so a product always shows
-  // the same origin everywhere it is listed.
-  const originLine = originLineForItem(item);
+  // EVERY sourcing line the listing belongs to — multi-origin listings
+  // (product-level origin + origin variants) show one chip per line, so
+  // the shelf matches the variant options on the product detail page.
+  // Shared logic with the origin filter chips / landing pages, so a
+  // product always shows the same origins everywhere it is listed.
+  const originLines = originLinesForItem(item);
 
   const onToggleSaved = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -107,14 +109,19 @@ export const ItemCard = memo(function ItemCard({ item, priority = false }: { ite
                 New
               </span>
             )}
-            {originLine && (
-              <span
-                className="absolute bottom-3 left-3 inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-black/60 px-2.5 py-1 text-[0.65rem] font-semibold text-foreground backdrop-blur-sm"
-                title={`Origin: ${originLine.label}`}
-              >
-                <span aria-hidden="true" className="text-[0.8rem] leading-none">{originLine.flag}</span>
-                {originLine.label}
-              </span>
+            {originLines.length > 0 && (
+              <div className="absolute bottom-3 left-3 flex max-w-[calc(100%-1.5rem)] flex-wrap gap-1.5">
+                {originLines.map((line) => (
+                  <span
+                    key={line.slug}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-black/60 px-2.5 py-1 text-[0.65rem] font-semibold text-foreground backdrop-blur-sm"
+                    title={`Origin: ${line.label}`}
+                  >
+                    <span aria-hidden="true" className="text-[0.8rem] leading-none">{line.flag}</span>
+                    {line.chipLabel}
+                  </span>
+                ))}
+              </div>
             )}
           </div>
         </Link>

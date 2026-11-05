@@ -36,7 +36,7 @@ const STORE_COLLECTIONS: StoreCollection[] = [
     name: "TEREA Sticks",
     blurb:
       "The full heat-not-burn stick range for IQOS ILUMA — toasted tobaccos, menthols and Pearl editions across all seven origin lines.",
-    image: "/collections/terea-sticks-collection.jpg",
+    image: "/collections/terea-sticks-collection.webp",
     accentText: "text-violet-soft",
     chipBg: "bg-violet-glow/15 text-violet-soft",
     icon: Cigarette,
@@ -47,7 +47,7 @@ const STORE_COLLECTIONS: StoreCollection[] = [
     name: "IQOS Devices",
     blurb:
       "ILUMA pocket devices, PEM holders and official accessories — authentic hardware for every TEREA stick, delivered UAE-wide.",
-    image: "/collections/iqos-devices-collection.jpg",
+    image: "/collections/iqos-devices-collection.webp",
     accentText: "text-ice",
     chipBg: "bg-ice/15 text-ice",
     icon: Zap,

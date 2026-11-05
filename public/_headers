@@ -1,0 +1,27 @@
+# ============================================================================
+# Cloudflare Workers static-assets header rules.
+#
+# WHY THIS FILE: `/_next/static/*` and repo artwork (smoke/brand/collections)
+# are served DIRECTLY by the Cloudflare assets layer — requests never reach
+# the Next.js worker, so the Cache-Control entries in next.config.ts
+# headers() do NOT apply to them. Workers Assets reads this file instead
+# (same syntax as Cloudflare Pages `_headers`).
+#
+# Without it every asset shipped `public, max-age=0, must-revalidate`:
+# browsers revalidated every chunk/CSS/font/image on EVERY page view
+# (Pingdom "leverage browser caching" / "missing expire headers"), repeat
+# loads re-downloaded ~1.6MB of content that had not changed.
+#
+# Order matters: later matching rules override earlier ones for the same
+# header key. The most specific (immutable) rules come last.
+# ============================================================================
+
+# --- Default for asset-served files: short fresh window + long SWR tail. ---
+/*
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+
+# --- Next.js build output — content-hashed filenames, immutable. -----------
+# Never changes under a URL, so cache for a year in browsers AND skip
+# revalidation entirely (Pingdom's biggest repeat-visit win).
+/_next/static/*
+  Cache-Control: public, max-age=31536000, immutable

@@ -15,7 +15,7 @@ import { SectionContainer } from "@/components/layout/page-container";
  * shell) drifts behind the copy — this section ships NO per-section
  * smoke layer so the homepage stays light.
  * The image slot is wrapped in an intentional gradient frame so a
- * missing /brand/craft.jpg still reads as a designed placeholder.
+ * missing /brand/craft.webp still reads as a designed placeholder.
  */
 export function BrandIntroSection() {
   const [imgFailed, setImgFailed] = useState(false);
@@ -59,7 +59,7 @@ export function BrandIntroSection() {
               {!imgFailed ? (
                 <>
                   <Image
-                    src="/brand/craft.jpg"
+                    src="/brand/craft.webp"
                     alt="TereaCOD orders packed and dispatched from the Dubai warehouse, lit by neon"
                     fill
                     sizes="(min-width: 1024px) 50vw, 100vw"

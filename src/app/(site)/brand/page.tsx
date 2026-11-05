@@ -82,7 +82,7 @@ export default async function BrandDirectoryPage() {
           <div className="grid items-center gap-6 lg:grid-cols-2 lg:gap-10">
             <figure className="group relative aspect-[16/9] overflow-hidden rounded-2xl border border-violet-glow/30">
               <Image
-                src="/brand/craft.jpg"
+                src="/brand/craft.webp"
                 alt="Inside the TereaCOD studio"
                 fill
                 sizes="(min-width: 1024px) 560px, 100vw"
