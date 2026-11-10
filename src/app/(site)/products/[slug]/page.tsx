@@ -7,7 +7,7 @@ import { InformationAccordion, type AccordionPanel } from "@/components/shared/i
 import { SpecificationList } from "@/components/shared/specification-list";
 import { ItemGrid } from "@/components/shared/item-grid";
 import { toCardItems } from "@/lib/catalog-card";
-import { originChipDataForItem } from "@/lib/catalog-origin";
+import { originChipDataForItem, originVariantIdForSlug } from "@/lib/catalog-origin";
 import { getBrands, getCategoryBySlugRepo, getProductBySlug } from "@/server/data";
 import { getProductsBySlugs } from "@/server/repos/catalog";
 import { breadcrumbJsonLd, canonical, faqJsonLd, JsonLd, productJsonLd, siteUrl } from "@/lib/seo";
@@ -16,6 +16,8 @@ import { ProductSaveButton } from "./product-save-button";
 
 interface ProductPageProps {
   params: Promise<{ slug: string }>;
+  /** Deep link from a card's "See all origins" popup: ?origin=<line-slug>. */
+  searchParams: Promise<{ origin?: string | string[] }>;
 }
 
 // No generateStaticParams: the catalog is authored in the admin console after
@@ -60,10 +62,18 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
   };
 }
 
-export default async function ProductPage({ params }: ProductPageProps) {
+export default async function ProductPage({ params, searchParams }: ProductPageProps) {
   const { slug } = await params;
+  const { origin: originParam } = await searchParams;
   const item = await getProductBySlug(slug);
   if (!item) notFound();
+
+  // Deep link ?origin=<line-slug> (card "See all origins" popup rows):
+  // resolve the matching available origin variant so the shell opens with
+  // that sourcing line preselected — price, photo and origin chip all
+  // reflect it on first paint. Unknown/unavailable slugs fall back to the
+  // default selection.
+  const initialOriginVariantId = originVariantIdForSlug(item.variants, originParam);
 
   // Product detail badge row data. The origin chip under the price is
   // SELECTION-REACTIVE: the server precomputes a compact line-resolution
@@ -144,6 +154,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
         <ProductDetailShell
           item={item}
           originChip={originChip}
+          initialOriginVariantId={initialOriginVariantId}
           belowPrice={
             <p className="font-mono text-meta uppercase tracking-[0.08em] text-muted-foreground">
               SKU {item.sku}

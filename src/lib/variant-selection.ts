@@ -54,12 +54,29 @@ export function primaryVariantId(selection: VariantSelection): string | null {
   return selectedVariantIds(selection)[0] ?? null;
 }
 
-/** Default selection: the first available variant of each present group. */
-export function initialVariantSelection(variants: ItemVariant[]): VariantSelection {
+/**
+ * Default selection: the first available variant of each present group.
+ *
+ * `initialOriginId` (optional) promotes a specific origin variant to the
+ * initial origin selection — the product page passes the resolved
+ * `?origin=<line-slug>` deep link here so a card's "See all origins"
+ * popup lands on the listing with that sourcing line already picked.
+ * Ignored when the id is unknown, not an origin variant, or unavailable.
+ */
+export function initialVariantSelection(
+  variants: ItemVariant[],
+  initialOriginId?: string | null
+): VariantSelection {
   const initial: VariantSelection = {};
   for (const type of VARIANT_GROUP_ORDER) {
     const firstAvailable = variants.find((v) => v.type === type && v.available);
     if (firstAvailable) initial[type] = firstAvailable.id;
+  }
+  if (initialOriginId) {
+    const match = variants.find(
+      (v) => v.id === initialOriginId && v.type === "origin" && v.available
+    );
+    if (match) initial.origin = match.id;
   }
   return initial;
 }

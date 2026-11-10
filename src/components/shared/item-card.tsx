@@ -13,6 +13,7 @@ import { savedItemsService, useSavedItems } from "@/services/saved-items";
 import { cartService } from "@/services/cart";
 import { ensureCatalogSubset } from "@/lib/client-catalog";
 import { originLinesForItem } from "@/lib/catalog-origin";
+import { OriginChipsOverlay } from "./origin-chips-overlay";
 import { ToastAction } from "@/components/ui/toast";
 import { useToast } from "@/hooks/use-toast";
 import type { CatalogCardItem } from "@/lib/catalog-card";
@@ -33,9 +34,10 @@ export const ItemCard = memo(function ItemCard({ item, priority = false }: { ite
   const saved = useSavedItems((s) => s.items.some((i) => i.itemId === item.id));
 
   const blocked = item.availability === "out_of_stock" || item.availability === "unavailable";
-  // EVERY sourcing line the listing belongs to — multi-origin listings
-  // (product-level origin + origin variants) show one chip per line, so
-  // the shelf matches the variant options on the product detail page.
+  // EVERY sourcing line the listing belongs to — single-origin listings
+  // show their one chip; multi-origin listings collapse to a single
+  // "See all origins" trigger (stacked chips used to crawl over the whole
+  // image on mobile) that opens a picker dialog deep-linking each origin.
   // Shared logic with the origin filter chips / landing pages, so a
   // product always shows the same origins everywhere it is listed.
   const originLines = originLinesForItem(item);
@@ -81,6 +83,11 @@ export const ItemCard = memo(function ItemCard({ item, priority = false }: { ite
         transition={{ type: "spring", stiffness: 320, damping: 26 }}
         className="flex h-full flex-col"
       >
+        {/* Image link + origin overlay. The overlay is a SIBLING of the
+            Link (not a child): the multi-origin "See all origins" trigger
+            is a real button and must never nest inside an anchor, and its
+            dialog rows navigate instead of re-triggering the card link. */}
+        <div className="relative">
         <Link
           href={`/products/${item.slug}`}
           className="group relative block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-glow/50 ring-offset-2 ring-offset-background"
@@ -109,22 +116,15 @@ export const ItemCard = memo(function ItemCard({ item, priority = false }: { ite
                 New
               </span>
             )}
-            {originLines.length > 0 && (
-              <div className="absolute bottom-3 left-3 flex max-w-[calc(100%-1.5rem)] flex-wrap gap-1.5">
-                {originLines.map((line) => (
-                  <span
-                    key={line.slug}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-black/60 px-2.5 py-1 text-[0.65rem] font-semibold text-foreground backdrop-blur-sm"
-                    title={`Origin: ${line.label}`}
-                  >
-                    <span aria-hidden="true" className="text-[0.8rem] leading-none">{line.flag}</span>
-                    {line.chipLabel}
-                  </span>
-                ))}
-              </div>
-            )}
           </div>
         </Link>
+        <OriginChipsOverlay
+          lines={originLines}
+          productSlug={item.slug}
+          productName={item.name}
+          className="absolute bottom-3 left-3 z-10 max-w-[calc(100%-1.5rem)]"
+        />
+        </div>
 
         <button
           type="button"

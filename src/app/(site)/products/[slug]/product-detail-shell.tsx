@@ -40,6 +40,7 @@ export function ProductDetailShell({
   children,
   belowPrice,
   originChip,
+  initialOriginVariantId,
 }: {
   item: CatalogItem;
   children: ReactNode;
@@ -47,10 +48,21 @@ export function ProductDetailShell({
   belowPrice?: ReactNode;
   /** Compact origin-line resolution table for the reactive origin chip. */
   originChip: OriginChipData;
+  /** Origin variant preselected via the ?origin=<line-slug> deep link
+   *  (card "See all origins" popup rows). Undefined = default selection. */
+  initialOriginVariantId?: string;
 }) {
-  const [selection, setSelection] = useState<VariantSelection>(() => initialVariantSelection(item.variants));
-  /** Photo of the last-touched colour/origin with imagery; null = default order. */
-  const [highlightImage, setHighlightImage] = useState<string | null>(null);
+  const [selection, setSelection] = useState<VariantSelection>(() =>
+    initialVariantSelection(item.variants, initialOriginVariantId)
+  );
+  /** Photo of the last-touched colour/origin with imagery; null = default order.
+   *  The ?origin= deep link counts as "touched" — its photo leads on first
+   *  paint so the preselected origin is visible, not just priced. */
+  const [highlightImage, setHighlightImage] = useState<string | null>(() =>
+    initialOriginVariantId
+      ? item.variants.find((v) => v.id === initialOriginVariantId)?.imageUrl ?? null
+      : null
+  );
 
   const selected = selectedVariants(selection, item.variants);
   const priceDelta = variantPriceDeltaTotal(selected);

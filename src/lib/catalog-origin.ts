@@ -376,6 +376,31 @@ export function originSlugsForItem(item: OriginResolvable): string[] {
 }
 
 /**
+ * Deep-link resolver: `?origin=<line-slug>` → the id of the matching
+ * AVAILABLE origin variant (undefined when the listing has no such
+ * variant). Powers the card "See all origins" popup rows — each row links
+ * to `/products/<slug>?origin=<slug>` and the product page opens with that
+ * sourcing line already selected (price delta, photo and origin chip all
+ * reflect it). Unknown slugs and unavailable variants fall back to the
+ * default selection.
+ */
+export function originVariantIdForSlug(
+  variants: ReadonlyArray<{ id: string; type: string; label: string; available?: boolean }>,
+  slug: string | string[] | undefined | null
+): string | undefined {
+  const value = Array.isArray(slug) ? slug[0] : slug;
+  if (!value) return undefined;
+  const line = originLineBySlug(value);
+  if (!line) return undefined;
+  return variants.find(
+    (variant) =>
+      variant.type === "origin" &&
+      variant.available !== false &&
+      originLineForLabel(variant.label) === line
+  )?.id;
+}
+
+/**
  * The SINGLE line shown on chips/cards: the product-level origin when
  * set, otherwise the first origin-type variant. A multi-origin listing
  * displays its first line everywhere and still filters under all of them.
