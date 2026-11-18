@@ -164,10 +164,15 @@ async function fillHtmlCache(url: string): Promise<void> {
  * when the isolate is cold and most fragile. Concurrent misses now share
  * the single in-flight fill; the first one to finish populates the cache
  * and everyone else simply renders their live response as before.
+ *
+ * Returns the in-flight fill promise so callers can hand the REAL promise
+ * to waitUntil — the Worker must stay alive until the fill finishes, not
+ * until the current response does (a floating void would let the runtime
+ * reap the fill mid-write).
  */
 const fills = new Map<string, Promise<void>>();
 
-function fillOnce(key: string): void {
+function fillOnce(key: string): Promise<void> {
   let fill = fills.get(key);
   if (!fill) {
     fill = fillHtmlCache(key).finally(() => {
@@ -175,6 +180,7 @@ function fillOnce(key: string): void {
     });
     fills.set(key, fill);
   }
+  return fill;
 }
 
 /** Existing auth-surface gate, unchanged. */
