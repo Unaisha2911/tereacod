@@ -123,9 +123,21 @@ function runInBackground(fn: () => Promise<void>): void {
 
 /**
  * Self-fetch the page once, store the HTML in the colo cache under the
- * canonical key. Guards: only 200 + text/html, no Set-Cookie, no
- * private/no-store, body within the byte cap. The request carries
- * FILL_HEADER so the inner pass never re-enters this layer (no recursion).
+ * canonical key. Guards: only 200 + text/html, no Set-Cookie, body within
+ * the byte cap. The request carries FILL_HEADER so the inner pass never
+ * re-enters this layer (no recursion).
+ *
+ * WHY THERE IS NO CACHE-CONTROL GUARD ON THE INNER RESPONSE: Next.js
+ * stamps every force-dynamic page with `private, no-cache, no-store,
+ * max-age=0, must-revalidate`. The original guard treated that boilerplate
+ * header as a cache opt-out — which meant EVERY fill self-fetched a full
+ * render and then discarded it: the cache never populated, every anonymous
+ * page view rendered TWICE (once live, once for the discarded fill), and
+ * the doubled CPU/D1 load spiralled into the intermittent 500s (React
+ * #441 server-render errors + sustained resource exhaustion). Cacheability
+ * for anonymous HTML is decided HERE (isCacheablePage + the signed-in
+ * cookie check), not by the header Next.js puts on dynamic pages — the
+ * stored entry is re-stamped `public, max-age=${HTML_TTL_S}` below.
  */
 async function fillHtmlCache(url: string): Promise<void> {
   const cache = edgeCache();
@@ -139,8 +151,6 @@ async function fillHtmlCache(url: string): Promise<void> {
     const contentType = response.headers.get("content-type") ?? "";
     if (!contentType.includes("text/html")) return;
     if (response.headers.has("set-cookie")) return;
-    const cacheControl = response.headers.get("cache-control") ?? "";
-    if (cacheControl.includes("private") || cacheControl.includes("no-store")) return;
     const body = await response.arrayBuffer();
     if (body.byteLength === 0 || body.byteLength > MAX_CACHED_HTML_BYTES) return;
     const stored = new Response(body, {
