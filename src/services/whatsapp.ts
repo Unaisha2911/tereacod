@@ -7,8 +7,8 @@ import { formatAED } from "@/lib/utils";
  * Builds wa.me deep links that open a WhatsApp chat pre-filled with a
  * formatted order summary. The customer's cart never leaves the device
  * until they press send in WhatsApp itself — this is a link builder,
- * not a transport. The number is a prototype placeholder managed by
- * the admin settings module.
+ * not a transport. The number defaults to the official line and is
+ * managed by the admin settings module.
  */
 
 /**
@@ -16,8 +16,8 @@ import { formatAED } from "@/lib/utils";
  * is overridden at bootstrap from the KV-backed site settings so the admin
  * settings module controls it — no redeploy needed.
  */
-let currentNumber = "971500000000";
-let currentDisplay = "+971 50 000 0000";
+let currentNumber = "971502590424";
+let currentDisplay = "+971 50 259 0424";
 
 /** Subscribers notified when the number changes (settings hydration). */
 const numberListeners = new Set<(number: string) => void>();

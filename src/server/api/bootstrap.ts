@@ -18,8 +18,8 @@ export const SITE_SETTINGS_FALLBACK: SiteSettings = {
   contact: {
     email: "hello@tereacod.ae",
     supportEmail: "support@tereacod.ae",
-    phone: "+971 4 000 0000",
-    whatsapp: "+971 50 000 0000",
+    phone: "+971 50 259 0424",
+    whatsapp: "+971 50 259 0424",
     addressLines: [
       "Level 14, Boulevard Plaza Tower 1",
       "Downtown Dubai",

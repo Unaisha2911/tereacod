@@ -76,7 +76,7 @@ export function organizationJsonLd(): JsonLdObject {
       "@type": "ContactPoint",
       contactType: "customer service",
       email: "hello@tereacod.ae",
-      telephone: "+971-4-000-0000",
+      telephone: "+971502590424",
       availableLanguage: ["English", "Arabic"],
       areaServed: "AE",
     },

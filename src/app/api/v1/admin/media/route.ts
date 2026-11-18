@@ -90,6 +90,23 @@ export const POST = withApi(
       });
       url = `/api/v1/media/${folder}/${fileName}`;
       r2Key = key;
+    } else if (process.env.APP_ENV === "production") {
+      // FAIL FAST on Workers: a missing MEDIA binding here means the deploy
+      // lost its R2 wiring. The old behaviour silently took the filesystem
+      // path below, which cannot durably persist on Workers — the upload
+      // returned 201 while nothing was ever able to serve the bytes, i.e.
+      // "the image is broken until you re-upload it (and that fails too)".
+      // A loud 503 beats a silently broken upload every time.
+      console.error(
+        "[media] R2 MEDIA binding is unavailable in production — refusing the upload " +
+          "instead of writing to a filesystem that nothing can serve. Check the " +
+          "wrangler [[r2_buckets]] binding = \"MEDIA\" (bucket tereacod-media)."
+      );
+      return fail(
+        503,
+        ErrorCode.INTERNAL,
+        "Media storage is temporarily unavailable — please try again shortly."
+      );
     } else {
       // Local sandbox path: persist under public/uploads AND keep a durable
       // blob copy in media_blobs. The filesystem copy is the fast path but is

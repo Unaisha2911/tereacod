@@ -8,6 +8,7 @@
 
 import { getDb } from "@/server/db/client";
 import { injectWorkerBindings } from "@/server/bindings";
+import { withTransientRetry } from "@/server/retry";
 
 export interface KVNamespaceLike {
   get(key: string): Promise<string | null>;
@@ -28,7 +29,11 @@ function binding(): Record<string, KVNamespaceLike> | undefined {
 export async function kvGet<T>(key: string): Promise<T | null> {
   const kv = binding();
   if (kv) {
-    const raw = await kv.SETTINGS?.get(key);
+    // Workers KV occasionally fails transiently under bursts — one
+    // rejected get() here used to 500 every settings/nav/flags read on
+    // the page (the layout awaits flags before anything renders). A
+    // short bounded retry absorbs the blip.
+    const raw = await withTransientRetry(() => kv.SETTINGS?.get(key) ?? null);
     if (!raw) return null;
     // One corrupt KV value must not 500 every settings/nav/flags read.
     try {
@@ -54,7 +59,7 @@ export async function kvGet<T>(key: string): Promise<T | null> {
 export async function kvSet(key: string, value: unknown): Promise<void> {
   const kv = binding();
   if (kv) {
-    await kv.SETTINGS?.put(key, JSON.stringify(value));
+    await withTransientRetry(() => kv.SETTINGS?.put(key, JSON.stringify(value)) ?? Promise.resolve());
     return;
   }
   const db = await getDb();

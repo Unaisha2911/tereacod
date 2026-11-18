@@ -17,6 +17,7 @@ import { getCurrentIdentity, requestMeta, type RequestIdentity } from "@/server/
 import { hasPermission, type PermissionSlug } from "@/server/rbac";
 import { rateLimit } from "@/server/ratelimit";
 import { maybeSweep } from "@/server/maintenance";
+import { runInBackground } from "@/server/background";
 
 /** Route handlers parse bodies into memory — cap the default at 256 KB. */
 const DEFAULT_BODY_LIMIT_BYTES = 256 * 1024;
@@ -46,8 +47,9 @@ export function withApi(options: WithApiOptions, handler: Handler) {
   return async (request: Request, context?: { params?: Promise<Record<string, string>> }): Promise<NextResponse> => {
     const requestId = `req_${crypto.randomUUID().slice(0, 12)}`;
     // Lazy maintenance sweep (expired sessions/tokens/carts, stuck jobs) —
-    // throttled internally to ~once per hour.
-    void maybeSweep().catch(() => undefined);
+    // throttled internally to ~once per hour. Deferred via waitUntil so the
+    // hourly write burst never races or delays the response itself.
+    runInBackground(maybeSweep);
     try {
       const mutating = !["GET", "HEAD", "OPTIONS"].includes(request.method);
 

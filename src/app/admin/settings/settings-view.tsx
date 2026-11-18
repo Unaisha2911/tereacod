@@ -72,7 +72,7 @@ interface SiteFieldSource {
   description: string;
   locale: string;
   currency: string;
-  contact: { email: string; supportEmail: string; phone: string; addressLines: string[]; hours: string };
+  contact: { email: string; supportEmail: string; phone: string; whatsapp: string; addressLines: string[]; hours: string };
   seo: { titleTemplate: string; defaultDescription: string };
 }
 
@@ -91,6 +91,7 @@ function snapshot(site: SiteFieldSource, fees: FeeDrafts, features: FeatureFlags
     site.contact.email,
     site.contact.supportEmail,
     site.contact.phone,
+    site.contact.whatsapp,
     site.contact.addressLines.join("\n"),
     site.contact.hours,
     site.seo.titleTemplate,
@@ -116,6 +117,7 @@ export function SettingsView({ settings }: { settings: SiteSettings }) {
   const [email, setEmail] = useState(settings.contact.email);
   const [supportEmail, setSupportEmail] = useState(settings.contact.supportEmail);
   const [phone, setPhone] = useState(settings.contact.phone);
+  const [whatsapp, setWhatsapp] = useState(settings.contact.whatsapp);
   const [address, setAddress] = useState(settings.contact.addressLines.join("\n"));
   const [hours, setHours] = useState(settings.contact.hours);
   const [titleTemplate, setTitleTemplate] = useState(settings.seo.titleTemplate);
@@ -149,7 +151,7 @@ export function SettingsView({ settings }: { settings: SiteSettings }) {
         description,
         locale,
         currency,
-        contact: { email, supportEmail, phone, addressLines: address.split("\n"), hours },
+        contact: { email, supportEmail, phone, whatsapp, addressLines: address.split("\n"), hours },
         seo: { titleTemplate, defaultDescription },
       },
       fees,
@@ -188,6 +190,7 @@ export function SettingsView({ settings }: { settings: SiteSettings }) {
         setEmail(site.contact.email);
         setSupportEmail(site.contact.supportEmail);
         setPhone(site.contact.phone);
+        setWhatsapp(site.contact.whatsapp);
         setAddress(site.contact.addressLines.join("\n"));
         setHours(site.contact.hours);
         setTitleTemplate(site.seo.titleTemplate);
@@ -220,7 +223,7 @@ export function SettingsView({ settings }: { settings: SiteSettings }) {
             name: brandName,
             tagline,
             description,
-            contact: { email, supportEmail, phone, hours },
+            contact: { email, supportEmail, phone, whatsapp, hours },
           },
           legal: { name: legalName },
           locale,
@@ -332,6 +335,9 @@ export function SettingsView({ settings }: { settings: SiteSettings }) {
           </FormField>
           <FormField label="Phone" htmlFor="settings-phone">
             <TextInput id="settings-phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          </FormField>
+          <FormField label="WhatsApp" htmlFor="settings-whatsapp" hint="Used by the floating button, footer and wa.me order links.">
+            <TextInput id="settings-whatsapp" type="tel" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} />
           </FormField>
           <FormField label="Opening hours" htmlFor="settings-hours">
             <TextInput id="settings-hours" value={hours} onChange={(e) => setHours(e.target.value)} />

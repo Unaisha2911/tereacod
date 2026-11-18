@@ -20,7 +20,8 @@ export interface SiteSettings {
     email: string;
     supportEmail: string;
     phone: string;
-    whatsapp?: string;
+    /** Official WhatsApp/mobile line — wa.me deep links + footer display. */
+    whatsapp: string;
     addressLines: string[];
     hours: string;
   };

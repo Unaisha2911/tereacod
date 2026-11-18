@@ -37,7 +37,10 @@ export function MediaPicker({
   const [assets, setAssets] = useState<MediaAsset[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [failedThumbs, setFailedThumbs] = useState<Set<string>>(() => new Set());
+  // Thumb load attempts per asset id — each thumbnail retries twice with a
+  // cache-busted URL before its "broken" state latches (transient Worker
+  // hiccups used to look like permanently broken uploads).
+  const [thumbAttempts, setThumbAttempts] = useState<Map<string, number>>(() => new Map());
 
   // Upload state — one file at a time, with drag & drop.
   const [uploading, setUploading] = useState(false);
@@ -221,7 +224,9 @@ export function MediaPicker({
           ) : (
             <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4">
               {filtered.map((asset) => {
-                const broken = failedThumbs.has(asset.id);
+                const attempts = thumbAttempts.get(asset.id) ?? 0;
+                const broken = attempts > 2;
+                const thumbSrc = attempts === 0 ? asset.url : `${asset.url}${asset.url.includes("?") ? "&" : "?"}retry=${attempts}`;
                 return (
                   <li key={asset.id}>
                     <button
@@ -237,16 +242,17 @@ export function MediaPicker({
                           </span>
                         ) : (
                           <Image
-                            src={asset.url}
+                            key={thumbSrc}
+                            src={thumbSrc}
                             alt={asset.alt ?? asset.name}
                             fill
                             unoptimized
                             sizes="140px"
                             className="object-cover transition-transform group-hover:scale-[1.03]"
                             onError={() =>
-                              setFailedThumbs((prev) => {
-                                const next = new Set(prev);
-                                next.add(asset.id);
+                              setThumbAttempts((prev) => {
+                                const next = new Map(prev);
+                                next.set(asset.id, (prev.get(asset.id) ?? 0) + 1);
                                 return next;
                               })
                             }

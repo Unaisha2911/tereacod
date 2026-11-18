@@ -41,6 +41,51 @@ function asset(body: BodyInit, contentType: string): NextResponse {
   return new NextResponse(body, { headers });
 }
 
+/** The colo-wide cache, or null outside Workers (bun dev / Node standalone). */
+interface EdgeCacheLike {
+  match: (request: RequestInfo) => Promise<Response | undefined>;
+  put: (request: RequestInfo, response: Response) => Promise<void>;
+}
+
+function edgeCache(): EdgeCacheLike | null {
+  try {
+    return (globalThis as unknown as { caches?: { default?: EdgeCacheLike } }).caches?.default ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A grid page issues one media request per visible image — every one of
+ * them used to cost a Worker invocation PLUS an R2 read (or, worse, the
+ * D1 media_blobs fallback). Cloudflare does NOT cache Worker responses at
+ * the edge on its own, so the colo Cache API is the only code-level lever:
+ * the first request per image per colo pays the backend read, every later
+ * one is a ~1 ms cache.match with no R2/D1 traffic at all. Object keys are
+ * immutable (timestamp + uuid) — a year-long TTL can never serve a stale
+ * object under the same URL.
+ */
+async function withColoCache(url: string, produce: () => Promise<NextResponse>): Promise<NextResponse> {
+  const cache = edgeCache();
+  if (cache) {
+    try {
+      const hit = await cache.match(url);
+      if (hit) return new NextResponse(hit.body, { status: hit.status, headers: hit.headers });
+    } catch {
+      // Cache read failure — produce below.
+    }
+  }
+  const response = await produce();
+  if (cache && response.status === 200) {
+    try {
+      await cache.put(url, response.clone());
+    } catch {
+      // Quota / serialization failures are non-fatal.
+    }
+  }
+  return response;
+}
+
 /**
  * GET /api/v1/media/<key> — public read for admin-uploaded assets.
  *
@@ -52,20 +97,33 @@ function asset(body: BodyInit, contentType: string): NextResponse {
  * Local parity (no R2 binding): reads the same key from public/uploads,
  * mirroring the POST local path.
  */
-const handler = withApi({}, async ({ params }) => {
+const handler = withApi({}, async ({ request, params }) => {
   const key = keyFromParams((params as { key?: string | string[] }).key);
   if (!key) {
     return fail(422, ErrorCode.VALIDATION_FAILED, "Invalid media key.");
   }
 
+  // Colo-cache wrapper: the first request per image per colo pays the R2/D1
+  // read; every later one is answered from caches.default with no backend
+  // traffic (see withColoCache above).
+  return withColoCache(request.url, async () => {
   injectWorkerBindings();
   const r2 = globalThis.__TereaCOD_MEDIA_R2__;
   if (r2) {
     const object = await r2.get?.(key);
-    if (!object) {
-      return fail(404, ErrorCode.NOT_FOUND, "Media not found.");
+    if (object) {
+      return asset(object.body, object.httpMetadata?.contentType ?? guessMime(key));
     }
-    return asset(object.body, object.httpMetadata?.contentType ?? guessMime(key));
+    // R2 miss — the row exists (the URL is being requested) but the object
+    // is gone (pre-fix stream-era uploads recorded metadata with no bytes,
+    // or a lost bucket). Fall back to the D1 media_blobs copy when one
+    // exists before answering 404; rows with a stored blob become
+    // self-healing instead of permanently broken.
+    const blob = await getMediaBlob(key).catch(() => null);
+    if (blob) {
+      return asset(new Uint8Array(blob.data).slice(), blob.mime || guessMime(key));
+    }
+    return fail(404, ErrorCode.NOT_FOUND, "Media not found.");
   }
 
   // Local sandbox path: resolve strictly inside public/uploads.
@@ -100,6 +158,7 @@ const handler = withApi({}, async ({ params }) => {
     }
     return fail(404, ErrorCode.NOT_FOUND, "Media not found.");
   }
+  });
 });
 
 /** Best-effort restore of the filesystem copy from the durable blob. */

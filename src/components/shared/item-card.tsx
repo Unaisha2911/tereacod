@@ -16,6 +16,7 @@ import { originLinesForItem } from "@/lib/catalog-origin";
 import { OriginChipsOverlay } from "./origin-chips-overlay";
 import { ToastAction } from "@/components/ui/toast";
 import { useToast } from "@/hooks/use-toast";
+import { useImageRetry } from "@/hooks/use-image-retry";
 import type { CatalogCardItem } from "@/lib/catalog-card";
 import { formatAED, cn } from "@/lib/utils";
 
@@ -28,7 +29,10 @@ export const ItemCard = memo(function ItemCard({ item, priority = false }: { ite
   const reduced = useReducedMotion();
   const router = useRouter();
   const { toast } = useToast();
-  const [imgFailed, setImgFailed] = useState(false);
+  // Transient load failures retry twice (cache-busted) before the card
+  // shows its fallback — a one-off Worker hiccup must not read as a broken
+  // upload for the rest of the session.
+  const { effectiveSrc, failed: imgFailed, onError: onImgError } = useImageRetry(item.images[0] ?? "");
   // Subscribed from the shared store (not a local snapshot) so every card
   // rendering the same item stays in sync with the product page toggle.
   const saved = useSavedItems((s) => s.items.some((i) => i.itemId === item.id));
@@ -90,19 +94,29 @@ export const ItemCard = memo(function ItemCard({ item, priority = false }: { ite
         <div className="relative">
         <Link
           href={`/products/${item.slug}`}
+          // prefetch={false}: every card in the viewport used to fire an RSC
+          // prefetch of the dynamic shell as soon as it entered view — a
+          // 30-card grid meant ~30 live Worker renders per visitor scroll
+          // (prefetch requests bypass the anonymous HTML edge cache by
+          // design). Product pages are force-dynamic, so the prefetch only
+          // ever cached the loading shell, while the navigation itself still
+          // rendered live. Skipping it removes a per-card Worker invocation
+          // with almost no perceived cost (loading.tsx still shows instantly
+          // on click).
+          prefetch={false}
           className="group relative block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-glow/50 ring-offset-2 ring-offset-background"
           aria-label={`${item.brand} ${item.name} — view product information`}
         >
           <div className="relative aspect-square w-full overflow-hidden rounded-t-2xl bg-gradient-to-b from-white/[0.045] to-transparent">
             {!imgFailed && item.images[0] ? (
               <Image
-                src={item.images[0]}
+                src={effectiveSrc}
                 alt={`${item.brand} ${item.name}`}
                 fill
                 sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
                 priority={priority}
                 className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.045]"
-                onError={() => setImgFailed(true)}
+                onError={onImgError}
               />
             ) : (
               <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-muted-foreground">
@@ -156,7 +170,7 @@ export const ItemCard = memo(function ItemCard({ item, priority = false }: { ite
             )}
           </div>
           <h3 className="font-display text-[1.02rem] font-semibold leading-snug text-foreground">
-            <Link href={`/products/${item.slug}`} className="transition-colors hover:text-violet-soft">
+            <Link href={`/products/${item.slug}`} prefetch={false} className="transition-colors hover:text-violet-soft">
               {item.name}
             </Link>
           </h3>

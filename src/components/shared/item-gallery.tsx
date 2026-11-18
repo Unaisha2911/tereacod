@@ -1,10 +1,11 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { ImageOff, ZoomIn } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useImageRetry } from "@/hooks/use-image-retry";
 
 /**
  * ItemGallery — product image gallery with thumbnails and an
@@ -14,6 +15,11 @@ import { cn } from "@/lib/utils";
  * `highlightImage` — per-variant photo (colour/origin). When set it is
  * promoted to the front of the list so the main image and thumbnails
  * follow the visitor's selection; clearing it restores the catalog order.
+ *
+ * Every slot renders through RetryableImage: transient load failures
+ * (Worker CPU/memory bursts surface as error 1102 on the media route,
+ * mobile network blips) are retried with a cache-busted URL before the
+ * slot latches its "Image unavailable" state.
  */
 export function ItemGallery({
   images,
@@ -46,6 +52,9 @@ export function ItemGallery({
 
   const current = safeImages[Math.min(active, safeImages.length - 1)];
 
+  const markFailed = (index: number) =>
+    setFailed((f) => (f[index] ? f : { ...f, [index]: true }));
+
   return (
     <div className="space-y-3">
       <Dialog.Root>
@@ -56,15 +65,13 @@ export function ItemGallery({
             aria-label={`Zoom image: ${name}`}
           >
             {!failed[active] ? (
-              <Image
-                key={current}
+              <RetryableImage
                 src={current}
                 alt={`${name} — image ${active + 1} of ${safeImages.length}`}
-                fill
-                priority
                 sizes="(max-width: 1024px) 100vw, 50vw"
+                priority
                 className="object-cover"
-                onError={() => setFailed((f) => ({ ...f, [active]: true }))}
+                onFatal={() => markFailed(active)}
               />
             ) : (
               <span className="flex h-full w-full flex-col items-center justify-center gap-2 text-muted-foreground">
@@ -84,7 +91,7 @@ export function ItemGallery({
             <Dialog.Title className="sr-only">{`${name} — zoomed image`}</Dialog.Title>
             <div className="relative aspect-square w-full max-w-2xl overflow-hidden rounded-3xl border border-line-strong bg-elevated">
               {!failed[active] ? (
-                <Image key={`zoom-${current}`} src={current} alt={`${name} — zoomed view`} fill sizes="(max-width: 768px) 100vw, 672px" className="object-cover" onError={() => setFailed((f) => ({ ...f, [active]: true }))} />
+                <RetryableImage src={current} alt={`${name} — zoomed view`} sizes="(max-width: 768px) 100vw, 672px" className="object-cover" onFatal={() => markFailed(active)} />
               ) : (
                 <span className="flex h-full w-full flex-col items-center justify-center gap-2 text-muted-foreground">
                   <ImageOff className="size-8" aria-hidden="true" />
@@ -116,7 +123,7 @@ export function ItemGallery({
               )}
             >
               {!failed[i] ? (
-                <Image src={img} alt="" fill sizes="80px" className="object-cover" onError={() => setFailed((f) => ({ ...f, [i]: true }))} />
+                <RetryableImage src={img} alt="" sizes="80px" className="object-cover" onFatal={() => markFailed(i)} />
               ) : (
                 <span className="flex h-full w-full items-center justify-center bg-elevated">
                   <ImageOff className="size-4 text-muted-foreground" aria-hidden="true" />
@@ -127,5 +134,45 @@ export function ItemGallery({
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Gallery slot image with built-in retry. Renders null once every retry
+ * failed and notifies the parent (via onFatal) so the fallback UI shows.
+ */
+function RetryableImage({
+  src,
+  alt,
+  sizes,
+  className,
+  priority,
+  onFatal,
+}: {
+  src: string;
+  alt: string;
+  sizes: string;
+  className?: string;
+  priority?: boolean;
+  onFatal: () => void;
+}) {
+  const { effectiveSrc, failed, onError } = useImageRetry(src);
+
+  useEffect(() => {
+    if (failed) onFatal();
+  }, [failed, onFatal]);
+
+  if (failed) return null;
+  return (
+    <Image
+      key={effectiveSrc}
+      src={effectiveSrc}
+      alt={alt}
+      fill
+      priority={priority}
+      sizes={sizes}
+      className={className}
+      onError={onError}
+    />
   );
 }

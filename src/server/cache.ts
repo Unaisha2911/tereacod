@@ -31,13 +31,100 @@
  * bounded by the soft ceiling below.
  */
 
-type Entry = { value: unknown; expiresAt: number };
+type Entry = { value: unknown; expiresAt: number; size: number };
 
 const store = new Map<string, Entry>();
 const inflight = new Map<string, Promise<unknown>>();
+/** Background stale-while-revalidate refreshes — one per key per isolate. */
+const refreshing = new Map<string, Promise<void>>();
 
-/** Soft ceiling — drop expired entries first, then everything. */
+/** Soft ceilings. Entries beyond these are evicted least-recently-used first.
+ *
+ * WHY A BYTE BUDGET: on Workers an isolate holds ~128 MB and exceeding it
+ * surfaces as error 1102 ("Worker exceeded resource limits"). The old
+ * design bounded only the entry COUNT (512) with no size accounting —
+ * catalog-list entries can each reach hundreds of KB of hydrated JSON, so
+ * a busy isolate could hold far more memory than 512 small entries
+ * suggest, blow the limit, and die mid-request (every cached read then
+ * misses at once, which also multiplies D1/KV subrequests). Budgeted LRU
+ * eviction keeps the hot set resident while guaranteeing a hard ceiling.
+ */
 const MAX_ENTRIES = 512;
+/** Approximate total value bytes kept in L1 (rough shallow estimate). */
+const MAX_TOTAL_BYTES = 24 * 1024 * 1024;
+/** Values estimated above this are never L1-cached at all (L2 still may). */
+const MAX_ENTRY_BYTES = 2 * 1024 * 1024;
+/**
+ * How long an EXPIRED entry is retained purely as an emergency fallback.
+ * It is never served as fresh — only when the live loader FAILS (transient
+ * D1/KV outage), where "last known good content" beats a 500 page.
+ */
+const EXPIRED_RETENTION_MS = 15 * 60_000;
+
+/**
+ * Cheap SHALLOW size estimate (no deep traversal — called on every set):
+ * strings measure directly, arrays/objects estimate their own shell plus a
+ * bounded sample of children. Good enough to bound memory; exactness is
+ * not the goal.
+ */
+function estimateSize(value: unknown, depth = 0): number {
+  if (value === null || value === undefined) return 8;
+  const type = typeof value;
+  if (type === "string") return 2 * (value as string).length + 16;
+  if (type === "number" || type === "boolean" || type === "bigint") return 16;
+  if (depth >= 2) return 64; // stop recursing — bounded estimate
+  if (Array.isArray(value)) {
+    let size = 40;
+    const sample = value.length > 64 ? 64 : value.length;
+    for (let i = 0; i < sample; i++) size += estimateSize(value[i], depth + 1);
+    if (value.length > 64) size += Math.ceil((value.length - 64) * (size / 64));
+    return size;
+  }
+  if (type === "object") {
+    let size = 64;
+    const record = value as Record<string, unknown>;
+    const keys = Object.keys(record);
+    const sample = keys.length > 32 ? keys.slice(0, 32) : keys;
+    for (const key of sample) size += 2 * key.length + estimateSize(record[key], depth + 1);
+    if (keys.length > 32) size += Math.ceil((keys.length - 32) * (size / 32));
+    return size;
+  }
+  return 64; // functions / symbols — tiny, and never cached values anyway
+}
+
+/**
+ * LRU upkeep on set: drop expired entries first; while over budget,
+ * evict the LEAST-RECENTLY-USED entries (Map iteration order is insertion
+ * order and cacheGet re-inserts on hit, so iteration starts at the coldest
+ * end). Evicting a few hot-set survivors beats the old clear-everything,
+ * which stampeded every reader back into D1/KV at once.
+ */
+function evict(): void {
+  const now = Date.now();
+  let totalBytes = 0;
+  for (const entry of store.values()) totalBytes += entry.size;
+  const overEntries = store.size > MAX_ENTRIES;
+  const overBytes = totalBytes > MAX_TOTAL_BYTES;
+  if (!overEntries && !overBytes) return;
+
+  // Drop expired entries whose emergency-retention window has also lapsed
+  // (recently expired ones stay as stale-on-error fallbacks).
+  for (const [key, entry] of store) {
+    if (entry.expiresAt + EXPIRED_RETENTION_MS <= now) store.delete(key);
+  }
+  totalBytes = 0;
+  for (const entry of store.values()) totalBytes += entry.size;
+  while (
+    store.size > 0 &&
+    (store.size > MAX_ENTRIES || totalBytes > MAX_TOTAL_BYTES)
+  ) {
+    const oldest = store.keys().next();
+    if (oldest.done) break;
+    const entry = store.get(oldest.value);
+    totalBytes -= entry?.size ?? 0;
+    store.delete(oldest.value);
+  }
+}
 
 /**
  * L2 envelope + keyspace version. Bump L2_VERSION whenever a cached value's
@@ -80,6 +167,21 @@ export function cacheGet<T>(key: string): T | undefined {
   const entry = store.get(key);
   if (!entry) return undefined;
   if (entry.expiresAt <= Date.now()) {
+    // Keep recently-expired entries in place as stale-on-error fallbacks
+    // (see cached() below); evict() reaps them after the retention window.
+    return undefined;
+  }
+  // Re-insert to mark the entry most-recently-used (Map order = LRU order).
+  store.delete(key);
+  store.set(key, entry);
+  return entry.value as T;
+}
+
+/** The expired-but-retained fallback value for `key`, if one exists. */
+function staleFallback<T>(key: string): T | undefined {
+  const entry = store.get(key);
+  if (!entry || entry.expiresAt > Date.now()) return undefined;
+  if (entry.expiresAt + EXPIRED_RETENTION_MS <= Date.now()) {
     store.delete(key);
     return undefined;
   }
@@ -87,14 +189,15 @@ export function cacheGet<T>(key: string): T | undefined {
 }
 
 export function cacheSet<T>(key: string, value: T, ttlMs: number): T {
-  if (store.size > MAX_ENTRIES) {
-    const now = Date.now();
-    for (const [k, v] of store) {
-      if (v.expiresAt <= now) store.delete(k);
-    }
-    if (store.size > MAX_ENTRIES) store.clear();
+  const size = estimateSize(value);
+  // Oversized values would dominate the byte budget — keep them out of L1
+  // entirely (they still flow through L2 when <= L2_MAX_BYTES).
+  if (size > MAX_ENTRY_BYTES) {
+    store.delete(key);
+    return value;
   }
-  store.set(key, { value, expiresAt: Date.now() + ttlMs });
+  evict();
+  store.set(key, { value, expiresAt: Date.now() + ttlMs, size });
   return value;
 }
 
@@ -136,9 +239,18 @@ function l2Eligible(key: string): boolean {
 }
 
 function l2Url(key: string): string {
-  // Synthetic absolute URL — the Cache API keys on full URLs; the hostname
-  // is never fetched, it only namespaces the entries away from real traffic.
-  return `https://l2-cache.tereacod.internal/${L2_PREFIX}${encodeURIComponent(key)}`;
+  // Cache API keys on full URLs. The host MUST be the deployed site's own
+  // zone: Workers Cache API rejects (or silently drops) puts for URLs
+  // outside the serving zone, which would strand every L2 write and push
+  // ALL cold isolates straight into D1/KV on every request — the observed
+  // production failure pattern. NEXT_PUBLIC_SITE_URL is the canonical
+  // origin (wrangler.toml); a synthetic .internal host is only a dev
+  // fallback where no real zone exists anyway.
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+  const base = siteUrl
+    ? `${siteUrl.replace(/\/+$/, "")}/__l2-cache/`
+    : `https://l2-cache.tereacod.internal/${L2_PREFIX}`;
+  return `${base}${L2_PREFIX}${encodeURIComponent(key)}`;
 }
 
 /** Run `fn` in the background where the platform allows (Workers waitUntil). */
@@ -204,6 +316,26 @@ async function l2Delete(key: string): Promise<void> {
 // ---------------------------------------------------------------------------
 
 /**
+ * Last-resort degradation for a failed loader: serve the recently-expired
+ * value (if any) for a few seconds instead of aborting the render. A
+ * visitor seeing content a few seconds staler than usual is strictly
+ * better than "Something went wrong" — the exact production symptom this
+ * guards (intermittent 500s on tereacod.ae during transient D1/KV blips).
+ */
+async function serveStaleOnError<T>(key: string, ttlMs: number, error: unknown): Promise<T> {
+  const stale = staleFallback<T>(key);
+  if (stale === undefined) {
+    throw error;
+  }
+  console.error(
+    `[cache] loader failed for "${key}" — serving stale fallback (next retry in ${Math.min(ttlMs, 5_000)}ms):`,
+    error instanceof Error ? error.message : error
+  );
+  cacheSet(key, stale, Math.min(ttlMs, 5_000));
+  return stale;
+}
+
+/**
  * Read-through helper: L1 memory → L2 colo cache → `loader`. Concurrent
  * callers awaiting the same key share one loader promise (per-isolate
  * dogpile protection).
@@ -214,6 +346,10 @@ async function l2Delete(key: string): Promise<void> {
  *                (waitUntil) — the response never waits on the refresh;
  *                when no waitUntil exists the loader runs inline instead,
  *                trading the grace win for guaranteed freshness.
+ *
+ * Failure rule (production hardening): when the loader rejects and a
+ * recently-expired L1 value exists, that value is served for a few
+ * seconds instead of propagating the failure into the RSC stream.
  */
 export async function cached<T>(key: string, ttlMs: number, loader: () => Promise<T>): Promise<T> {
   const hit = cacheGet<T>(key);
@@ -227,16 +363,32 @@ export async function cached<T>(key: string, ttlMs: number, loader: () => Promis
     }
     // Stale-but-present: serve it now, refresh behind the response.
     cacheSet(key, l2.value as T, Math.min(ttlMs, 2_000));
-    runInBackground(async () => {
-      const value = await loader();
-      cacheSet(key, value, ttlMs);
-      await l2Put(key, value, ttlMs);
-    });
+    // One refresh per stale window per isolate — every concurrent stale
+    // request used to spawn its OWN loader run (CPU/subrequest multiplication
+    // under bursts, which is exactly when Workers limits get hit).
+    let refresh = refreshing.get(key);
+    if (!refresh) {
+      refresh = loader()
+        .then(async (value) => {
+          cacheSet(key, value, ttlMs);
+          await l2Put(key, value, ttlMs);
+        })
+        .finally(() => {
+          refreshing.delete(key);
+        })
+        .catch(() => undefined);
+      refreshing.set(key, refresh);
+      runInBackground(async () => {
+        await refresh;
+      });
+    }
     return l2.value as T;
   }
 
   const pending = inflight.get(key) as Promise<T> | undefined;
-  if (pending) return pending;
+  if (pending) {
+    return pending.catch((error) => serveStaleOnError<T>(key, ttlMs, error));
+  }
   const promise = loader()
     .then(async (value) => {
       cacheSet(key, value, ttlMs);
@@ -249,7 +401,9 @@ export async function cached<T>(key: string, ttlMs: number, loader: () => Promis
       inflight.delete(key);
     });
   inflight.set(key, promise);
-  return promise;
+  // Each caller attaches its own fallback (the shared inflight promise stays
+  // raw so concurrent awaiters each degrade independently).
+  return promise.catch((error) => serveStaleOnError<T>(key, ttlMs, error));
 }
 
 /**
@@ -281,4 +435,17 @@ export function invalidateCache(prefix: string): void {
 export function cacheClear(): void {
   store.clear();
   inflight.clear();
+  refreshing.clear();
+}
+
+/**
+ * Test/verification hook — force a key into the expired-but-retained
+ * fallback state so serveStaleOnError paths can be exercised in tests.
+ */
+export function cacheSetExpiredForTesting<T>(key: string, value: T): void {
+  store.set(key, {
+    value,
+    expiresAt: Date.now() - 1,
+    size: estimateSize(value),
+  });
 }

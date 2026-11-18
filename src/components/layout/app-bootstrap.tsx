@@ -1,25 +1,20 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { hydrateCartFromServer } from "@/services/cart";
-import { hydrateAuthFromServer, useAuth } from "@/services/account";
-import { hydrateSavedItemsFromServer } from "@/services/saved-items";
+import { hydrateFromServer } from "@/services/bootstrap";
 
 /**
  * APP BOOTSTRAP PROVIDER
  * ----------------------
- * Runs once per page load on the client: hydrates the auth store, the
- * server-backed cart, the saved-items store and the WhatsApp number from
- * the site config. Children render immediately — every consuming view has
- * its own hydrated/loading state.
+ * Runs once per page load on the client and hydrates the auth store, the
+ * server-backed cart, the saved-items store, the WhatsApp number and the
+ * client catalog mirror. Children render immediately — every consuming view
+ * has its own hydrated/loading state.
  *
- * Performance: the four bootstrap reads used to run as THREE sequential
- * stages (session → cart+saved → settings). Session and settings are
- * independent, so they now race in parallel from the first tick, and the
- * WhatsApp settings response is cached in sessionStorage (10 min) so
- * repeat loads skip the call entirely. Cart/saved still start together
- * the moment the session result lands (saved hydration needs the
- * signed-in flag).
+ * Performance: the whole hydration is now ONE request (GET /api/v1/bootstrap)
+ * instead of the former three-call fan-out (session + cart + settings, plus
+ * a catalog-subset fetch whenever the cart held items). See
+ * src/services/bootstrap.ts for the request budget and the legacy fallback.
  */
 export function AppBootstrap({ children }: { children: React.ReactNode }) {
   const started = useRef(false);
@@ -27,70 +22,8 @@ export function AppBootstrap({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (started.current) return;
     started.current = true;
-
-    // Everything independent races from the first tick: session identity,
-    // site settings AND the cart (the cart API resolves the cookie-token
-    // cart server-side — it never needed the session result; only saved
-    // hydration does). First-interaction latency for the cart badge and
-    // account state drops by a full round trip.
-    const sessionReady = hydrateAuthFromServer();
-    const cartReady = hydrateCartFromServer();
-    void hydrateWhatsAppNumber();
-
-    void (async () => {
-      await sessionReady;
-      const auth = useAuth.getState();
-      // Saved hydration needs the signed-in flag — after the session lands.
-      await Promise.all([cartReady, hydrateSavedItemsFromServer(Boolean(auth.user))]);
-    })();
+    void hydrateFromServer();
   }, []);
 
   return <>{children}</>;
-}
-
-const WHATSAPP_CACHE_KEY = "tereacod.whatsapp.v1";
-const WHATSAPP_CACHE_TTL_MS = 10 * 60 * 1000;
-
-function readCachedWhatsApp(): string | null {
-  try {
-    const raw = sessionStorage.getItem(WHATSAPP_CACHE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as { value: string; at: number };
-    if (!parsed.value || Date.now() - parsed.at > WHATSAPP_CACHE_TTL_MS) return null;
-    return parsed.value;
-  } catch {
-    return null;
-  }
-}
-
-/** Pull the WhatsApp number from site settings (KV-backed) once per TTL window. */
-let whatsappLoaded = false;
-async function hydrateWhatsAppNumber(): Promise<void> {
-  if (whatsappLoaded) return;
-  whatsappLoaded = true;
-
-  const cached = readCachedWhatsApp();
-  if (cached) {
-    const { setWhatsAppNumber } = await import("@/services/whatsapp");
-    setWhatsAppNumber(cached);
-    return;
-  }
-
-  try {
-    const response = await fetch("/api/v1/site/settings", { headers: { accept: "application/json" } });
-    if (!response.ok) return;
-    const body = (await response.json()) as { data: { contact?: { whatsapp?: string } } };
-    const whatsapp = body.data?.contact?.whatsapp;
-    if (whatsapp) {
-      try {
-        sessionStorage.setItem(WHATSAPP_CACHE_KEY, JSON.stringify({ value: whatsapp, at: Date.now() }));
-      } catch {
-        // Private mode / quota — next load refetches.
-      }
-      const { setWhatsAppNumber } = await import("@/services/whatsapp");
-      setWhatsAppNumber(whatsapp);
-    }
-  } catch {
-    // Keep the compiled-in default.
-  }
 }

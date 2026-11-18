@@ -44,13 +44,6 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        // Immutable media uploads — every object key is unique per upload
-        // (timestamp + uuid), so content can never change under a URL.
-        // Mirrors the Cache-Control the /api/v1/media route already sets.
-        source: "/uploads/:path*",
-        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
-      },
-      {
         // Repo-shipped artwork (smoke textures, brand shots, demo product
         // imagery, icons). Not fingerprinted, so a short fresh window plus
         // a long stale-while-revalidate tail: repeat visits render from

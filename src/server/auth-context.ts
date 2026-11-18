@@ -6,6 +6,7 @@ import { cookies, headers } from "next/headers";
 import { SESSION_COOKIE } from "@/server/env";
 import { verifySignedValue, findSessionByToken, touchSession, type CurrentUser } from "@/server/session";
 import { getUserPermissionSet, type UserRoles } from "@/server/rbac";
+import { runInBackground } from "@/server/background";
 
 export interface RequestIdentity {
   user: CurrentUser;
@@ -26,7 +27,9 @@ export async function getCurrentIdentity(): Promise<RequestIdentity | null> {
   const found = await findSessionByToken(token);
   if (!found) return null;
 
-  void touchSession(found.session).catch(() => undefined);
+  // Sliding last-seen write (internally throttled to 5 min) — deferred via
+  // waitUntil so it can never delay or race the response it belongs to.
+  runInBackground(() => touchSession(found.session));
 
   const roles = await getUserPermissionSet(found.user.id);
   return { user: found.user, roles, sessionId: found.session.id };

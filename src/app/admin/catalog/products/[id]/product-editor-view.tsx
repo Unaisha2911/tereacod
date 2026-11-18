@@ -517,7 +517,16 @@ export function ProductEditorView({ detail }: { detail: AdminProductDetail }) {
   // MediaPicker target: which variant row is currently choosing a photo.
   const [variantImagePickerId, setVariantImagePickerId] = useState<string | null>(null);
 
-  const [thumbsBroken, setThumbsBroken] = useState<Set<string>>(() => new Set());
+  // Thumb load attempts per key — each admin thumbnail retries twice with a
+  // cache-busted URL before its "broken" state latches, so a transient
+  // Worker hiccup no longer reads as a permanently broken upload.
+  const [thumbAttempts, setThumbAttempts] = useState<Map<string, number>>(() => new Map());
+  const bumpThumb = (id: string) =>
+    setThumbAttempts((prev) => {
+      const next = new Map(prev);
+      next.set(id, (prev.get(id) ?? 0) + 1);
+      return next;
+    });
 
   const lockedVariants = state.variants.filter(
     (v) => v.type === "flavor" || v.type === "capacity" || v.type === "nicotine"
@@ -530,7 +539,13 @@ export function ProductEditorView({ detail }: { detail: AdminProductDetail }) {
   const renderEditableVariant = (variant: VariantRow) => {
     const isDraft = variant.id.startsWith("new_");
     const kind = variant.type === "color" ? "colour" : "origin";
-    const thumbBroken = thumbsBroken.has(`${variant.id}-img`);
+    const thumbAttemptsFor = thumbAttempts.get(`${variant.id}-img`) ?? 0;
+    const thumbBroken = thumbAttemptsFor > 2;
+    const variantThumbSrc = variant.imageUrl
+      ? thumbAttemptsFor === 0
+        ? variant.imageUrl
+        : `${variant.imageUrl}${variant.imageUrl.includes("?") ? "&" : "?"}retry=${thumbAttemptsFor}`
+      : undefined;
     return (
       <div
         key={variant.id}
@@ -590,17 +605,11 @@ export function ProductEditorView({ detail }: { detail: AdminProductDetail }) {
           <div className="relative size-14 shrink-0 overflow-hidden rounded-lg border border-line bg-black/30">
             {variant.imageUrl && !thumbBroken ? (
               <img
-                src={variant.imageUrl}
+                key={variantThumbSrc}
+                src={variantThumbSrc}
                 alt=""
                 className="h-full w-full object-cover"
-                onError={() =>
-                  setThumbsBroken((prev) => {
-                    if (prev.has(`${variant.id}-img`)) return prev;
-                    const next = new Set(prev);
-                    next.add(`${variant.id}-img`);
-                    return next;
-                  })
-                }
+                onError={() => bumpThumb(`${variant.id}-img`)}
               />
             ) : (
               <span className="flex h-full w-full items-center justify-center text-muted-foreground">
@@ -1024,24 +1033,25 @@ export function ProductEditorView({ detail }: { detail: AdminProductDetail }) {
                     No images yet — pick at least one from the media library.
                   </p>
                 )}
-                {state.images.map((image, i) => (
+                {state.images.map((image, i) => {
+                  const imgAttempts = thumbAttempts.get(image.mediaAssetId) ?? 0;
+                  const imgBroken = imgAttempts > 2;
+                  const imgSrc =
+                    imgAttempts === 0
+                      ? image.url
+                      : `${image.url}${image.url.includes("?") ? "&" : "?"}retry=${imgAttempts}`;
+                  return (
                   <div key={`${image.mediaAssetId}-${i}`} className="grid grid-cols-1 items-end gap-2.5 rounded-xl border border-line bg-foreground/[0.02] p-3 sm:grid-cols-[4rem_minmax(0,1fr)_auto]">
                     <div className="relative size-16 overflow-hidden rounded-lg border border-line bg-black/30">
-                      {thumbsBroken.has(image.mediaAssetId) ? (
+                      {imgBroken ? (
                         <span className="flex h-full w-full items-center justify-center text-[0.6rem] text-muted-foreground">broken</span>
                       ) : (
                         <img
-                          src={image.url}
+                          key={imgSrc}
+                          src={imgSrc}
                           alt={image.alt ?? `Product image ${i + 1}`}
                           className="h-full w-full object-cover"
-                          onError={() =>
-                            setThumbsBroken((prev) => {
-                              if (prev.has(image.mediaAssetId)) return prev;
-                              const next = new Set(prev);
-                              next.add(image.mediaAssetId);
-                              return next;
-                            })
-                          }
+                          onError={() => bumpThumb(image.mediaAssetId)}
                         />
                       )}
                     </div>
@@ -1085,7 +1095,8 @@ export function ProductEditorView({ detail }: { detail: AdminProductDetail }) {
                       </button>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
                 <p className="text-[0.76rem] text-muted-foreground">
                   Images always reference uploaded media-library assets — external URLs are not supported, keeping the
                   library the single source of truth.

@@ -1,6 +1,6 @@
 import { withApi, ok } from "@/server/api/guard";
 import { readCartToken, clearCartCookie } from "@/server/api/http";
-import { getActiveCart, getCartDetailForCart, getRawLines, clearCart } from "@/server/repos/cart";
+import { getActiveCart, buildCartDetail, getRawLines, clearCart } from "@/server/repos/cart";
 import type { CartLine } from "@/types";
 
 /** GET /api/v1/cart — server-authoritative cart detail + raw lines. */
@@ -17,10 +17,11 @@ export const GET = withApi({ rateLimit: { limit: 60, windowMs: 60 * 1000, key: "
       },
     });
   }
-  const [detail, lines] = await Promise.all([
-    getCartDetailForCart(cart.id),
-    getRawLines(cart.id),
-  ]);
+  // One read, two uses: buildCartDetail(lines) consumes the SAME raw lines
+  // returned to the client — the previous Promise.all fetched them twice
+  // per cart GET (one redundant D1 round trip on every page load).
+  const lines = await getRawLines(cart.id);
+  const detail = await buildCartDetail(lines);
   return ok({ lines, detail });
 });
 

@@ -102,6 +102,18 @@ function markReady(): void {
 }
 
 /**
+ * Seed the mirror from a server payload (bootstrap cart detail) — the cart
+ * lines already carry their full CatalogItem records, so this fills the
+ * mirror with ZERO extra requests. Falls back to ensureCatalogSubset when
+ * the payload is incomplete.
+ */
+export function seedCatalog(loaded: CatalogItem[]): void {
+  const known = new Set(items.map((i) => i.id));
+  items = [...items, ...loaded.filter((i) => Boolean(i?.id) && !known.has(i.id))];
+  markReady();
+}
+
+/**
  * Fetch ONLY the products a view actually needs (cart lines, saved items,
  * quick-add target) into the mirror — instead of downloading the whole
  * catalog. Merges into the existing mirror and marks it ready; a hit in

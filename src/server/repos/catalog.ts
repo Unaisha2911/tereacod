@@ -8,7 +8,7 @@
  */
 
 import { getDb } from "@/server/db/client";
-import { cached, invalidateCache, CACHE_TTL } from "@/server/cache";
+import { cacheGet, cacheSet, cached, invalidateCache, CACHE_TTL } from "@/server/cache";
 import type {
   AdminProductDetail,
   AdminProductImage,
@@ -308,9 +308,11 @@ export async function getBrand(slug: string): Promise<Brand | null> {
 export async function brandItemCounts(): Promise<Record<string, number>> {
   return cached("catalog:brand-counts", CACHE_TTL.taxonomy, async () => {
   const db = await getDb();
+  // Published-only: these counts surface on customer surfaces (brand page
+  // titles/metadata), so drafts must not inflate them.
   const rows = await db.all<{ slug: string; count: number }>(
     `SELECT b.slug, COUNT(p.id) AS count FROM brands b
-     LEFT JOIN products p ON p.brand_id = b.id
+     LEFT JOIN products p ON p.brand_id = b.id AND p.published_at IS NOT NULL
      GROUP BY b.id ORDER BY b.position`
   );
   return Object.fromEntries(rows.map((r) => [r.slug, r.count]));
@@ -495,22 +497,47 @@ export async function getRelatedProducts(slug: string): Promise<CatalogItem[]> {
 
 export async function getProductsBySlugs(slugs: string[]): Promise<CatalogItem[]> {
   if (slugs.length === 0) return [];
-  const db = await getDb();
   const unique = [...new Set(slugs)];
-  // Chunked IN lists — D1 caps one statement at 100 bound parameters, and a
-  // large cart can exceed that.
-  const items: CatalogItem[] = [];
-  for (let i = 0; i < unique.length; i += 90) {
-    const chunk = unique.slice(i, i + 90);
-    const placeholders = chunk.map(() => "?").join(",");
-    const rows = await db.all<ProductRow>(
-      `${SELECT_PRODUCT} WHERE p.slug IN (${placeholders}) AND p.published_at IS NOT NULL`,
-      chunk
-    );
-    items.push(...(await hydrate(rows)));
+
+  // HYBRID READ: take whatever the isolate already has warm (per-slug
+  // entries shared with the PDP render — a warm isolate answers the whole
+  // cart/related lookup with ZERO D1 traffic), then batch-load only the
+  // remainder. This beats both extremes:
+  //   • per-slug getProduct() on a cold isolate would fan out 6 queries
+  //     × N slugs (worst exactly when the Worker is most fragile);
+  //   • the old always-uncached path re-ran the IN query + 5-query hydrate
+  //     on EVERY request even when every slug was already resident.
+  const results = new Map<string, CatalogItem>();
+  const missing: string[] = [];
+  for (const slug of unique) {
+    const warm = cacheGet<CatalogItem>(`catalog:product:${slug}`);
+    if (warm !== undefined) results.set(slug, warm);
+    else missing.push(slug);
   }
+
+  if (missing.length > 0) {
+    const db = await getDb();
+    // Chunked IN lists — D1 caps one statement at 100 bound parameters, and a
+    // large cart can exceed that.
+    for (let i = 0; i < missing.length; i += 90) {
+      const chunk = missing.slice(i, i + 90);
+      const placeholders = chunk.map(() => "?").join(",");
+      const rows = await db.all<ProductRow>(
+        `${SELECT_PRODUCT} WHERE p.slug IN (${placeholders}) AND p.published_at IS NOT NULL`,
+        chunk
+      );
+      const hydrated = await hydrate(rows);
+      for (const item of hydrated) {
+        results.set(item.slug, item);
+        // Seed the per-slug entries the PDP path reads — the next request
+        // (and the PDP itself) finds them warm without touching D1.
+        cacheSet(`catalog:product:${item.slug}`, item, CACHE_TTL.product);
+      }
+    }
+  }
+
   const order = new Map(slugs.map((s, i) => [s, i]));
-  return items.sort((a, b) => (order.get(a.slug) ?? 0) - (order.get(b.slug) ?? 0));
+  return [...results.values()].sort((a, b) => (order.get(a.slug) ?? 0) - (order.get(b.slug) ?? 0));
 }
 
 export async function getProductsByIds(ids: string[]): Promise<CatalogItem[]> {

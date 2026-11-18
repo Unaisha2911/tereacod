@@ -10,7 +10,7 @@ import { CatalogBrowser } from "@/components/shared/catalog-browser";
 import { toCardItems } from "@/lib/catalog-card";
 import { SeoContent } from "@/components/shared/seo-content";
 import { BRAND_ACCENT_GLOW, BRAND_ACCENT_HEX } from "@/components/shared/brand-card";
-import { getBrandBySlugRepo, getBrandItems, getProducts } from "@/server/data";
+import { getBrandBySlugRepo, getBrandItems, getBrandItemCounts } from "@/server/data";
 import { ORIGIN_LINES } from "@/lib/catalog-origin";
 import { breadcrumbJsonLd, canonical, itemListJsonLd, JsonLd, siteUrl } from "@/lib/seo";
 import type { Brand } from "@/types";
@@ -29,7 +29,10 @@ export async function generateMetadata({ params }: BrandPageProps): Promise<Meta
   // notFound() in metadata (head-blocking) — see products/[slug] note; a
   // streamed-body notFound() would be softened to a 200 by loading.tsx.
   if (!brand) notFound();
-  const count = (await getProducts()).filter((item) => item.brand.toLowerCase() === brand.name.toLowerCase()).length;
+  // One cached COUNT query — the former path loaded the FULL published
+  // catalog (a products query + 5 hydration queries per cold render) just
+  // to count one brand's items in memory.
+  const count = (await getBrandItemCounts())[slug] ?? 0;
   const title = `${brand.name} UAE — ${count} product${count === 1 ? "" : "s"} in stock`;
   const description = `${brand.name} — ${brand.tagline}. ${brand.blurb} Authenticity-checked stock, AED pricing and UAE-wide delivery from the TereaCOD Dubai warehouse.`;
   return {

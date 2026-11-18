@@ -31,7 +31,18 @@ import { hasPermission } from "@/server/rbac";
 export const dynamic = "force-dynamic";
 
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
-  const flags = await getFeatureFlags();
+  // Flags gate EVERY page render. A transient KV failure must never abort
+  // the whole site here — the defaults are the safe state (site online),
+  // and getFeatureFlags itself is cached + retried underneath.
+  let flags = { maintenance: false, checkoutEnabled: true };
+  try {
+    flags = await getFeatureFlags();
+  } catch (error) {
+    console.error(
+      "[layout] feature flags unavailable — assuming site-online defaults:",
+      error instanceof Error ? error.message : error
+    );
+  }
   if (flags.maintenance) {
     const identity = await getCurrentIdentity();
     const isStaff = identity ? hasPermission(identity.roles, "catalog.read") : false;

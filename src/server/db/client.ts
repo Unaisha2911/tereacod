@@ -14,6 +14,7 @@
 import { APP_ENV, D1DatabaseLike } from "@/server/env";
 import type { LocalDb } from "@/server/db/local";
 import { injectWorkerBindings } from "@/server/bindings";
+import { withTransientRetry } from "@/server/retry";
 
 export interface DbRow {
   [key: string]: unknown;
@@ -63,32 +64,48 @@ class D1Client implements DbClient {
   readonly driver = "d1" as const;
   constructor(private readonly d1: D1DatabaseLike) {}
 
+  /**
+   * Remote D1 occasionally fails transiently ("D1_ERROR: internal error",
+   * connection resets under bursts, busy contention). A short bounded
+   * retry inside the client means EVERY repository read/write absorbs the
+   * blip instead of aborting a live SSR render (the intermittent
+   * "Something went wrong" 500s on production). Permanent SQL errors are
+   * not retried — see isTransientStorageError.
+   */
   async all<T = DbRow>(sql: string, params: unknown[] = []): Promise<T[]> {
-    const stmt = this.d1.prepare(sql);
-    const bound = params.length > 0 ? stmt.bind(...params) : stmt;
-    const result = await bound.all<T>();
-    return result.results ?? [];
+    return withTransientRetry(async () => {
+      const stmt = this.d1.prepare(sql);
+      const bound = params.length > 0 ? stmt.bind(...params) : stmt;
+      const result = await bound.all<T>();
+      return result.results ?? [];
+    });
   }
 
   async get<T = DbRow>(sql: string, params: unknown[] = []): Promise<T | null> {
-    const stmt = this.d1.prepare(sql);
-    const bound = params.length > 0 ? stmt.bind(...params) : stmt;
-    return bound.first<T>();
+    return withTransientRetry(async () => {
+      const stmt = this.d1.prepare(sql);
+      const bound = params.length > 0 ? stmt.bind(...params) : stmt;
+      return bound.first<T>();
+    });
   }
 
   async run(sql: string, params: unknown[] = []): Promise<RunResult> {
-    const stmt = this.d1.prepare(sql);
-    const bound = params.length > 0 ? stmt.bind(...params) : stmt;
-    const result = await bound.run();
-    return { changes: result.meta?.changes ?? 0 };
+    return withTransientRetry(async () => {
+      const stmt = this.d1.prepare(sql);
+      const bound = params.length > 0 ? stmt.bind(...params) : stmt;
+      const result = await bound.run();
+      return { changes: result.meta?.changes ?? 0 };
+    });
   }
 
   async batch(statements: BatchStatement[]): Promise<void> {
-    const prepared = statements.map((s) => {
-      const stmt = this.d1.prepare(s.sql);
-      return s.params && s.params.length > 0 ? stmt.bind(...s.params) : stmt;
+    await withTransientRetry(async () => {
+      const prepared = statements.map((s) => {
+        const stmt = this.d1.prepare(s.sql);
+        return s.params && s.params.length > 0 ? stmt.bind(...s.params) : stmt;
+      });
+      await this.d1.batch(prepared);
     });
-    await this.d1.batch(prepared);
   }
 }
 

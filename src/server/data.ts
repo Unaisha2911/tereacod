@@ -24,6 +24,7 @@ import {
   getProduct,
   getBrand as getBrandBySlug,
   getCategory as getCategoryBySlug,
+  brandItemCounts,
 } from "@/server/repos/catalog";
 import {
   getSiteSettings,
@@ -95,6 +96,11 @@ export async function getBrands(): Promise<Brand[]> {
 }
 export function getBrandBySlugRepo(slug: string): Promise<Brand | null> {
   return getBrandBySlug(slug);
+}
+
+/** Published product count per brand slug — one cached COUNT query. */
+export function getBrandItemCounts(): Promise<Record<string, number>> {
+  return brandItemCounts();
 }
 
 /** Catalog items for a brand landing page (featured-first, full page). */
