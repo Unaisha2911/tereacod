@@ -67,7 +67,12 @@ const nextConfig: NextConfig = {
         // preload list; CSP ships in enforcement mode with the two inline
         // allowances a Next app inherently needs (framework bootstrap +
         // styled/JSON-LD inline content) plus the Cloudflare Web Analytics
-        // beacon. Nonce-based script CSP is the later hardening step.
+        // beacon and the Google Tag Manager container (GTM-PW9WSMBN, head
+        // of the root layout) with the Google Analytics collect endpoints
+        // it beacons to. frame-src keeps 'self' AND adds googletagmanager
+        // so Tag Assistant preview still works — note frame-src no longer
+        // falls back to default-src once specified, hence the explicit
+        // 'self'. Nonce-based script CSP is the later hardening step.
         source: "/(.*)",
         headers: [
           { key: "X-Content-Type-Options", value: "nosniff" },
@@ -80,11 +85,12 @@ const nextConfig: NextConfig = {
             key: "Content-Security-Policy",
             value:
               "default-src 'self'; " +
-              "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; " +
+              "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com https://www.googletagmanager.com; " +
               "style-src 'self' 'unsafe-inline'; " +
-              "img-src 'self' data: blob:; " +
+              "img-src 'self' data: blob: https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com; " +
               "font-src 'self' data:; " +
-              "connect-src 'self' https://cloudflareinsights.com; " +
+              "connect-src 'self' https://cloudflareinsights.com https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com; " +
+              "frame-src 'self' https://www.googletagmanager.com; " +
               "worker-src 'self' blob:; " +
               "base-uri 'self'; " +
               "form-action 'self'; " +

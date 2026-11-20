@@ -142,6 +142,30 @@ export default function RootLayout({
             __html: `try{if(!location.pathname.startsWith("/admin"))window.__ageGateT0=Date.now()}catch(e){}`,
           }}
         />
+        {/* Google Tag Manager container GTM-PW9WSMBN — the user-provided
+            gtag-style snippet, merged into ONE head script: the dataLayer
+            shim and gtag() run first, THEN the async gtm.js tag is created
+            via the DOM API. Ordering is guaranteed by construction — React
+            19 hoists <script async> JSX (and next/script's afterInteractive
+            SSR tag) to the FRONT of <head>, which would boot the container
+            before the shim ran; a runtime-created tag can never be hoisted.
+            Same URL, same async attribute, same head destination as the
+            original two-script snippet. Tag configuration lives inside the
+            GTM container; the script / connect / img / frame CSP
+            allowances for googletagmanager.com and the Google Analytics
+            collect endpoints are in next.config.ts headers(). */}
+        {/* eslint-disable-next-line @next/next/next-script-for-ga -- the
+            @next/third-parties <GoogleTagManager> renders a different
+            bootstrap (iframe wrapper); this gtag-hybrid form is the exact
+            snippet provisioned by the Google Analytics install flow. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+(function(){var s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtm.js?id=GTM-PW9WSMBN';document.head.appendChild(s);})();`,
+          }}
+        />
       </head>
       <body
         className={`${inter.variable} ${spaceGrotesk.variable} ${geistMono.variable} min-h-screen bg-background font-sans text-foreground antialiased`}
