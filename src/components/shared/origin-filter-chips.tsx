@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { ORIGIN_LINES } from "@/lib/catalog-origin";
 import { cn } from "@/lib/utils";
 

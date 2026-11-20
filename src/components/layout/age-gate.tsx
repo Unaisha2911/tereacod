@@ -113,7 +113,6 @@ export function AgeGate() {
       aria-describedby="age-gate-body"
       aria-hidden={!active}
     >
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(58%_44%_at_18%_24%,rgba(139,92,246,0.2),transparent_68%),radial-gradient(46%_40%_at_84%_18%,rgba(215,95,212,0.14),transparent_66%)]" aria-hidden="true" />
       <div className="relative z-10 w-full max-w-md px-5">
         <div className="age-gate__card">
           {!denied ? (
@@ -121,7 +120,7 @@ export function AgeGate() {
               <div className="flex flex-col items-center gap-3 text-center">
                 <Logo />
                 <p className="inline-flex items-center gap-2 rounded-full border border-warning/30 bg-warning/10 px-3.5 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-warning">
-                  <span className="size-1.5 rounded-full bg-warning shadow-[0_0_8px_rgba(251,191,36,0.9)]" aria-hidden="true" />
+                  <span className="size-1.5 rounded-full bg-warning" aria-hidden="true" />
                   Adults 18+ only
                 </p>
                 <h2 id="age-gate-title" className="font-display text-h3 font-bold text-foreground">
@@ -138,7 +137,7 @@ export function AgeGate() {
                 <button
                   type="button"
                   onClick={accept}
-                  className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-primary font-medium text-primary-foreground transition-[filter,box-shadow] hover:brightness-110 hover:shadow-[0_0_24px_rgba(139,92,246,0.45)]"
+                  className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-primary font-medium text-primary-foreground transition-[filter] hover:brightness-110"
                 >
                   Yes, I&apos;m 18 or older — enter
                 </button>

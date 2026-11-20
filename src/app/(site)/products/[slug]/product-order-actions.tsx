@@ -91,7 +91,7 @@ export function ProductOrderActions({
             onClick={addToCart}
             disabled={!canOrder}
             className={cn(
-              "neon-glow-btn hover:neon-glow-btn-hover inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full bg-primary px-6 text-sm font-semibold uppercase tracking-[0.08em] text-primary-foreground transition-transform hover:-translate-y-0.5",
+              "inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full bg-primary px-6 text-sm font-semibold uppercase tracking-[0.08em] text-primary-foreground transition-transform hover:-translate-y-0.5",
               !canOrder && "pointer-events-none opacity-50"
             )}
           >

@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { cn } from "@/lib/utils";
 import { ChevronRight } from "lucide-react";
 

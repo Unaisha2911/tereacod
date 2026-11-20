@@ -1,12 +1,12 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowUpRight } from "lucide-react";
 import { RevealSection } from "@/components/atmosphere/reveal-section";
 import { NeonHeading } from "./neon-heading";
 import { SectionContainer } from "@/components/layout/page-container";
-import { GlowSurface } from "@/components/atmosphere/glow-surface";
+import { CardSurface } from "@/components/atmosphere/card-surface";
 import { ORIGIN_LINES } from "@/lib/catalog-origin";
 
 /**
@@ -70,9 +70,8 @@ function OriginCard({
       transition={{ duration: 0.5, delay: Math.min(index * 0.05, 0.3), ease: [0.22, 1, 0.36, 1] }}
       className="h-full"
     >
-      <GlowSurface
+      <CardSurface
         as="article"
-        glowColor="139, 92, 246"
         className="h-full rounded-2xl border border-line bg-elevated/45 transition-colors duration-300 hover:border-violet-glow/45"
       >
         <Link
@@ -86,7 +85,7 @@ function OriginCard({
             </span>
             <span
               aria-hidden="true"
-              className="flex size-8 items-center justify-center rounded-full border border-line-strong text-muted-foreground transition-[transform,border-color,color] duration-300 group-hover/glow:rotate-45 group-hover/glow:border-current group-hover/glow:text-foreground"
+              className="flex size-8 items-center justify-center rounded-full border border-line-strong text-muted-foreground transition-[transform,border-color,color] duration-300 group-hover/card:rotate-45 group-hover/card:border-current group-hover/card:text-foreground"
             >
               <ArrowUpRight className="size-3.5" />
             </span>
@@ -96,7 +95,7 @@ function OriginCard({
             <p className="mt-1 line-clamp-2 text-[0.8rem] leading-relaxed text-muted-foreground">{blurb}</p>
           </div>
         </Link>
-      </GlowSurface>
+      </CardSurface>
     </motion.div>
   );
 }

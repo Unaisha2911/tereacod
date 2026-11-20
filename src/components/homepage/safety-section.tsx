@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { Banknote, MapPinned, ShieldAlert, ShieldCheck, Timer, Truck, type LucideIcon } from "lucide-react";
 import { RevealSection } from "@/components/atmosphere/reveal-section";
 import { SectionContainer } from "@/components/layout/page-container";
@@ -32,18 +32,9 @@ export function SafetySection() {
       <section aria-labelledby="safety-heading">
         <RevealSection>
           <div className="relative overflow-hidden rounded-3xl border border-line bg-elevated/50 p-8 sm:p-10">
-            {/* Calm LED top rail — electric accent without stealing focus */}
-            <div
-              aria-hidden="true"
-              className="absolute inset-x-0 top-0 h-px opacity-70"
-              style={{
-                background:
-                  "linear-gradient(to right, transparent, rgba(251,191,36,0.65) 30%, rgba(139,92,246,0.6) 60%, transparent)",
-                boxShadow: "0 0 12px rgba(251,191,36,0.3)",
-              }}
-            />
+            <div aria-hidden="true" className="absolute inset-x-0 top-0 h-px bg-warning/30" />
             <div className="flex items-start gap-5">
-              <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl border border-warning/30 bg-warning/10 text-warning shadow-[0_0_16px_rgba(251,191,36,0.2)]">
+              <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl border border-warning/30 bg-warning/10 text-warning">
                 <ShieldAlert className="size-5" aria-hidden="true" />
               </span>
               <div>
@@ -86,7 +77,7 @@ export function SafetySection() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="rounded-full border border-border bg-foreground/[0.04] px-5 py-2.5 text-sm font-medium text-foreground transition-[border-color,background-color,box-shadow] hover:border-violet-glow/45 hover:bg-foreground/[0.08] hover:shadow-[0_0_16px_rgba(139,92,246,0.28)]"
+                  className="rounded-full border border-border bg-foreground/[0.04] px-5 py-2.5 text-sm font-medium text-foreground transition-[border-color,background-color] hover:border-violet-glow/45 hover:bg-foreground/[0.08]"
                 >
                   {link.label}
                 </Link>

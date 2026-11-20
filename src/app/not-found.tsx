@@ -1,18 +1,16 @@
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { Logo } from "@/components/layout/logo";
 import { GradientBackdrop } from "@/components/atmosphere/gradient-backdrop";
-import { AmbientSmoke } from "@/components/atmosphere/ambient-smoke";
 import { Compass, Home, LifeBuoy } from "lucide-react";
 
 /**
  * Global 404 — self-contained (root not-found renders outside the
- * (site) layout). Branded, atmospheric, with recovery paths.
+ * (site) layout). Branded, with recovery paths.
  */
 export default function NotFound() {
   return (
     <div className="relative flex min-h-screen flex-col bg-background">
       <GradientBackdrop />
-      <AmbientSmoke preset="ambient" palette="violet" intensity={0.7} zIndexClass="-z-10" position="fixed" />
       <header className="p-6 sm:p-8">
         <Logo />
       </header>

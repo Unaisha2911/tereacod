@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import type { OriginChipData } from "@/lib/catalog-origin";
 
 /**

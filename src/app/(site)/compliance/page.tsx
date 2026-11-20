@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { canonical } from "@/lib/seo";
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { AlertTriangle, FileBadge2, ShieldCheck } from "lucide-react";
 import { PageContainer, SectionContainer } from "@/components/layout/page-container";
 import { PageHeading } from "@/components/layout/page-heading";

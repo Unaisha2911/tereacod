@@ -1,19 +1,17 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { notFound } from "next/navigation";
 import { ArrowRight, ArrowUpRight, LayoutGrid, ScrollText } from "lucide-react";
 import { RevealSection } from "@/components/atmosphere/reveal-section";
-import { SectionAtmosphere } from "@/components/atmosphere/section-atmosphere";
 import { PageContainer, SectionContainer } from "@/components/layout/page-container";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { CatalogBrowser } from "@/components/shared/catalog-browser";
 import { toCardItems } from "@/lib/catalog-card";
 import { SeoContent } from "@/components/shared/seo-content";
-import { BRAND_ACCENT_GLOW, BRAND_ACCENT_HEX } from "@/components/shared/brand-card";
+import { BRAND_ACCENT_HEX } from "@/components/shared/brand-card";
 import { getBrandBySlugRepo, getBrandItems, getBrandItemCounts } from "@/server/data";
 import { ORIGIN_LINES } from "@/lib/catalog-origin";
 import { breadcrumbJsonLd, canonical, itemListJsonLd, JsonLd, siteUrl } from "@/lib/seo";
-import type { Brand } from "@/types";
 
 interface BrandPageProps {
   params: Promise<{ slug: string }>;
@@ -59,13 +57,6 @@ export async function generateMetadata({ params }: BrandPageProps): Promise<Meta
   };
 }
 
-/** Brand accent → SectionAtmosphere palette. */
-const ACCENT_VARIANT: Record<Brand["accent"], "violet" | "ice" | "magenta"> = {
-  violet: "violet",
-  ice: "ice",
-  magenta: "magenta",
-};
-
 const chipClass =
   "inline-flex items-center rounded-full border border-line bg-elevated/40 px-3 py-1.5 text-[0.75rem] leading-none text-muted-foreground";
 
@@ -76,7 +67,6 @@ export default async function BrandPage({ params }: BrandPageProps) {
   if (!brand) notFound();
 
   const accent = BRAND_ACCENT_HEX[brand.accent];
-  const glow = BRAND_ACCENT_GLOW[brand.accent];
   // Brand items come back featured-first (shared catalog sort).
   const items = await getBrandItems(slug);
 
@@ -101,25 +91,12 @@ export default async function BrandPage({ params }: BrandPageProps) {
 
       {/* Hero band */}
       <section className="relative">
-        <SectionAtmosphere variant={ACCENT_VARIANT[brand.accent]} intensity={0.6} />
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute left-1/2 top-0 z-0 h-72 w-[44rem] max-w-full -translate-x-1/2 opacity-50"
-          style={{ background: `radial-gradient(closest-side, ${glow}, transparent 72%)` }}
-        />
         <div className="relative z-10 flex flex-col gap-5 pt-10 sm:pt-14">
           <p className="flex items-center gap-3 text-label font-medium uppercase tracking-[0.22em] text-violet-soft">
-            <span
-              aria-hidden="true"
-              className="anim-led size-1.5 shrink-0 rounded-full"
-              style={{ backgroundColor: accent, boxShadow: `0 0 8px ${glow}`, ["--dur" as string]: "2.4s" }}
-            />
+            <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full" style={{ backgroundColor: accent }} />
             Stocked by TereaCOD
           </p>
-          <h1
-            className="max-w-3xl font-display text-h1 font-bold"
-            style={{ color: accent, textShadow: `0 0 18px ${glow}, 0 0 56px ${glow}` }}
-          >
+          <h1 className="max-w-3xl font-display text-h1 font-bold" style={{ color: accent }}>
             {brand.name}
           </h1>
           <p className="max-w-2xl text-lead text-muted-foreground">{brand.tagline}</p>
@@ -143,7 +120,7 @@ export default async function BrandPage({ params }: BrandPageProps) {
         <RevealSection>
           <h2 className="font-display text-h2 font-semibold text-foreground">
             Products by{" "}
-            <span style={{ color: accent, textShadow: `0 0 16px ${glow}` }}>{brand.name}</span>
+            <span style={{ color: accent }}>{brand.name}</span>
           </h2>
           <p className="mt-2 text-legal text-muted-foreground">
             {items.length} listings · authenticity-checked stock · AED pricing

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { Logo } from "@/components/layout/logo";
 import { GradientBackdrop } from "@/components/atmosphere/gradient-backdrop";
 import { RotateCcw, LifeBuoy } from "lucide-react";

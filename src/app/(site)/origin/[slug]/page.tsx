@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { notFound } from "next/navigation";
 import { X } from "lucide-react";
 import { PageContainer } from "@/components/layout/page-container";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
-import { SectionAtmosphere } from "@/components/atmosphere/section-atmosphere";
 import { CatalogBrowser } from "@/components/shared/catalog-browser";
 import { OriginFilterChips } from "@/components/shared/origin-filter-chips";
 import { toCardItems } from "@/lib/catalog-card";
@@ -211,7 +210,6 @@ export default async function OriginPage({ params, searchParams }: OriginPagePro
 
   return (
     <section className="relative">
-      <SectionAtmosphere variant="violet" intensity={0.5} />
       <JsonLd
         data={[
           breadcrumbJsonLd([

@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { ArrowRight, ArrowUpRight, BadgeCheck } from "lucide-react";
 import { NeonHeading } from "@/components/homepage/neon-heading";
 import { RevealSection } from "@/components/atmosphere/reveal-section";
-import { SectionAtmosphere } from "@/components/atmosphere/section-atmosphere";
 import { PageContainer, SectionContainer } from "@/components/layout/page-container";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { BrandCard } from "@/components/shared/brand-card";
@@ -39,7 +38,6 @@ export default async function BrandDirectoryPage() {
 
       {/* Directory header */}
       <section className="relative">
-        <SectionAtmosphere variant="mixed" intensity={0.45} />
         <div className="relative z-10 flex flex-col gap-5 pb-10 pt-10 sm:pt-14">
           <NeonHeading
             eyebrow="Brand directory"

@@ -1,42 +1,31 @@
 "use client";
 
-import { useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 type HeadingTone = "violet" | "ice" | "red" | "mix";
 
-const TONE_TITLE: Record<HeadingTone, string> = {
-  violet: "text-neon",
-  ice: "text-neon-ice",
-  red: "text-neon-red",
-  mix: "text-neon-mix",
-};
-
-/** Double-layer (two-colour concentric tube) treatment per accent tint. */
-const TONE_ACCENT_DUO: Record<"violet" | "ice" | "red", string> = {
-  violet: "text-neon-outline-duo",
-  ice: "text-neon-outline-duo-ice",
-  red: "text-neon-outline-duo-red",
-};
-
 const TONE_DOT: Record<HeadingTone, string> = {
-  violet: "bg-violet-soft text-violet-soft",
-  ice: "bg-ice text-ice",
-  red: "bg-led-red text-led-red",
-  mix: "bg-magenta-glow text-magenta-glow",
+  violet: "bg-violet-soft",
+  ice: "bg-ice",
+  red: "bg-led-red",
+  mix: "bg-magenta-glow",
+};
+
+const TONE_ACCENT: Record<"violet" | "ice" | "red", string> = {
+  violet: "text-violet-soft",
+  ice: "text-ice",
+  red: "text-led-red",
 };
 
 /**
- * NeonHeading — the standard major-heading treatment for the homepage.
- * Orbitron (Cybertruck-style techno face) + LED eyebrow: a pulsing
- * indicator dot, the label, and a conductive hairline.
+ * SectionHeading — the standard major-heading treatment for the homepage
+ * (formerly the neon sign; the glow layer has been retired in favour of a
+ * clean, flat editorial look). Orbitron display face + eyebrow row:
+ * a solid indicator dot, the label, and a quiet hairline.
  *
- * `title` renders as the lit neon sign (tone selects the LED channel —
- * "mix" lights every channel at once); `accent` (optional trailing
- * word/phrase) renders as a DOUBLE-LAYER hollow tube — a bold outer
- * stroke plus a thinner contrasting inner stroke (violet+ice,
- * ice+violet or red+magenta) for the heavy multi-colour neon look.
- * Requires data-text, which this component sets automatically.
+ * `title` renders solid in the foreground colour; `accent` (optional
+ * trailing word/phrase) renders in the tone's flat accent colour.
+ * Tone props are retained so every call site keeps compiling unchanged.
  */
 export function NeonHeading({
   eyebrow,
@@ -51,20 +40,18 @@ export function NeonHeading({
 }: {
   eyebrow: string;
   title: string;
-  /** Trailing word rendered in outline style. */
+  /** Trailing word rendered in the tone's accent colour. */
   accent?: string;
   id?: string;
   align?: "left" | "center";
-  /** Use the ice LED tint for the accent instead of violet. */
+  /** Use the ice accent for the trailing word instead of violet. */
   iceAccent?: boolean;
-  /** Use the red LED tint for the accent (wins over iceAccent). */
+  /** Use the red accent for the trailing word (wins over iceAccent). */
   redAccent?: boolean;
-  /** LED channel of the lit title: violet (default), ice, red or mix. */
+  /** Accent channel of the eyebrow dot: violet (default), ice, red or mix. */
   tone?: HeadingTone;
   className?: string;
 }) {
-  const reduced = useReducedMotion();
-
   return (
     <div className={cn(align === "center" && "flex flex-col items-center text-center", className)}>
       <p
@@ -75,32 +62,22 @@ export function NeonHeading({
       >
         <span
           aria-hidden="true"
-          className={cn(
-            "size-1.5 shrink-0 rounded-full",
-            TONE_DOT[tone],
-            tone === "red" && "shadow-[0_0_8px_rgba(255,42,84,0.9)]",
-            reduced ? "" : "anim-led"
-          )}
-          style={{ ["--dur" as string]: "2.6s" }}
+          className={cn("size-1.5 shrink-0 rounded-full", TONE_DOT[tone])}
         />
         {eyebrow}
-        <span aria-hidden="true" className="neon-divider hidden w-16 opacity-60 sm:block" />
+        <span
+          aria-hidden="true"
+          className="hidden h-px w-16 bg-line sm:block"
+        />
       </p>
-      <h2 id={id} className="mt-4 text-h2-neon font-neon font-bold uppercase">
-        <span className={TONE_TITLE[tone]}>{title}</span>
+      <h2 id={id} className="mt-4 text-h2-neon font-neon font-bold uppercase text-foreground">
+        {title}
         {accent && (
           <span
             className={cn(
               "ml-[0.28em] inline-block",
-              redAccent
-                ? TONE_ACCENT_DUO.red
-                : iceAccent
-                  ? TONE_ACCENT_DUO.ice
-                  : TONE_ACCENT_DUO.violet,
-              !reduced && "anim-flicker"
+              redAccent ? TONE_ACCENT.red : iceAccent ? TONE_ACCENT.ice : TONE_ACCENT.violet
             )}
-            data-text={accent}
-            style={{ ["--dur" as string]: "11s", ["--delay" as string]: "1.4s" }}
           >
             {accent}
           </span>

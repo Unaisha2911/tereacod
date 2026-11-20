@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { useEffect, useState } from "react";
 import { Checkbox, FormError, FormSuccess, Select } from "@/components/forms/fields";
 import { LoadingIndicator } from "@/components/shared/loading-indicator";

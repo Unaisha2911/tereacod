@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { useSearchParams } from "next/navigation";
 import { CircleCheckBig, Compass, PackageSearch, ReceiptText } from "lucide-react";
 import { PageContainer } from "@/components/layout/page-container";
@@ -67,11 +67,7 @@ function SuccessConfirmation({ reference }: { reference: string | null }) {
       <PageContainer width="narrow">
         <div className="flex min-h-[40vh] items-center justify-center">
           <p className="flex items-center gap-3 text-sm uppercase tracking-[0.24em] text-muted-foreground">
-            <span
-              aria-hidden="true"
-              className="anim-led size-1.5 rounded-full bg-violet-soft text-violet-soft"
-              style={{ ["--dur" as string]: "2.2s" }}
-            />
+            <span aria-hidden="true" className="size-1.5 rounded-full bg-violet-soft text-violet-soft" />
             Loading confirmation…
           </p>
         </div>
@@ -124,12 +120,12 @@ function SuccessConfirmation({ reference }: { reference: string | null }) {
       <div className="flex flex-col items-center gap-4 py-14 text-center sm:py-16">
         <span
           aria-hidden="true"
-          className="flex size-16 items-center justify-center rounded-3xl border border-violet-glow/40 bg-violet-glow/15 text-violet-soft shadow-[0_0_28px_rgba(139,92,246,0.35)]"
+          className="flex size-16 items-center justify-center rounded-3xl border border-violet-glow/40 bg-violet-glow/15 text-violet-soft"
         >
           <CircleCheckBig className="size-8" />
         </span>
         <h1 className="text-h2-neon font-neon font-bold uppercase leading-tight">
-          <span className="text-neon">Order placed</span>
+          <span className="text-foreground">Order placed</span>
         </h1>
         <p className="max-w-md text-lead text-muted-foreground">
           Thank you — your order is in. Keep the reference handy: the courier verifies your Emirates ID at the door.
@@ -184,7 +180,7 @@ function SuccessConfirmation({ reference }: { reference: string | null }) {
         <div className="flex flex-wrap items-center justify-center gap-3">
           <Link
             href="/account/orders"
-            className="neon-glow-btn hover:neon-glow-btn-hover inline-flex min-h-12 items-center gap-2 rounded-full bg-primary px-7 text-sm font-semibold uppercase tracking-[0.08em] text-primary-foreground transition-transform hover:-translate-y-0.5"
+            className="inline-flex min-h-12 items-center gap-2 rounded-full bg-primary px-7 text-sm font-semibold uppercase tracking-[0.08em] text-primary-foreground transition-transform hover:-translate-y-0.5"
           >
             <ReceiptText className="size-4" aria-hidden="true" />
             Track in order history

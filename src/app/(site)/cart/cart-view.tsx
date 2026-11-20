@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { Minus, Plus, ShoppingBag, Trash2, Truck } from "lucide-react";
 import { PageHeading } from "@/components/layout/page-heading";
 import { PageContainer } from "@/components/layout/page-container";
@@ -69,11 +69,7 @@ export function CartView() {
       <PageContainer>
         <div className="flex min-h-[40vh] items-center justify-center">
           <p className="flex items-center gap-3 text-sm uppercase tracking-[0.24em] text-muted-foreground">
-            <span
-              aria-hidden="true"
-              className="anim-led size-1.5 rounded-full bg-violet-soft text-violet-soft"
-              style={{ ["--dur" as string]: "2.2s" }}
-            />
+            <span aria-hidden="true" className="size-1.5 rounded-full bg-violet-soft text-violet-soft" />
             Restoring your cart…
           </p>
         </div>
@@ -263,7 +259,7 @@ export function CartView() {
             href="/checkout"
             aria-disabled={purchasableCount === 0}
             className={cn(
-              "neon-glow-btn hover:neon-glow-btn-hover mt-6 flex min-h-12 w-full items-center justify-center rounded-full bg-primary px-6 text-sm font-semibold uppercase tracking-[0.08em] text-primary-foreground transition-transform hover:-translate-y-0.5",
+              "mt-6 flex min-h-12 w-full items-center justify-center rounded-full bg-primary px-6 text-sm font-semibold uppercase tracking-[0.08em] text-primary-foreground transition-transform hover:-translate-y-0.5",
               purchasableCount === 0 && "pointer-events-none opacity-50"
             )}
           >

@@ -10,6 +10,7 @@
 
 import { useSyncExternalStore } from "react";
 import type { CatalogItem } from "@/types";
+import { fetchJsonWithRetry } from "@/lib/client-fetch";
 
 let items: CatalogItem[] = [];
 let loadPromise: Promise<void> | null = null;
@@ -41,14 +42,10 @@ export function useCatalogReady(): boolean {
 }
 
 async function loadPage(page: number): Promise<{ items: CatalogItem[]; hasMore: boolean; total?: number }> {
-  const response = await fetch(`/api/v1/catalog/products?page=${page}&pageSize=48`, {
-    headers: { accept: "application/json" },
-  });
-  if (!response.ok) throw new Error(`Catalog mirror load failed (${response.status})`);
-  const body = (await response.json()) as {
+  const body = await fetchJsonWithRetry<{
     data: { items: CatalogItem[]; hasMore: boolean };
     meta?: { pagination?: { total?: number } };
-  };
+  }>(`/api/v1/catalog/products?page=${page}&pageSize=48`);
   return {
     items: body.data.items,
     hasMore: body.data.hasMore,
@@ -130,11 +127,9 @@ export async function ensureCatalogSubset(filter: { ids?: string[]; slugs?: stri
   // Repo-side chunking caps bound parameters at 90 — stay under it.
   if (wantIds.length > 0) params.set("ids", wantIds.slice(0, 90).join(","));
   if (wantSlugs.length > 0) params.set("slugs", wantSlugs.slice(0, 90).join(","));
-  const response = await fetch(`/api/v1/catalog/products?${params.toString()}`, {
-    headers: { accept: "application/json" },
-  });
-  if (!response.ok) throw new Error(`Catalog subset load failed (${response.status})`);
-  const body = (await response.json()) as { data: CatalogItem[] };
+  const body = await fetchJsonWithRetry<{ data: CatalogItem[] }>(
+    `/api/v1/catalog/products?${params.toString()}`
+  );
   const fetched = Array.isArray(body.data) ? body.data : [];
   const known = new Set(items.map((i) => i.id));
   items = [...items, ...fetched.filter((i) => !known.has(i.id))];

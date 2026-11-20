@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import {
   ArrowRight,

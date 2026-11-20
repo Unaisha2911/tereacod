@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { BadgeCheck, ExternalLink, Pencil, Plus, Trash2 } from "lucide-react";
 import { adminService } from "@/services/admin";
 import { brandsService } from "@/services/brands";

@@ -1,5 +1,4 @@
 import { GradientBackdrop } from "@/components/atmosphere/gradient-backdrop";
-import { AmbientSmoke } from "@/components/atmosphere/ambient-smoke";
 import { AgeGate } from "./age-gate";
 import { SiteHeader } from "./site-header";
 import { SiteFooter } from "./site-footer";
@@ -29,10 +28,6 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="relative flex min-h-screen flex-col">
       <GradientBackdrop variant="page" />
-      {/* Continuous ambient signature — page-level smoke, red mixed in.
-          Perf: intensity trimmed (0.85 → 0.7) alongside the preset layer
-          reduction to cut scroll-compositing cost on the homepage. */}
-      <AmbientSmoke preset="ambient" palette="mixed" intensity={0.7} zIndexClass="-z-10" position="fixed" />
       <SiteHeader headerNav={header} mobileNav={mobile} footerColumns={footerCols} legalNav={legal} />
       {/* pt clears the fixed header (announcement strip 2.25rem + nav 4rem). */}
       <main id="main-content" className="flex-1 pt-[6.25rem]">{children}</main>

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { PageContainer } from "@/components/layout/page-container";
 import { Clock, LogIn } from "lucide-react";
 

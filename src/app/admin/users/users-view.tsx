@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useConsolePath } from "@/components/shared/console-path";
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { KeyRound, UserPlus, Users, UsersRound } from "lucide-react";
 import { adminService } from "@/services/admin";
 import type { AdminStaffMember } from "@/types";

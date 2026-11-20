@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { redirect } from "next/navigation";
 import { adminBasePath } from "@/server/console";
 import { ArrowLeft } from "lucide-react";

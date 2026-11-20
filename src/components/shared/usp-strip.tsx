@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * UspStrip — the three ordering promises as pills, with the 1-hour
- * delivery promise visually emphasized (violet glow + Zap) everywhere
+ * delivery promise visually emphasized (violet accent + Zap) everywhere
  * it renders: product page, cart, checkout and the footer.
  *
  * Server-compatible (no hooks) so it can render in any server tree.
@@ -27,7 +27,7 @@ export function UspStrip({ className, size = "md" }: {
       <li
         className={cn(
           pill,
-          "border-violet-glow/45 bg-violet-glow/10 font-semibold text-foreground shadow-[0_0_12px_rgba(139,92,246,0.25)]"
+          "border-violet-glow/45 bg-violet-glow/10 font-semibold text-foreground"
         )}
       >
         <Zap className={cn("shrink-0 text-violet-soft", size === "sm" ? "size-3" : "size-3.5")} aria-hidden="true" />

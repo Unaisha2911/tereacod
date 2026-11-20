@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { ChevronDown } from "lucide-react";
 import { PageContainer } from "@/components/layout/page-container";
 import { USP_FREE_DELIVERY, USP_ONE_HOUR_DELIVERY, USP_PAYMENT } from "@/lib/usp";
@@ -11,7 +11,7 @@ const HERO_MICRO_LABELS = [
 ];
 
 /**
- * HeroSection — full-viewport electric opener.
+ * HeroSection — full-viewport opener.
  *
  * PERF MODEL: the hero is a SERVER component with a CSS-only entrance.
  * The previous framer-motion stagger SSR'd `opacity: 0` inline on the
@@ -22,13 +22,10 @@ const HERO_MICRO_LABELS = [
  * its stagger slot. Reduced motion is handled globally in globals.css
  * (all animations collapse to instant under prefers-reduced-motion).
  *
- * The hero also carries a single STATIC neon colour wash (one div, four
- * radial-gradient stops — zero animation, zero blur layers, zero image
- * fetches). All moving smoke lives in the ONE fixed page-level
- * AmbientSmoke in the app shell, which drifts behind every section.
+ * The former neon colour wash (four radial-gradient glow stops) is gone —
+ * the page backdrop plus the legibility scrim below carry the depth.
  *
- * Headlines use the neon display face: line one is a lit neon sign, line
- * two a hollow LED tube with a slow flicker (anim-flicker, opacity-only).
+ * Headlines use the display face with flat muted accent colours.
  */
 export function HeroSection() {
   return (
@@ -36,21 +33,7 @@ export function HeroSection() {
       aria-labelledby="hero-heading"
       className="relative -mt-[6.25rem] flex min-h-[100svh] items-center overflow-hidden"
     >
-      {/* Static neon colour wash — lighting only, no animation. The moving
-          smoke comes from the fixed page-level AmbientSmoke behind it. */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(58% 44% at 18% 24%, rgba(139,92,246,0.24), transparent 68%)," +
-            "radial-gradient(46% 40% at 84% 18%, rgba(215,95,212,0.16), transparent 66%)," +
-            "radial-gradient(44% 38% at 44% 10%, rgba(255,42,84,0.12), transparent 70%)," +
-            "radial-gradient(60% 42% at 62% 88%, rgba(111,214,242,0.14), transparent 70%)",
-        }}
-      />
-
-      {/* Legibility scrim — keeps atmosphere visible, text readable */}
+      {/* Legibility scrim — keeps the page backdrop visible, text readable */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 z-[5] bg-[linear-gradient(180deg,var(--scrim-ink)_0%,rgba(6,4,9,0)_30%,rgba(6,4,9,0)_56%,var(--scrim-ink)_100%)]"
@@ -59,33 +42,23 @@ export function HeroSection() {
       <PageContainer className="relative z-10 py-24 sm:py-28">
         <div className="flex flex-col items-start">
           <p
-            className="hero-rise inline-flex items-center gap-2.5 rounded-full border border-violet-glow/35 bg-foreground/10 px-4 py-1.5 text-meta font-medium uppercase tracking-[0.22em] text-muted-foreground shadow-[0_0_18px_rgba(139,92,246,0.25)]"
+            className="hero-rise inline-flex items-center gap-2.5 rounded-full border border-violet-glow/35 bg-foreground/10 px-4 py-1.5 text-meta font-medium uppercase tracking-[0.22em] text-muted-foreground"
             style={{ ["--d" as string]: "0s" }}
           >
-            <span
-              aria-hidden="true"
-              className="anim-led size-1.5 rounded-full bg-led-red text-led-red"
-              style={{ ["--dur" as string]: "2.4s" }}
-            />
+            <span aria-hidden="true" className="size-1.5 rounded-full bg-led-red text-led-red" />
             UAE · DUBAI WAREHOUSE · ADULTS 18+
           </p>
 
-          {/* LCP element — first stagger slot after the badge so the neon
-              line paints ~80ms after first frame (was: after hydration). */}
+          {/* LCP element — first stagger slot after the badge so the headline
+              paints ~80ms after first frame (was: after hydration). */}
           <h1
             id="hero-heading"
             className="hero-rise mt-7 text-hero-neon font-neon font-bold uppercase"
             style={{ ["--d" as string]: "0.08s" }}
           >
-            <span className="block text-neon-mix">TEREA Delivery in UAE</span>
-            <span
-              className="anim-flicker block text-neon-outline-duo"
-              data-text="cash & card on delivery"
-              style={{ ["--dur" as string]: "9s", ["--delay" as string]: "2s" }}
-            >
-              cash &amp; card on delivery
-            </span>
-            {/* Keyword reinforcement for crawlers — visible heading stays pure neon. */}
+            <span className="block text-foreground">TEREA Delivery in UAE</span>
+            <span className="block text-violet-soft">cash &amp; card on delivery</span>
+            {/* Keyword reinforcement for crawlers — visible heading stays flat. */}
             <span className="sr-only">
               TereaCOD — TEREA delivery across the UAE. Buy authentic TEREA heated tobacco sticks for IQOS ILUMA online with cash or card on delivery.
             </span>
@@ -106,13 +79,13 @@ export function HeroSection() {
           >
             <Link
               href="/discover"
-              className="neon-glow-btn hover:neon-glow-btn-hover rounded-full bg-primary px-7 py-3.5 text-sm font-semibold uppercase tracking-[0.08em] text-primary-foreground transition-transform hover:-translate-y-0.5"
+              className="rounded-full bg-primary px-7 py-3.5 text-sm font-semibold uppercase tracking-[0.08em] text-primary-foreground transition-transform hover:-translate-y-0.5"
             >
               Shop now
             </Link>
             <Link
               href="/brand"
-              className="rounded-full border border-violet-glow/45 bg-foreground/[0.03] px-7 py-3.5 text-sm font-medium uppercase tracking-[0.08em] text-foreground shadow-[0_0_14px_rgba(111,214,242,0.14)] transition-colors hover:border-ice/60 hover:bg-foreground/[0.08] hover:shadow-[0_0_22px_rgba(111,214,242,0.3)]"
+              className="rounded-full border border-violet-glow/45 bg-foreground/[0.03] px-7 py-3.5 text-sm font-medium uppercase tracking-[0.08em] text-foreground transition-colors hover:border-ice/60 hover:bg-foreground/[0.08]"
             >
               Browse TEREA range
             </Link>
@@ -128,11 +101,7 @@ export function HeroSection() {
               return (
                 <li key={label} className="flex items-center gap-4">
                   {i > 0 && (
-                    <span
-                      aria-hidden="true"
-                      className={`size-1 rounded-full ${dotColor} anim-led`}
-                      style={{ ["--dur" as string]: `${2.2 + i * 0.7}s` }}
-                    />
+                    <span aria-hidden="true" className={`size-1 rounded-full ${dotColor}`} />
                   )}
                   <span>{label}</span>
                 </li>
@@ -147,7 +116,7 @@ export function HeroSection() {
       <div className="absolute bottom-20 left-1/2 z-10 -translate-x-1/2 md:bottom-8">
         <a
           href="#products"
-          className="anim-float flex size-11 items-center justify-center rounded-full border border-line bg-black/50 text-muted-foreground shadow-[0_0_16px_rgba(139,92,246,0.2)] transition-colors hover:border-violet-glow/60 hover:text-foreground hover:shadow-[0_0_22px_rgba(139,92,246,0.45)]"
+          className="anim-float flex size-11 items-center justify-center rounded-full border border-line bg-black/50 text-muted-foreground transition-colors hover:border-violet-glow/60 hover:text-foreground"
           style={{ ["--dur" as string]: "2.4s" }}
         >
           <ChevronDown className="size-4" aria-hidden="true" />

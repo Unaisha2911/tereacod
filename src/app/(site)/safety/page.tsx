@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import { canonical } from "@/lib/seo";
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { AlertTriangle } from "lucide-react";
 import { PageContainer, SectionContainer } from "@/components/layout/page-container";
 import { PageHeading } from "@/components/layout/page-heading";
 import { RevealSection } from "@/components/atmosphere/reveal-section";
-import { SectionAtmosphere } from "@/components/atmosphere/section-atmosphere";
 import { DocumentCard } from "@/components/shared/content-card";
 import { InformationAccordion } from "@/components/shared/information-accordion";
 import { getSettings } from "@/server/data";
@@ -118,7 +117,6 @@ export default async function SafetyPage() {
   return (
     <PageContainer width="default" className="pb-16 sm:pb-24">
       <section className="relative">
-        <SectionAtmosphere variant="violet" intensity={0.35} />
         <div className="relative z-10">
           <PageHeading
             eyebrow="Safety"

@@ -24,7 +24,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { TextInput } from "@/components/forms/fields";
 import { useToast } from "@/hooks/use-toast";
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { formatDate, formatDateTime } from "@/lib/format";
 
 function CustomerStatusBadge({ status }: { status: AdminCustomer["status"] }) {

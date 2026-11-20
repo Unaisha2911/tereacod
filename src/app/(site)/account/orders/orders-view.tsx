@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { useEffect, useState } from "react";
 import { ChevronRight, PackageSearch, Sparkles } from "lucide-react";
 import { CardGridSkeleton } from "@/components/shared/loading-indicator";

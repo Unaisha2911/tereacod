@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { Bookmark, X } from "lucide-react";
 import { PageHeading } from "@/components/layout/page-heading";
 import { PageContainer } from "@/components/layout/page-container";

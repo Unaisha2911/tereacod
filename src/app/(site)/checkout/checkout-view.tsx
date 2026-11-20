@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm, useWatch } from "react-hook-form";
@@ -273,11 +273,7 @@ export function CheckoutView() {
       <PageContainer>
         <div className="flex min-h-[40vh] items-center justify-center">
           <p className="flex items-center gap-3 text-sm uppercase tracking-[0.24em] text-muted-foreground">
-            <span
-              aria-hidden="true"
-              className="anim-led size-1.5 rounded-full bg-violet-soft text-violet-soft"
-              style={{ ["--dur" as string]: "2.2s" }}
-            />
+            <span aria-hidden="true" className="size-1.5 rounded-full bg-violet-soft text-violet-soft" />
             Preparing checkout…
           </p>
         </div>
@@ -707,7 +703,7 @@ export function CheckoutView() {
             <button
               type="submit"
               disabled={submitting || purchasableCount === 0 || hasBlocked}
-              className="neon-glow-btn hover:neon-glow-btn-hover mt-6 flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-primary px-6 text-sm font-semibold uppercase tracking-[0.08em] text-primary-foreground transition-transform hover:-translate-y-0.5 disabled:pointer-events-none disabled:opacity-50"
+              className="mt-6 flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-primary px-6 text-sm font-semibold uppercase tracking-[0.08em] text-primary-foreground transition-transform hover:-translate-y-0.5 disabled:pointer-events-none disabled:opacity-50"
             >
               {submitting ? (
                 <>

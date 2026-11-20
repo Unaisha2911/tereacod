@@ -57,12 +57,25 @@ export function ProductDetailShell({
   );
   /** Photo of the last-touched colour/origin with imagery; null = default order.
    *  The ?origin= deep link counts as "touched" — its photo leads on first
-   *  paint so the preselected origin is visible, not just priced. */
-  const [highlightImage, setHighlightImage] = useState<string | null>(() =>
-    initialOriginVariantId
-      ? item.variants.find((v) => v.id === initialOriginVariantId)?.imageUrl ?? null
-      : null
-  );
+   *  paint so the preselected origin is visible, not just priced.
+   *  Multi-origin listings authored with per-origin photos ONLY (empty
+   *  product gallery) lead with the FIRST AVAILABLE origin's photo instead
+   *  of the placeholder — matching the server-side featured-image fallback
+   *  in repos/catalog.ts (which normally makes this branch unreachable,
+   *  but keeps the gallery correct when a cached catalog payload predates
+   *  the fallback). */
+  const [highlightImage, setHighlightImage] = useState<string | null>(() => {
+    if (initialOriginVariantId) {
+      return item.variants.find((v) => v.id === initialOriginVariantId)?.imageUrl ?? null;
+    }
+    if (item.images.length === 0) {
+      const firstOrigin = item.variants.find(
+        (v) => v.type === "origin" && v.available && v.imageUrl
+      );
+      return firstOrigin?.imageUrl ?? null;
+    }
+    return null;
+  });
 
   const selected = selectedVariants(selection, item.variants);
   const priceDelta = variantPriceDeltaTotal(selected);

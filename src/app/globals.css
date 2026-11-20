@@ -12,7 +12,10 @@
   /* Fonts */
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-space-grotesk), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-neon: var(--font-orbitron), var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+  /* Formerly Orbitron (the neon-sign face). The neon treatment is retired —
+     the token keeps its name so existing `font-neon` call sites compile,
+     but it now resolves to the clean Space Grotesk display face. */
+  --font-neon: var(--font-space-grotesk), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 
   /* shadcn semantic tokens -> brand palette (dark) */
@@ -22,8 +25,8 @@
   --color-card-foreground: var(--text-hi);
   --color-popover: var(--bg-2);
   --color-popover-foreground: var(--text-hi);
-  /* Primary (interactive fill) is a darkened violet so white label text
-     passes AA (5.3:1). Decorative glows/borders keep the brighter --violet. */
+  /* Primary (interactive fill) is a deep bronze so white label text
+     passes AA. Decorative borders/dots keep the lighter --accent token. */
   --color-primary: var(--primary);
   --color-primary-foreground: #f8f5ff;
   --color-secondary: var(--bg-3);
@@ -52,7 +55,10 @@
   --color-sidebar-border: var(--line);
   --color-sidebar-ring: var(--violet);
 
-  /* Brand tokens */
+  /* Brand tokens — legacy NAMES retained (violet-glow / ice / magenta-glow
+     appear across ~100 call sites). The VALUES are now a muted, non-neon
+     palette: warm bronze + sage + dusty rose on near-black surfaces.
+     Nothing glows any more; the names are purely historical. */
   --color-ink: var(--bg-0);
   --color-abyss: var(--bg-1);
   --color-elevated: var(--bg-2);
@@ -74,7 +80,8 @@
   --text-hero: clamp(2.85rem, 5.2vw + 1.1rem, 6rem);
   --text-hero--line-height: 1.02;
   --text-hero--letter-spacing: -0.03em;
-  /* Neon display scale — Orbitron runs wide, so the ceiling is lower. */
+  /* Formerly the Orbitron ceiling — Space Grotesk runs narrower, so the
+     same clamps still read well. Token names kept for call-site stability. */
   --text-hero-neon: clamp(2.15rem, 4.4vw + 1rem, 4.4rem);
   --text-hero-neon--line-height: 1.08;
   --text-hero-neon--letter-spacing: 0.005em;
@@ -115,253 +122,6 @@
   --ease-smooth: cubic-bezier(0.65, 0, 0.35, 1);
 }
 
-/* ------------------------------------------------------------------ */
-/*  LED neon system — electric vibe layer                              */
-/*  Neon sign colours as raw channels so shadows/borders/text glow     */
-/*  stay tunable from one place.                                       */
-/* ------------------------------------------------------------------ */
-
-:root {
-  --neon-violet: 139 92 246;   /* LED violet  */
-  --neon-soft: 167 139 250;    /* LED violet highlight */
-  --neon-ice: 111 214 242;     /* LED ice     */
-  --neon-magenta: 215 95 212;  /* LED magenta */
-  --neon-red: 255 42 84;       /* LED red — hot signal channel */
-  --neon-red-soft: 255 92 116; /* LED red highlight */
-}
-
-@utility text-neon {
-  /* Lit neon sign — bright fill with heavy layered coloured glow.
-     Double layer: a white core stroke bolds every glyph (the "glass
-     tube" highlight) under the coloured halo. */
-  color: var(--text-hi);
-  -webkit-text-stroke: 0.018em rgb(255 255 255 / 0.55);
-  paint-order: stroke fill;
-  text-shadow:
-    0 0 0.35em rgb(var(--neon-soft) / 0.95),
-    0 0 0.9em rgb(var(--neon-violet) / 0.62),
-    0 0 2em rgb(var(--neon-violet) / 0.4),
-    0 0 3.6em rgb(var(--neon-magenta) / 0.26);
-}
-
-@utility text-neon-ice {
-  color: var(--text-hi);
-  text-shadow:
-    0 0 0.35em rgb(var(--neon-ice) / 0.85),
-    0 0 1em rgb(var(--neon-ice) / 0.5),
-    0 0 2.2em rgb(var(--neon-ice) / 0.28),
-    0 0 4em rgb(var(--neon-violet) / 0.18);
-}
-
-@utility text-neon-red {
-  color: var(--text-hi);
-  text-shadow:
-    0 0 0.35em rgb(var(--neon-red) / 0.95),
-    0 0 1em rgb(var(--neon-red) / 0.6),
-    0 0 2.2em rgb(var(--neon-red) / 0.34),
-    0 0 4em rgb(var(--neon-magenta) / 0.2);
-}
-
-@utility text-neon-mix {
-  /* Mixed-channel sign — violet core bleeding magenta, red and ice.
-     The "every LED on the wall at once" headline treatment.
-     Double layer: white core stroke bolds the glyphs under the halo. */
-  color: #ffffff;
-  -webkit-text-stroke: 0.022em rgb(255 255 255 / 0.65);
-  paint-order: stroke fill;
-  text-shadow:
-    0 0 0.3em rgb(var(--neon-soft) / 0.95),
-    0 0 0.8em rgb(var(--neon-violet) / 0.66),
-    0 0 1.6em rgb(var(--neon-magenta) / 0.5),
-    0 0 2.6em rgb(var(--neon-red) / 0.34),
-    0 0 4em rgb(var(--neon-ice) / 0.28);
-}
-
-@utility text-neon-outline {
-  /* Hollow LED tube — transparent fill, neon stroke, ambient glow.
-     Stroke is em-scaled so it stays proportionally heavy at any size. */
-  color: transparent;
-  -webkit-text-stroke: var(--neon-stroke, 0.048em) rgb(var(--neon-soft) / 0.95);
-  paint-order: stroke fill;
-  text-shadow:
-    0 0 0.4em rgb(var(--neon-violet) / 0.72),
-    0 0 1.1em rgb(var(--neon-violet) / 0.48),
-    0 0 2.4em rgb(var(--neon-ice) / 0.22),
-    0 0 4.2em rgb(var(--neon-magenta) / 0.16);
-}
-
-@utility text-neon-outline-ice {
-  color: transparent;
-  -webkit-text-stroke: var(--neon-stroke, 0.048em) rgb(var(--neon-ice) / 0.94);
-  paint-order: stroke fill;
-  text-shadow:
-    0 0 0.4em rgb(var(--neon-ice) / 0.66),
-    0 0 1.1em rgb(var(--neon-ice) / 0.4),
-    0 0 2.6em rgb(var(--neon-violet) / 0.18);
-}
-
-@utility text-neon-outline-red {
-  color: transparent;
-  -webkit-text-stroke: var(--neon-stroke, 0.048em) rgb(var(--neon-red) / 0.96);
-  paint-order: stroke fill;
-  text-shadow:
-    0 0 0.4em rgb(var(--neon-red) / 0.68),
-    0 0 1.2em rgb(var(--neon-red) / 0.42),
-    0 0 2.6em rgb(var(--neon-magenta) / 0.2);
-}
-
-/* ------------------------------------------------------------------ */
-/*  DOUBLE-LAYER neon stroke — the heavy multi-colour tube treatment.  */
-/*  Outer element carries a BOLD stroke in the primary channel; a      */
-/*  ::before ghost (fed by data-text) draws a second, thinner stroke   */
-/*  in a contrasting LED colour — two concentric tubes, two colours.   */
-/*  Requires data-text="…" on the element (NeonHeading sets it).       */
-/* ------------------------------------------------------------------ */
-
-@utility text-neon-outline-duo {
-  position: relative;
-  display: inline-block;
-  color: transparent;
-  -webkit-text-stroke: var(--neon-stroke-heavy, 0.062em) rgb(var(--neon-violet) / 0.98);
-  paint-order: stroke fill;
-  text-shadow:
-    0 0 0.35em rgb(var(--neon-violet) / 0.8),
-    0 0 1em rgb(var(--neon-violet) / 0.55),
-    0 0 2.2em rgb(var(--neon-magenta) / 0.3),
-    0 0 4em rgb(var(--neon-ice) / 0.22);
-  &::before {
-    content: attr(data-text);
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    color: transparent;
-    -webkit-text-stroke: calc(var(--neon-stroke-heavy, 0.062em) * 0.52) rgb(var(--neon-ice) / 0.92);
-    paint-order: stroke fill;
-    text-shadow: none;
-  }
-}
-
-@utility text-neon-outline-duo-ice {
-  position: relative;
-  display: inline-block;
-  color: transparent;
-  -webkit-text-stroke: var(--neon-stroke-heavy, 0.062em) rgb(var(--neon-ice) / 0.96);
-  paint-order: stroke fill;
-  text-shadow:
-    0 0 0.35em rgb(var(--neon-ice) / 0.7),
-    0 0 1em rgb(var(--neon-ice) / 0.45),
-    0 0 2.4em rgb(var(--neon-violet) / 0.22);
-  &::before {
-    content: attr(data-text);
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    color: transparent;
-    -webkit-text-stroke: calc(var(--neon-stroke-heavy, 0.062em) * 0.52) rgb(var(--neon-violet) / 0.85);
-    paint-order: stroke fill;
-    text-shadow: none;
-  }
-}
-
-@utility text-neon-outline-duo-red {
-  position: relative;
-  display: inline-block;
-  color: transparent;
-  -webkit-text-stroke: var(--neon-stroke-heavy, 0.062em) rgb(var(--neon-red) / 0.98);
-  paint-order: stroke fill;
-  text-shadow:
-    0 0 0.35em rgb(var(--neon-red) / 0.75),
-    0 0 1.1em rgb(var(--neon-red) / 0.5),
-    0 0 2.4em rgb(var(--neon-magenta) / 0.26);
-  &::before {
-    content: attr(data-text);
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    color: transparent;
-    -webkit-text-stroke: calc(var(--neon-stroke-heavy, 0.062em) * 0.52) rgb(var(--neon-magenta) / 0.9);
-    paint-order: stroke fill;
-    text-shadow: none;
-  }
-}
-
-/* Fallback when text-stroke is unavailable — keep headings readable. */
-@supports not (-webkit-text-stroke: 1px white) {
-  .text-neon-outline,
-  .text-neon-outline-ice,
-  .text-neon-outline-red,
-  .text-neon-outline-duo,
-  .text-neon-outline-duo-ice,
-  .text-neon-outline-duo-red {
-    color: var(--text-hi) !important;
-    -webkit-text-stroke: 0;
-  }
-  .text-neon-outline-duo::before,
-  .text-neon-outline-duo-ice::before,
-  .text-neon-outline-duo-red::before {
-    display: none;
-  }
-}
-
-@utility neon-glow-btn {
-  /* Primary LED button — lit core + heavy halated edge. */
-  box-shadow:
-    0 0 0.6px 0.5px rgb(var(--neon-soft) / 0.95),
-    0 0 22px rgb(var(--neon-violet) / 0.72),
-    0 0 54px rgb(var(--neon-violet) / 0.4),
-    0 0 92px rgb(var(--neon-magenta) / 0.2),
-    inset 0 0 14px rgb(255 255 255 / 0.22);
-  transition: box-shadow 300ms ease, background-color 300ms ease, transform 300ms ease;
-}
-
-@utility neon-glow-btn-hover {
-  box-shadow:
-    0 0 0.6px 0.5px rgb(255 255 255 / 0.95),
-    0 0 26px rgb(var(--neon-violet) / 0.92),
-    0 0 72px rgb(var(--neon-ice) / 0.4),
-    0 0 120px rgb(var(--neon-red) / 0.22),
-    inset 0 0 18px rgb(255 255 255 / 0.3);
-}
-
-@utility neon-edge {
-  /* Card edge that reads as an LED tube. */
-  box-shadow:
-    0 0 0 1px rgb(var(--neon-violet) / 0.3),
-    0 0 30px rgb(var(--neon-violet) / 0.2),
-    0 0 64px rgb(var(--neon-magenta) / 0.08),
-    inset 0 0 22px rgb(var(--neon-violet) / 0.08);
-}
-
-@utility neon-divider {
-  height: 1px;
-  background: linear-gradient(
-    to right,
-    transparent,
-    rgb(var(--neon-violet) / 0.6) 18%,
-    rgb(var(--neon-ice) / 0.7) 40%,
-    rgb(var(--neon-red) / 0.62) 62%,
-    rgb(var(--neon-magenta) / 0.55) 82%,
-    transparent
-  );
-  box-shadow:
-    0 0 14px rgb(var(--neon-violet) / 0.45),
-    0 0 28px rgb(var(--neon-ice) / 0.25),
-    0 0 44px rgb(var(--neon-red) / 0.14);
-}
-
-@utility anim-flicker {
-  animation: neon-flicker var(--dur, 6s) linear infinite;
-}
-
-@utility anim-led {
-  /* Static glow in the base style — animating box-shadow is a non-composited
-     repaint every frame (33 Lighthouse "non-composited animation" flags on
-     the homepage); pulsing OPACITY alone is GPU-composited and cheap. */
-  box-shadow: 0 0 6px 1px currentColor;
-  animation: led-pulse var(--dur, 2.6s) ease-in-out infinite;
-  animation-delay: var(--delay, 0s);
-}
-
 /* Hero entrance — CSS-only staggered rise. The hero is a server component,
    so its content is visible the moment CSS lands (no hydration wait): the
    LCP headline paints within its ~80ms stagger slot instead of after
@@ -374,25 +134,24 @@
 :root {
   color-scheme: dark;
 
-  /* Surfaces — near-black violet-tinted ladder */
-  --bg-0: #060409;
-  --bg-1: #0c0912;
-  --bg-2: #130e1c;
-  --bg-3: #1a1426;
-  --bg-elev: #221a33;
+  /* Surfaces — near-black warm-tinted ladder */
+  --bg-0: #070605;
+  --bg-1: #0d0b09;
+  --bg-2: #14110e;
+  --bg-3: #1b1714;
+  --bg-elev: #241f1a;
 
-  /* Accents */
-  --violet: #8b5cf6;
-  --violet-soft: #a78bfa;
-  --ice: #6fd6f2;
-  --ice-soft: #9fe3f7;
-  --magenta: #d75fd4;
-  --red: #ff2a54;
-  --red-soft: #ff5c74;
+  /* Accents — muted bronze / sage / dusty rose. Flat, zero glow. */
+  --violet: #c9a366;
+  --violet-soft: #ddc18d;
+  --ice: #9fb5ab;
+  --ice-soft: #bccfc6;
+  --magenta: #c2939d;
+  --red: #e05252;
+  --red-soft: #ef7d7d;
 
-  /* Interactive primary fill — violet-600, AA against #f8f5ff (5.3:1).
-     Decorative neon (glows, borders, rings) keeps using --violet above. */
-  --primary: #7c3aed;
+  /* Interactive primary fill — deep bronze, AA against #f8f5ff (4.9:1). */
+  --primary: #8a6d34;
 
   /* Text */
   --text-hi: #f3efe8;
@@ -409,34 +168,27 @@
 
   --radius: 0.9rem;
 
-  /* Smoke-engine tuning hooks (overridable per preset via style attr) */
-  --smoke-opacity: 1;
-  --smoke-speed: 1;
-
-  /* Theme-adaptive atmosphere hooks — the light theme (html.light below)
-     flips these so smoke, scrims and vignettes read on daylight. */
-  --smoke-tint: #ffffff;
-  --smoke-blend: screen;
-  --smoke-opacity-scale: 1;
+  /* Theme-adaptive vignette/scrim hooks — the light theme (html.light
+     below) flips these so page framing reads on daylight. */
   --edge-vignette: rgb(0 0 0 / 0.42);
   --scrim-ink: rgb(6 4 9 / 0.55);
 }
 
 .dark {
   /* Brand is permanently dark — mirrors :root so shadcn `dark:` variants hold */
-  --bg-0: #060409;
-  --bg-1: #0c0912;
-  --bg-2: #130e1c;
-  --bg-3: #1a1426;
-  --bg-elev: #221a33;
-  --violet: #8b5cf6;
-  --violet-soft: #a78bfa;
-  --ice: #6fd6f2;
-  --ice-soft: #9fe3f7;
-  --magenta: #d75fd4;
-  --red: #ff2a54;
-  --red-soft: #ff5c74;
-  --primary: #7c3aed;
+  --bg-0: #070605;
+  --bg-1: #0d0b09;
+  --bg-2: #14110e;
+  --bg-3: #1b1714;
+  --bg-elev: #241f1a;
+  --violet: #c9a366;
+  --violet-soft: #ddc18d;
+  --ice: #9fb5ab;
+  --ice-soft: #bccfc6;
+  --magenta: #c2939d;
+  --red: #e05252;
+  --red-soft: #ef7d7d;
+  --primary: #8a6d34;
   --text-hi: #f3efe8;
   --text-mid: #a39bb3;
   --line: rgb(243 239 232 / 0.09);
@@ -454,29 +206,29 @@
 .light {
   color-scheme: light;
 
-  /* Surfaces — violet-tinted paper ladder (page < cards < popovers) */
-  --bg-0: #f7f5fb;
+  /* Surfaces — warm paper ladder (page < cards < popovers) */
+  --bg-0: #faf8f5;
   --bg-1: #ffffff;
-  --bg-2: #fcfbff;
-  --bg-3: #f2eef9;
-  --bg-elev: #e9e2f6;
+  --bg-2: #fdfcfa;
+  --bg-3: #f5f1ea;
+  --bg-elev: #ece5d9;
 
-  /* Accents — decorative glows keep the electric hues; every accent
-     that doubles as TEXT or STROKE deepens enough for 4.5:1+ on paper */
-  --violet: #8b5cf6;
-  --violet-soft: #6d28d9;
-  --ice: #0e7490;
-  --ice-soft: #155e75;
-  --magenta: #c026d3;
-  --red: #e11d48;
-  --red-soft: #be123c;
+  /* Accents — decorative borders keep the muted hues; every accent that
+     doubles as TEXT or STROKE deepens enough for 4.5:1+ on paper */
+  --violet: #8a6d34;
+  --violet-soft: #7a5c22;
+  --ice: #47645a;
+  --ice-soft: #3d584f;
+  --magenta: #96515f;
+  --red: #c93a3a;
+  --red-soft: #a92e2e;
 
-  /* Interactive primary fill — same violet-600; #f8f5ff label stays AA */
-  --primary: #7c3aed;
+  /* Interactive primary fill — same deep bronze; #f8f5ff label stays AA */
+  --primary: #8a6d34;
 
-  /* Text — violet-tinted ink */
-  --text-hi: #17131f;
-  --text-mid: #5f5871;
+  /* Text — warm ink */
+  --text-hi: #1c1712;
+  --text-mid: #6b6357;
 
   /* Lines */
   --line: rgb(23 19 31 / 0.1);
@@ -487,11 +239,7 @@
   --warning: #a16207;
   --error: #dc2626;
 
-  /* Atmosphere — smoke becomes a multiply wash, scrims/vignettes lift */
-  --smoke-opacity: 0.5;
-  --smoke-blend: multiply;
-  --smoke-tint: #6d28d9;
-  --smoke-opacity-scale: 0.45;
+  /* Page framing — scrims/vignettes lift for daylight */
   --edge-vignette: rgb(23 19 31 / 0.07);
   --scrim-ink: rgb(247 245 251 / 0.6);
 }
@@ -542,10 +290,10 @@
     border: 2px solid var(--bg-0);
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #34284e;
+    background: #3a322a;
   }
   .light ::-webkit-scrollbar-thumb:hover {
-    background: #d7cfee;
+    background: #d8cfc0;
   }
 }
 
@@ -566,14 +314,15 @@
 }
 
 @utility text-gradient {
-  background: linear-gradient(100deg, var(--text-hi) 30%, var(--violet-soft) 62%, var(--ice) 92%);
+  /* Flat tonal fade in the muted accent — no glow, purely tonal depth. */
+  background: linear-gradient(100deg, var(--text-hi) 45%, var(--violet-soft) 95%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
 
 @utility text-gradient-violet {
-  background: linear-gradient(100deg, var(--violet-soft), var(--ice));
+  background: linear-gradient(100deg, var(--violet-soft), var(--violet));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -590,16 +339,6 @@
   }
 }
 
-/* Atmosphere pause — applied by MotionBoundary consumers (hero vapor
-   scene) while their region is off-screen. Freezes every CSS animation
-   and transition inside the subtree so composited blur/blend layers stop
-   burning GPU time with no one watching. */
-.atmosphere-paused,
-.atmosphere-paused * {
-  animation-play-state: paused !important;
-  transition: none !important;
-}
-
 @utility safe-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
@@ -612,178 +351,14 @@
   mask-image: radial-gradient(ellipse 90% 80% at 50% 45%, black 40%, transparent 100%);
 }
 
-/* ------------------- Light-mode neon & glow tuning ------------------ */
-/* Unlayered rules: they outrank the layered @utility definitions above */
-/* regardless of source order. The white "glass tube" cores turn off    */
-/* (they would glow against paper) and LED halos pull back so neon      */
-/* reads as tinted foil, not smudge.                                    */
-
-.light .text-neon,
-.light .text-neon-ice,
-.light .text-neon-red,
-.light .text-neon-mix {
-  -webkit-text-stroke-color: transparent;
-}
-
-.light .text-neon {
-  text-shadow:
-    0 0 0.3em rgb(var(--neon-soft) / 0.5),
-    0 0 0.9em rgb(var(--neon-violet) / 0.28);
-}
-
-.light .text-neon-ice {
-  text-shadow:
-    0 0 0.3em rgb(var(--neon-ice) / 0.55),
-    0 0 0.9em rgb(var(--neon-ice) / 0.26);
-}
-
-.light .text-neon-red {
-  text-shadow:
-    0 0 0.3em rgb(var(--neon-red) / 0.5),
-    0 0 0.9em rgb(var(--neon-red) / 0.24);
-}
-
-.light .text-neon-mix {
-  color: var(--text-hi);
-  text-shadow:
-    0 0 0.3em rgb(var(--neon-soft) / 0.5),
-    0 0 0.9em rgb(var(--neon-violet) / 0.3),
-    0 0 1.6em rgb(var(--neon-magenta) / 0.18);
-}
-
-/* Hollow LED tubes keep their stroke — deepened to full alpha — but
-   lose the heavy dark-room halo. */
-.light .text-neon-outline,
-.light .text-neon-outline-duo {
-  -webkit-text-stroke-color: rgb(var(--neon-violet) / 1);
-  text-shadow:
-    0 0 0.35em rgb(var(--neon-violet) / 0.32),
-    0 0 1em rgb(var(--neon-violet) / 0.16);
-}
-
-.light .text-neon-outline-ice,
-.light .text-neon-outline-duo-ice {
-  -webkit-text-stroke-color: rgb(var(--neon-ice) / 1);
-  text-shadow:
-    0 0 0.35em rgb(var(--neon-ice) / 0.4),
-    0 0 1em rgb(var(--neon-ice) / 0.18);
-}
-
-.light .text-neon-outline-red,
-.light .text-neon-outline-duo-red {
-  -webkit-text-stroke-color: rgb(var(--neon-red) / 1);
-  text-shadow:
-    0 0 0.35em rgb(var(--neon-red) / 0.4),
-    0 0 1em rgb(var(--neon-red) / 0.18);
-}
-
-/* Primary LED button — tighter halo, stronger inner light. The hover
-   variant compiles to .hover\:neon-glow-btn-hover:hover. */
-.light .neon-glow-btn {
-  box-shadow:
-    0 0 0 1px rgb(var(--neon-violet) / 0.55),
-    0 0 14px rgb(var(--neon-violet) / 0.32),
-    0 0 34px rgb(var(--neon-violet) / 0.16),
-    inset 0 0 12px rgb(255 255 255 / 0.45);
-}
-
-.light .hover\:neon-glow-btn-hover:hover {
-  box-shadow:
-    0 0 0 1px rgb(255 255 255 / 0.85),
-    0 0 18px rgb(var(--neon-violet) / 0.45),
-    0 0 46px rgb(var(--neon-ice) / 0.24),
-    inset 0 0 16px rgb(255 255 255 / 0.55);
-}
-
-.light .neon-edge {
-  box-shadow:
-    0 0 0 1px rgb(var(--neon-violet) / 0.4),
-    0 0 20px rgb(var(--neon-violet) / 0.12),
-    inset 0 0 18px rgb(var(--neon-violet) / 0.05);
-}
-
-.light .neon-divider {
-  background: linear-gradient(
-    to right,
-    transparent,
-    rgb(var(--neon-violet) / 0.45) 18%,
-    rgb(var(--neon-ice) / 0.5) 40%,
-    rgb(var(--neon-red) / 0.4) 62%,
-    rgb(var(--neon-magenta) / 0.35) 82%,
-    transparent
-  );
-  box-shadow: none;
-}
-
 /* Scrollbar + selection follow the daylight palette */
 .light ::-webkit-scrollbar-thumb:hover {
-  background: #d7cfee;
+  background: #d8cfc0;
 }
 
 .light ::selection {
   background: color-mix(in oklab, var(--violet) 25%, transparent);
   color: var(--text-hi);
-}
-
-/* ------------------------- Smoke keyframes ------------------------ */
-/* GPU-friendly: transform + opacity only. Durations are long & slow. */
-
-/* Drift patterns travel farther and billow harder so the smoke is
-   unmistakably ALIVE at rest — not a static glow pretending to move. */
-@keyframes smoke-drift-a {
-  0%   { transform: translate3d(-9%, 4%, 0) scale(1) rotate(0deg); }
-  20%  { transform: translate3d(3%, -6%, 0) scale(1.22) rotate(6deg); }
-  45%  { transform: translate3d(10%, 3%, 0) scale(0.9) rotate(-5deg); }
-  70%  { transform: translate3d(-1%, 9%, 0) scale(1.18) rotate(4deg); }
-  100% { transform: translate3d(-9%, 4%, 0) scale(1) rotate(0deg); }
-}
-
-@keyframes smoke-drift-b {
-  0%   { transform: translate3d(7%, -5%, 0) scale(1.08) rotate(0deg); }
-  30%  { transform: translate3d(-6%, 6%, 0) scale(0.9) rotate(-8deg); }
-  60%  { transform: translate3d(-9%, -4%, 0) scale(1.22) rotate(5deg); }
-  100% { transform: translate3d(7%, -5%, 0) scale(1.08) rotate(0deg); }
-}
-
-@keyframes smoke-drift-c {
-  0%   { transform: translate3d(0, 8%, 0) scale(0.94) rotate(-3deg); }
-  33%  { transform: translate3d(7%, -4%, 0) scale(1.2) rotate(4deg); }
-  66%  { transform: translate3d(-7%, -7%, 0) scale(1.02) rotate(-6deg); }
-  100% { transform: translate3d(0, 8%, 0) scale(0.94) rotate(-3deg); }
-}
-
-/* Churn — aggressive billowing (big scale swings + rotation) so plumes
-   read as rolling vapor rather than slow colour washes. */
-@keyframes smoke-churn-a {
-  0%   { transform: translate3d(-5%, 5%, 0) scale(0.88) rotate(-9deg); }
-  30%  { transform: translate3d(5%, -4%, 0) scale(1.26) rotate(7deg); }
-  55%  { transform: translate3d(-3%, -8%, 0) scale(1.02) rotate(-4deg); }
-  80%  { transform: translate3d(-8%, 3%, 0) scale(1.3) rotate(10deg); }
-  100% { transform: translate3d(-5%, 5%, 0) scale(0.88) rotate(-9deg); }
-}
-
-@keyframes smoke-churn-b {
-  0%   { transform: translate3d(6%, -4%, 0) scale(1.2) rotate(8deg); }
-  35%  { transform: translate3d(-5%, 5%, 0) scale(0.86) rotate(-7deg); }
-  65%  { transform: translate3d(-2%, -6%, 0) scale(1.24) rotate(5deg); }
-  100% { transform: translate3d(6%, -4%, 0) scale(1.2) rotate(8deg); }
-}
-
-/* Fog bank — wide, low haze sliding laterally along the floor. */
-@keyframes smoke-fog-x {
-  0%   { transform: translate3d(-12%, 0, 0) scaleX(1); }
-  50%  { transform: translate3d(9%, -2%, 0) scaleX(1.16); }
-  100% { transform: translate3d(-12%, 0, 0) scaleX(1); }
-}
-
-@keyframes ambient-breathe {
-  0%, 100% { opacity: 0.55; }
-  50%      { opacity: 0.9; }
-}
-
-@keyframes ring-rotate {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
 }
 
 @keyframes shimmer-sweep {
@@ -796,27 +371,6 @@
   50%      { transform: translateY(-10px); }
 }
 
-/* ------------------------- LED neon keyframes --------------------- */
-
-/* Neon-tube flicker — irregular dips like a real sign warming up. */
-@keyframes neon-flicker {
-  0%, 100%  { opacity: 1; }
-  3%        { opacity: 0.55; }
-  5%        { opacity: 1; }
-  42%       { opacity: 1; }
-  43.5%     { opacity: 0.72; }
-  45%       { opacity: 1; }
-  78%       { opacity: 0.92; }
-  80%       { opacity: 1; }
-}
-
-/* LED indicator dot — soft charging pulse. Opacity-only so the animation
-   stays composited (the static glow lives in the .anim-led utility). */
-@keyframes led-pulse {
-  0%, 100% { opacity: 0.55; }
-  50%      { opacity: 1; }
-}
-
 /* Hero entrance — fade + 20px rise, matching the former framer-motion
    staggerItem so the hero looks identical without the hydration cost. */
 @keyframes hero-rise {
@@ -824,14 +378,6 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
-.anim-drift-a { animation: smoke-drift-a var(--dur, 34s) var(--ease-smooth) infinite; }
-.anim-drift-b { animation: smoke-drift-b var(--dur, 42s) var(--ease-smooth) infinite; }
-.anim-drift-c { animation: smoke-drift-c var(--dur, 48s) var(--ease-smooth) infinite; }
-.anim-churn-a { animation: smoke-churn-a var(--dur, 26s) var(--ease-smooth) infinite; }
-.anim-churn-b { animation: smoke-churn-b var(--dur, 32s) var(--ease-smooth) infinite; }
-.anim-fog-x { animation: smoke-fog-x var(--dur, 34s) ease-in-out infinite; }
-.anim-breathe { animation: ambient-breathe var(--dur, 14s) ease-in-out infinite; }
-.anim-ring { animation: ring-rotate var(--dur, 90s) linear infinite; }
 .anim-float { animation: float-soft var(--dur, 9s) ease-in-out infinite; }
 
 /* Skeleton shimmer */
@@ -846,14 +392,13 @@
   background: linear-gradient(
     100deg,
     transparent 20%,
-    color-mix(in oklab, var(--violet) 12%, transparent) 50%,
+    color-mix(in oklab, var(--violet) 10%, transparent) 50%,
     transparent 80%
   );
   animation: shimmer-sweep 2.4s ease-in-out infinite;
 }
 
 /* ------------------------- Reduced motion ------------------------- */
-/* The smoke engine also self-throttles via JS (preset: reduced).      */
 
 @media (prefers-reduced-motion: reduce) {
   html {
@@ -867,10 +412,8 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-  .anim-drift-a, .anim-drift-b, .anim-drift-c,
-  .anim-churn-a, .anim-churn-b, .anim-fog-x,
-  .anim-breathe, .anim-ring, .anim-float,
-  .anim-flicker, .anim-led, .hero-rise {
+  .anim-float,
+  .hero-rise {
     animation: none !important;
     transform: none !important;
   }
@@ -916,7 +459,7 @@ html.age-gate-locked body {
   align-items: center;
   justify-content: center;
   overflow-y: auto;
-  background: color-mix(in srgb, var(--bg-0, #060409) 88%, transparent);
+  background: color-mix(in srgb, var(--bg-0, #070605) 88%, transparent);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
   /* Safe-area aware so the card clears iOS home indicators. */
@@ -939,10 +482,9 @@ html.age-gate-locked .age-gate {
   width: 100%;
   border-radius: 1.75rem;
   border: 1px solid var(--line-strong, rgb(243 239 232 / 0.16));
-  background: color-mix(in srgb, var(--bg-elev, #221a33) 92%, transparent);
+  background: color-mix(in srgb, var(--bg-elev, #241f1a) 92%, transparent);
   box-shadow:
-    0 30px 90px rgba(0, 0, 0, 0.6),
-    0 0 60px rgba(139, 92, 246, 0.14);
+    0 30px 90px rgba(0, 0, 0, 0.6);
   padding: 2.25rem 1.75rem;
   /* Card rises into the faded backdrop; opacity/transform only. */
   animation: age-gate-card-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both;

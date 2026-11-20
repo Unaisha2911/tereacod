@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { notFound } from "next/navigation";
 import { PageContainer } from "@/components/layout/page-container";
 import { Breadcrumbs, type BreadcrumbItem } from "@/components/layout/breadcrumbs";
@@ -178,7 +178,6 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
                 <span
                   aria-hidden="true"
                   className="size-1.5 shrink-0 rounded-full bg-violet-soft"
-                  style={{ boxShadow: "0 0 8px 2px rgba(167,139,250,0.7)" }}
                 />
                 {item.brand}
               </Link>
@@ -187,7 +186,6 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
                 <span
                   aria-hidden="true"
                   className="size-1.5 shrink-0 rounded-full bg-violet-soft"
-                  style={{ boxShadow: "0 0 8px 2px rgba(167,139,250,0.7)" }}
                 />
                 {item.brand}
               </span>

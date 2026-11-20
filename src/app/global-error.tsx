@@ -31,11 +31,9 @@ export default function GlobalError({
           alignItems: "center",
           justifyContent: "center",
           padding: "24px",
-          backgroundColor: "#0b0713",
-          color: "#f4f1fa",
+          backgroundColor: "#0d0b09",
+          color: "#f3efe8",
           fontFamily: "'Space Grotesk', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif",
-          backgroundImage:
-            "radial-gradient(60% 50% at 50% 0%, rgba(139,92,246,0.16), transparent 70%), radial-gradient(40% 35% at 85% 90%, rgba(236,72,153,0.10), transparent 75%)",
         }}
       >
         <main style={{ maxWidth: 560, textAlign: "center" }}>
@@ -46,8 +44,7 @@ export default function GlobalError({
               fontWeight: 700,
               letterSpacing: "0.42em",
               textTransform: "uppercase",
-              color: "#a78bfa",
-              textShadow: "0 0 18px rgba(167,139,250,0.8)",
+              color: "#ddc18d",
             }}
           >
             TereaCOD
@@ -59,7 +56,7 @@ export default function GlobalError({
               fontWeight: 600,
               letterSpacing: "0.24em",
               textTransform: "uppercase",
-              color: "#f87171",
+              color: "#ef7d7d",
             }}
           >
             Unexpected error
@@ -67,12 +64,12 @@ export default function GlobalError({
           <h1 style={{ margin: "14px 0 0", fontSize: "clamp(2.2rem, 7vw, 3.6rem)", lineHeight: 1.1, fontWeight: 700 }}>
             Something went wrong
           </h1>
-          <p style={{ margin: "20px auto 0", maxWidth: 420, fontSize: 15, lineHeight: 1.6, color: "rgba(244,241,250,0.66)" }}>
+          <p style={{ margin: "20px auto 0", maxWidth: 420, fontSize: 15, lineHeight: 1.6, color: "rgba(243,239,232,0.66)" }}>
             {(error.digest ? "An unexpected error interrupted the application." : error.message) ||
               "An unexpected error interrupted the application."}
           </p>
           {error.digest && (
-            <p style={{ margin: "14px 0 0", fontFamily: "monospace", fontSize: 12, color: "rgba(244,241,250,0.45)" }}>
+            <p style={{ margin: "14px 0 0", fontFamily: "monospace", fontSize: 12, color: "rgba(243,239,232,0.45)" }}>
               Reference: {error.digest}
             </p>
           )}
@@ -87,14 +84,13 @@ export default function GlobalError({
               minHeight: 48,
               padding: "0 28px",
               borderRadius: 9999,
-              border: "1px solid rgba(167,139,250,0.55)",
-              backgroundColor: "rgba(167,139,250,0.14)",
-              color: "#f4f1fa",
+              border: "1px solid rgba(201,163,102,0.55)",
+              backgroundColor: "rgba(201,163,102,0.14)",
+              color: "#f3efe8",
               fontSize: 14,
               fontWeight: 600,
               fontFamily: "inherit",
               cursor: "pointer",
-              boxShadow: "0 0 24px rgba(139,92,246,0.35)",
             }}
           >
             Try again

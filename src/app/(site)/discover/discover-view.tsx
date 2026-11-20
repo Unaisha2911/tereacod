@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { useRouter } from "next/navigation";
 import { PackageSearch, Search } from "lucide-react";
 import { PageHeading } from "@/components/layout/page-heading";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { useRouter } from "next/navigation";
 import { useConsolePath } from "@/components/shared/console-path";
 import { ArrowLeft, CheckCircle2, CircleDashed, FileText, LifeBuoy, Mail, MapPin, Phone, UserRound, UsersRound } from "lucide-react";

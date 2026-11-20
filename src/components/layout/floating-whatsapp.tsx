@@ -34,7 +34,7 @@ export function FloatingWhatsAppButton() {
         "group fixed right-4 z-[60] flex size-14 items-center justify-center rounded-full",
         "bottom-[calc(4.25rem+env(safe-area-inset-bottom))] md:bottom-6 md:right-6",
         "bg-[#25d366] text-white",
-        "shadow-[0_8px_28px_rgba(37,211,102,0.45),0_2px_8px_rgba(0,0,0,0.35)]",
+        "shadow-lg",
         "transition-transform duration-200 hover:scale-110 focus-visible:scale-110",
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#25d366]",
         "motion-reduce:transition-none motion-reduce:hover:scale-100"

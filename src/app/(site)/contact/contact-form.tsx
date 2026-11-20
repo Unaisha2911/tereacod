@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { z } from "zod";
 import { AlertCircle, Loader2, Send } from "lucide-react";
 import {

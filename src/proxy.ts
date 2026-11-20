@@ -5,29 +5,36 @@ import { NextResponse, type NextRequest } from "next/server";
  * deprecated middleware.ts naming).
  *
  * Three jobs, in order:
- *  1. ANONYMOUS HTML EDGE CACHE — repeat page views for signed-out visitors
- *     are answered from the Workers Cache API (~1-2 ms, zero SSR CPU).
- *     Every page is rendered with `force-dynamic` (see (site)/layout.tsx
- *     for why), so each SSR pass burns real CPU — and this deployment runs
- *     on the Workers FREE plan whose per-request CPU budget is ~10 ms,
- *     which bursty React renders intermittently exceed and Cloudflare then
- *     reports as error 1102 ("Worker exceeded resource limits"). Serving
- *     cached HTML for anonymous traffic removes the per-view SSR cost
- *     entirely: only the first request per URL per TTL per colo renders.
- *     Safety rails:
- *       • authenticated visitors (session cookie present) bypass the cache
- *         completely and always get live SSR;
+ *  1. HTML EDGE CACHE (serve-stale-while-revalidate) — repeat page views are
+ *     answered from the Workers Cache API (~1-2 ms, zero SSR CPU) for
+ *     EVERYONE, signed-in visitors included. Every page is rendered with
+ *     `force-dynamic` (see (site)/layout.tsx for why), so each SSR pass
+ *     burns real CPU — and this deployment runs on the Workers FREE plan
+ *     whose per-request CPU budget is ~10 ms, which bursty React renders
+ *     intermittently exceed and Cloudflare then reports as error 1102
+ *     ("Worker exceeded resource limits"). Signed-in repeat visitors were
+ *     the biggest remaining 1102 source: their per-view live renders are
+ *     now served from the cache instead. Serving cached HTML to signed-in
+ *     visitors is safe because every cacheable page is an identity-free
+ *     shell — cart badge, account menu and saved items hydrate client-side
+ *     from /api/v1/bootstrap, and the identity-dependent surfaces
+ *     (/account/*, /admin/*) are never cached. Freshness:
+ *       • entries younger than HTML_SOFT_TTL_S (45 s) are served as-is;
+ *       • older entries are served stale AND re-filled in the background
+ *         (one fill per URL at a time), so the NEXT view is fresh — an
+ *         admin edit surfaces on the visitor's next page view;
+ *       • entries older than HTML_MAX_AGE_S (300 s) are never served —
+ *         the visitor renders live and the cache refills;
  *       • only 200 + text/html responses without Set-Cookie are stored;
- *       • TTL is 60 s — admin edits/maintenance flag converge no slower
- *         than the existing catalog/product data TTLs already do;
  *       • the fill fetch carries an internal header so it can never
  *         recurse into the cache layer itself;
  *       • everything is best-effort: no Cache API (bun dev) or no
  *         execution context simply means every request renders live.
  *  2. Unified console entry: /admin/* is a normal (unlisted) URL. Anonymous
  *     visitors are redirected to the shared /account/sign-in form — the one
- *     login for customers and staff alike. Real session/RBAC validation
- *     still happens server-side in the admin layout — this is layer one.
+ *     login for customers and staff alike. Signed-in visitors pass straight
+ *     through (never gate-redirected, never cache-filled); real session/RBAC
+ *     validation still happens server-side in the admin layout.
  *  3. Cookie-presence check for /account: it returns a hard 307 before any
  *     streaming starts, which keeps protected routes out of caches and
  *     preserves correct status codes even when a Suspense boundary (e.g.
@@ -48,12 +55,28 @@ const PUBLIC_ACCOUNT_PATHS = new Set([
 
 /** Fill requests announce themselves so the cache layer never self-recurses. */
 const FILL_HEADER = "x-terea-html-cache-fill";
-/** Anonymous HTML freshness window (seconds). */
-const HTML_TTL_S = 60;
+/**
+ * SOFT freshness window (seconds): entries younger than this are served
+ * as-is to every visitor. Entries OLDER than this are still served — but
+ * a background re-fill starts so the NEXT view is fresh (serve-stale-
+ * while-revalidate). This keeps page HTML near-live (at most one view
+ * stale) while bounding SSR to roughly one render per URL per soft-TTL
+ * per colo, instead of one render PER VIEW.
+ */
+const HTML_SOFT_TTL_S = 45;
+/**
+ * HARD age ceiling (seconds): entries older than this are never served —
+ * the visitor renders live and the cache refills. Bounds worst-case
+ * staleness (e.g. a deployside colo that stopped filling) the same way
+ * the old fixed TTL did.
+ */
+const HTML_MAX_AGE_S = 300;
 /** Responses above this are never stored (protects isolate memory). */
 const MAX_CACHED_HTML_BYTES = 2 * 1024 * 1024;
 /** Marketing/tracking params dropped from the cache key to raise hit rate. */
 const STRIPPED_PARAMS = /^(utm_|fbclid$|gclid$|msclkid$|mc_cid$|mc_eid$)/;
+/** Header stamped on stored entries with the fill epoch (ms) for age checks. */
+const FILLED_AT_HEADER = "x-terea-html-cache-filled-at";
 
 function sessionCookieName(): string {
   return process.env.APP_ENV === "production" ? "__Host-session" : "tereacod_session";
@@ -157,8 +180,9 @@ async function fillHtmlCache(url: string): Promise<void> {
       status: 200,
       headers: {
         "content-type": contentType,
-        "cache-control": `public, max-age=${HTML_TTL_S}`,
+        "cache-control": `public, max-age=${HTML_MAX_AGE_S}`,
         "x-terea-html-cache": "fill",
+        [FILLED_AT_HEADER]: String(Date.now()),
       },
     });
     await cache.put(url, stored);
@@ -214,36 +238,76 @@ function gate(request: NextRequest): NextResponse {
 }
 
 export async function proxy(request: NextRequest) {
-  // Signed-in visitors always get live, personalised SSR — never cached HTML.
-  if (request.cookies.has(sessionCookieName())) {
-    return NextResponse.next();
-  }
+  const signedIn = request.cookies.has(sessionCookieName());
+  const fillPass = request.headers.has(FILL_HEADER);
 
-  // Recursion guard: the cache fill's own pass renders live.
-  if (request.headers.has(FILL_HEADER)) {
-    return gate(request);
-  }
-
-  if (isCacheablePage(request)) {
+  /**
+   * EDGE HTML CACHE — read path. Safe for EVERY visitor, signed-in included:
+   * every cacheable storefront page renders an identical, identity-free
+   * shell (personalisation — cart badge, account menu, saved items —
+   * hydrates client-side from /api/v1/bootstrap, and the identity-dependent
+   * surfaces /account/* and /admin/* are never cached). Signed-in repeat
+   * visitors (30-day sliding sessions — the bulk of real customer traffic)
+   * previously rendered live on EVERY view, which is exactly what pushed
+   * busy views past the Workers FREE plan's ~10 ms CPU budget into error
+   * 1102. Serving them the cached shell removes the per-view SSR render
+   * entirely; the serve-stale-while-revalidate scheme below keeps the page
+   * at most one view stale (a background re-fill starts once the entry
+   * passes the soft window), so admin edits surface on the NEXT view.
+   *
+   * Fill passes skip the read (they ARE the render that populates it).
+   */
+  if (!fillPass && isCacheablePage(request)) {
     const cache = edgeCache();
     if (cache) {
       const key = cacheKeyUrl(request);
       try {
         const hit = await cache.match(key);
         if (hit) {
-          // Edge hit — no SSR, no D1/KV traffic: the 1102-safe fast path.
-          return hit;
+          const filledAt = Number(hit.headers.get(FILLED_AT_HEADER) ?? 0);
+          const ageS = filledAt > 0 ? Math.max(0, (Date.now() - filledAt) / 1000) : 0;
+          if (filledAt === 0 || ageS <= HTML_SOFT_TTL_S) {
+            // Fresh (or legacy entry without the age stamp): serve directly.
+            return hit;
+          }
+          if (ageS <= HTML_MAX_AGE_S) {
+            // Stale-but-serviceable: serve this view, refresh behind it.
+            // fillOnce dedupes concurrent refreshes for the same URL.
+            runInBackground(() => fillOnce(key));
+            return hit;
+          }
+          // Older than the hard ceiling — fall through and render live.
         }
       } catch {
         // Cache read failure — render live below.
       }
-      // Miss: render for this visitor AND store the HTML for the next one
-      // (at most one fill per key runs at a time).
-      runInBackground(() => fillOnce(key));
+      // Miss: anonymous visitors render for this visitor AND trigger the
+      // one background fill that stores the HTML for everyone else.
+      // Signed-in misses never fill — their render is live-only, exactly
+      // like the pre-cache behaviour (keeps a burst of signed-in traffic
+      // from doubling into renders the cache would discard anyway).
+      if (!signedIn) {
+        runBackgroundFill(key);
+      }
     }
   }
 
+  // Signed-in visitors never pass through the anonymous gates below —
+  // /admin/* must stay reachable for staff (RBAC is enforced inside the
+  // admin layout) and /account/* redirects must not loop.
+  if (signedIn) {
+    return NextResponse.next();
+  }
+
+  // Recursion guard + anonymous gates: the fill pass and every miss render
+  // live; anonymous /admin and /account visitors are redirected to sign-in.
   return gate(request);
+}
+
+/** Fire the (deduplicated) background fill for a cacheable page key. */
+function runBackgroundFill(key: string): void {
+  if (!edgeCache()) return;
+  runInBackground(() => fillOnce(key));
 }
 
 export const config = {

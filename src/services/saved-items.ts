@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { SavedItem } from "@/types";
 import { useAuth } from "@/services/account";
+import { fetchJsonWithRetry } from "@/lib/client-fetch";
 
 /**
  * SAVED-ITEMS STORE (API-backed for signed-in users)
@@ -118,11 +119,8 @@ export async function hydrateSavedItemsFromServer(signedIn: boolean): Promise<vo
     )
   );
   try {
-    const response = await fetch("/api/v1/account/saved", { headers: { accept: "application/json" } });
-    if (response.ok) {
-      const body = (await response.json()) as { data: { saved: SavedItem[] } };
-      useSavedItems.getState().setItems(body.data.saved ?? []);
-    }
+    const body = await fetchJsonWithRetry<{ data: { saved: SavedItem[] } }>("/api/v1/account/saved");
+    useSavedItems.getState().setItems(body.data.saved ?? []);
   } catch {
     // Offline — keep local items.
   } finally {

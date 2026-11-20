@@ -2,7 +2,7 @@
 import { useConsolePath } from "@/components/shared/console-path";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import {
   ArrowRight,
   BadgeCheck,

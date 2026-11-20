@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { useRouter } from "next/navigation";
 import { useConsolePath } from "@/components/shared/console-path";
 import {

@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { PageContainer } from "@/components/layout/page-container";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
-import { SectionAtmosphere } from "@/components/atmosphere/section-atmosphere";
 import { CatalogBrowser } from "@/components/shared/catalog-browser";
 import { toCardItems } from "@/lib/catalog-card";
 import { SeoContent } from "@/components/shared/seo-content";
@@ -77,7 +76,6 @@ export default async function CollectionPage({ params }: CollectionPageProps) {
 
   return (
     <section className="relative">
-      <SectionAtmosphere variant="violet" intensity={0.45} />
       {/* BreadcrumbList + ItemList rich results mirror the visible shelf. */}
       <JsonLd
         data={[

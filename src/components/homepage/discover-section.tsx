@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { ArrowRight } from "lucide-react";
 import {
   Compass,
@@ -12,7 +12,6 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { NeonHeading } from "./neon-heading";
-import { SectionAtmosphere } from "@/components/atmosphere/section-atmosphere";
 import { SectionContainer } from "@/components/layout/page-container";
 import { ContentCard } from "@/components/shared/content-card";
 
@@ -41,7 +40,6 @@ const HOME_DISCOVER_ITEMS: DiscoverEntry[] = [
 export function DiscoverSection() {
   return (
     <SectionContainer spacing="lg">
-      <SectionAtmosphere variant="mixed" intensity={0.45} />
       <section aria-labelledby="discover-heading" className="relative z-10">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <NeonHeading
@@ -54,7 +52,7 @@ export function DiscoverSection() {
           {/* Same pill CTA recipe as the other homepage section headers. */}
           <Link
             href="/discover"
-            className="group inline-flex items-center gap-2 rounded-full border border-line-strong bg-foreground/[0.03] px-5 py-2.5 text-sm font-medium text-foreground shadow-[0_0_12px_rgba(139,92,246,0.12)] transition-all hover:border-violet-glow/55 hover:shadow-[0_0_20px_rgba(139,92,246,0.35)]"
+            className="group inline-flex items-center gap-2 rounded-full border border-line-strong bg-foreground/[0.03] px-5 py-2.5 text-sm font-medium text-foreground transition-[border-color] hover:border-violet-glow/55"
           >
             View all
             <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />

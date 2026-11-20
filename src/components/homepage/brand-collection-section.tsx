@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import { RevealSection } from "@/components/atmosphere/reveal-section";
@@ -8,7 +8,7 @@ import { revealViewport, staggerContainer, staggerItem } from "@/lib/motion";
 import { SectionContainer } from "@/components/layout/page-container";
 import type { Brand } from "@/types";
 
-/** LED text channel per brand accent tint. */
+/** Flat accent text per brand accent tint. */
 const BRAND_ACCENT_TEXT: Record<Brand["accent"], string> = {
   violet: "text-violet-soft",
   ice: "text-ice",
@@ -42,28 +42,10 @@ export function BrandCollectionSection({ BRANDS, ITEM_COUNTS }: { BRANDS: Brand[
     <SectionContainer spacing="lg">
       <section aria-labelledby="brand-collection-heading">
         <RevealSection>
-          <div className="neon-edge relative overflow-hidden rounded-3xl border border-line bg-gradient-to-br from-elevated/70 via-abyss/80 to-abyss/95">
-            {/* Vapor wash + LED top rail — hot red channel included */}
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0"
-              style={{
-                background:
-                  "radial-gradient(48% 60% at 12% 8%, rgba(139,92,246,0.18), transparent 66%)," +
-                  "radial-gradient(36% 44% at 74% 16%, rgba(255,42,84,0.1), transparent 68%)," +
-                  "radial-gradient(40% 52% at 92% 90%, rgba(111,214,242,0.12), transparent 68%)",
-              }}
-            />
-            <div
-              aria-hidden="true"
-              className="absolute inset-x-0 top-0 h-px"
-              style={{
-                background:
-                  "linear-gradient(to right, transparent, rgba(139,92,246,0.8) 24%, rgba(111,214,242,0.9) 44%, rgba(255,42,84,0.75) 62%, rgba(215,95,212,0.7) 80%, transparent)",
-                boxShadow:
-                  "0 0 16px rgba(139,92,246,0.55), 0 0 36px rgba(111,214,242,0.28), 0 0 52px rgba(255,42,84,0.18)",
-              }}
-            />
+          <div className="relative overflow-hidden rounded-3xl border border-line bg-elevated/40">
+            {/* Quiet top hairline — the former rainbow rail (violet → ice →
+                red → magenta gradient) is retired with the neon look. */}
+            <div aria-hidden="true" className="absolute inset-x-0 top-0 h-px bg-line" />
 
             <div className="relative grid gap-10 p-6 sm:p-10 lg:grid-cols-2 lg:items-center lg:gap-14 lg:p-14">
               {/* Copy */}
@@ -77,11 +59,7 @@ export function BrandCollectionSection({ BRANDS, ITEM_COUNTS }: { BRANDS: Brand[
                   variants={item}
                   className="flex items-center gap-3 text-label font-medium uppercase tracking-[0.24em] text-violet-soft"
                 >
-                  <span
-                    aria-hidden="true"
-                    className={`size-1.5 rounded-full bg-violet-soft text-violet-soft ${reduced ? "" : "anim-led"}`}
-                    style={{ ["--dur" as string]: "2.4s" }}
-                  />
+                  <span aria-hidden="true" className="size-1.5 rounded-full bg-violet-soft text-violet-soft" />
                   The brand wall
                 </motion.p>
 
@@ -90,13 +68,8 @@ export function BrandCollectionSection({ BRANDS, ITEM_COUNTS }: { BRANDS: Brand[
                   id="brand-collection-heading"
                   className="mt-4 text-h2-neon font-neon font-bold uppercase"
                 >
-                  <span className="text-neon">Authentic TEREA.</span>{" "}
-                  <span
-                    className={`text-neon-outline-ice ${reduced ? "" : "anim-flicker"}`}
-                    style={{ ["--dur" as string]: "12s", ["--delay" as string]: "3s" }}
-                  >
-                    One shop.
-                  </span>
+                  <span className="text-foreground">Authentic TEREA.</span>{" "}
+                  <span className="text-ice">One shop.</span>
                 </motion.h2>
 
                 <motion.p variants={item} className="mt-5 max-w-lg text-[0.95rem] leading-relaxed text-muted-foreground">
@@ -108,7 +81,7 @@ export function BrandCollectionSection({ BRANDS, ITEM_COUNTS }: { BRANDS: Brand[
                 <motion.div variants={item} className="mt-9 flex flex-wrap items-center gap-3 sm:gap-4">
                   <Link
                     href="/brand"
-                    className="neon-glow-btn hover:neon-glow-btn-hover inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold uppercase tracking-[0.08em] text-primary-foreground transition-transform hover:-translate-y-0.5"
+                    className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold uppercase tracking-[0.08em] text-primary-foreground transition-transform hover:-translate-y-0.5"
                   >
                     All brands
                     <ArrowRight className="size-4" aria-hidden="true" />

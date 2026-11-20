@@ -1,6 +1,6 @@
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { ArrowUpRight, FileText, Globe } from "lucide-react";
-import { GlowSurface } from "@/components/atmosphere/glow-surface";
+import { CardSurface } from "@/components/atmosphere/card-surface";
 import { RevealSection } from "@/components/atmosphere/reveal-section";
 import { cn } from "@/lib/utils";
 
@@ -25,7 +25,7 @@ export function ContentCard({
 }) {
   return (
     <RevealSection delay={Math.min(index * 0.06, 0.36)} className={cn("h-full", className)}>
-      <GlowSurface className="h-full rounded-2xl border border-line bg-elevated/45 transition-colors duration-300 hover:border-violet-glow/40">
+      <CardSurface className="h-full rounded-2xl border border-line bg-elevated/45 transition-colors duration-300 hover:border-violet-glow/40">
         <Link href={href} className="flex h-full min-h-40 flex-col gap-3 p-5 sm:p-6" aria-label={title}>
           {Icon && (
             <span className="flex size-10 items-center justify-center rounded-xl border border-line bg-foreground/[0.04] text-violet-soft">
@@ -37,10 +37,10 @@ export function ContentCard({
               <h3 className="font-display text-[1.05rem] font-semibold text-foreground">{title}</h3>
               {body && <p className="mt-1 text-[0.83rem] leading-relaxed text-muted-foreground">{body}</p>}
             </div>
-            <ArrowUpRight className="mb-0.5 size-4 shrink-0 text-muted-foreground transition-transform duration-300 group-hover/glow:-translate-y-0.5 group-hover/glow:translate-x-0.5 group-hover/glow:text-foreground" aria-hidden="true" />
+            <ArrowUpRight className="mb-0.5 size-4 shrink-0 text-muted-foreground transition-transform duration-300 group-hover/card:-translate-y-0.5 group-hover/card:translate-x-0.5 group-hover/card:text-foreground" aria-hidden="true" />
           </div>
         </Link>
-      </GlowSurface>
+      </CardSurface>
     </RevealSection>
   );
 }

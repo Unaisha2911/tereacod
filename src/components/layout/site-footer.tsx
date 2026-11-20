@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { Logo } from "./logo";
 import { getSettings, footerColumns, legalNav } from "@/server/data";
 import { ExternalLink } from "lucide-react";
@@ -92,7 +92,7 @@ export async function SiteFooter() {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={`Chat with ${settings.brandName} on WhatsApp`}
-                  className="inline-flex size-10 items-center justify-center rounded-full border border-[#25d366]/35 text-muted-foreground transition-colors hover:border-[#25d366]/70 hover:text-[#15803d] hover:shadow-[0_0_16px_rgba(37,211,102,0.3)] dark:hover:text-[#4be382]"
+                  className="inline-flex size-10 items-center justify-center rounded-full border border-[#25d366]/35 text-muted-foreground transition-colors hover:border-[#25d366]/70 hover:text-[#15803d] dark:hover:text-[#4be382]"
                 >
                   <WhatsAppIcon className="size-4" />
                 </a>

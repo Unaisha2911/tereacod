@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import { Banknote, Bookmark, Menu, Search, ShoppingBag, Truck, UserRound, Zap } from "lucide-react";
@@ -73,9 +73,10 @@ export function SiteHeader({
       style={!scrolled ? { borderBottom: "1px solid transparent" } : undefined}
     >
       {/* Announcement strip — the ordering promises, visible on every page.
-          The 1-hour promise gets the emphasized pill (the headline USP). */}
+          The 1-hour promise gets the emphasized pill (the headline USP).
+          Flat muted surface — the former violet/ice gradient band is gone. */}
       <div
-        className="border-b border-line/70 bg-[linear-gradient(90deg,rgba(139,92,246,0.18),rgba(111,214,242,0.10)_50%,rgba(139,92,246,0.18))]"
+        className="border-b border-line/70 bg-foreground/[0.03]"
         role="note"
         aria-label="Delivery and payment promises"
       >
@@ -85,7 +86,7 @@ export function SiteHeader({
             {USP_FREE_DELIVERY}
           </span>
           <span aria-hidden="true" className="size-1 shrink-0 rounded-full bg-muted-foreground/50" />
-          <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-violet-glow/45 bg-violet-glow/15 px-2 py-0.5 font-semibold text-foreground shadow-[0_0_10px_rgba(139,92,246,0.35)] sm:gap-1.5 sm:px-2.5">
+          <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-violet-glow/45 bg-violet-glow/15 px-2 py-0.5 font-semibold text-foreground sm:gap-1.5 sm:px-2.5">
             <Zap className="size-3 shrink-0 text-violet-soft sm:size-3.5" aria-hidden="true" />
             {USP_ONE_HOUR_DELIVERY}
           </span>
@@ -134,7 +135,7 @@ export function SiteHeader({
             {cartCount > 0 && (
               <span
                 aria-hidden="true"
-                className="absolute -right-0.5 -top-0.5 flex min-w-4 items-center justify-center rounded-full bg-violet-glow px-1 text-[0.6rem] font-bold leading-4 text-white shadow-[0_0_8px_rgba(139,92,246,0.8)]"
+                className="absolute -right-0.5 -top-0.5 flex min-w-4 items-center justify-center rounded-full bg-violet-glow px-1 text-[0.6rem] font-bold leading-4 text-white"
               >
                 {cartCount > 99 ? "99+" : cartCount}
               </span>

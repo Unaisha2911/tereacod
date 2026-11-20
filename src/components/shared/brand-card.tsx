@@ -1,33 +1,36 @@
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { ArrowRight } from "lucide-react";
 import type { Brand } from "@/types";
 import { cn } from "@/lib/utils";
 
 /**
  * Brand accent channels — one hex per brand accent. Kept as inline
- * styles (box-shadow / colour) so Tailwind arbitrary classes stay clean.
+ * styles (colour only) so Tailwind arbitrary classes stay clean.
+ * Muted, non-neon values matching the retokened brand palette.
  */
 export const BRAND_ACCENT_HEX: Record<Brand["accent"], string> = {
-  violet: "#8b5cf6",
-  ice: "#6fd6f2",
-  magenta: "#d75fd4",
+  violet: "#c9a366",
+  ice: "#9fb5ab",
+  magenta: "#c2939d",
 };
 
-/** Soft glow (rgba) companions used for LED shadows and hover halos. */
+/** Soft rgba companions used for accent borders (no glow shadows). */
 export const BRAND_ACCENT_GLOW: Record<Brand["accent"], string> = {
-  violet: "rgba(139, 92, 246, 0.55)",
-  ice: "rgba(111, 214, 242, 0.5)",
-  magenta: "rgba(215, 95, 212, 0.55)",
+  violet: "rgba(201, 163, 102, 0.5)",
+  ice: "rgba(159, 181, 171, 0.45)",
+  magenta: "rgba(194, 147, 157, 0.5)",
 };
 
 const chipClass =
   "inline-flex items-center rounded-full border border-line px-2.5 py-1 text-[0.7rem] leading-none text-muted-foreground";
 
 /**
- * BrandCard — neon tile for a stocked brand in the /brand directory.
- * Accent colouring (LED dot, name glow, count chip, arrow) is applied via
- * inline styles from BRAND_ACCENT_* maps; the hover border-glow is a
- * colour-carrying overlay span faded in with group-hover.
+ * BrandCard — tile for a stocked brand in the /brand directory.
+ * Accent colouring (dot, name, count chip, arrow, hover border) is
+ * applied via inline styles from BRAND_ACCENT_* maps; the hover
+ * accent-border is a colour-carrying overlay span faded in with
+ * group-hover. All glow effects (shadows, text glows, filter glows)
+ * were removed with the neon engine (formerly the neon sign tiles).
  */
 export function BrandCard({
   brand,
@@ -50,26 +53,23 @@ export function BrandCard({
         className
       )}
     >
-      {/* Accent border-glow overlay — revealed on hover/focus */}
+      {/* Accent border overlay — revealed on hover/focus */}
       <span
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 rounded-2xl border opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-visible:opacity-100"
-        style={{ borderColor: accent, boxShadow: `0 0 34px -10px ${glow}, inset 0 0 26px -16px ${glow}` }}
+        style={{ borderColor: accent }}
       />
 
       <div className="relative flex items-start gap-2.5">
         {brand.featured && (
           <span
             aria-hidden="true"
-            className="anim-led mt-[0.55rem] size-1.5 shrink-0 rounded-full"
-            style={{ backgroundColor: accent, boxShadow: `0 0 8px ${glow}`, ["--dur" as string]: "2.2s" }}
+            className="mt-[0.55rem] size-1.5 shrink-0 rounded-full"
+            style={{ backgroundColor: accent }}
           />
         )}
         <div className="min-w-0">
-          <h3
-            className="font-neon text-base font-bold uppercase tracking-[0.06em] text-foreground sm:text-lg"
-            style={{ textShadow: `0 0 16px ${glow}` }}
-          >
+          <h3 className="font-neon text-base font-bold uppercase tracking-[0.06em] text-foreground sm:text-lg">
             {brand.name}
           </h3>
           <p className="mt-1 text-[0.78rem] leading-snug text-muted-foreground">{brand.tagline}</p>
@@ -90,7 +90,7 @@ export function BrandCard({
         <ArrowRight
           className="size-4 shrink-0 transition-transform duration-300 group-hover:translate-x-1"
           aria-hidden="true"
-          style={{ color: accent, filter: `drop-shadow(0 0 6px ${glow})` }}
+          style={{ color: accent }}
         />
       </div>
     </Link>

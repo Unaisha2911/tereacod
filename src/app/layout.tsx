@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist_Mono, Inter, Orbitron, Space_Grotesk } from "next/font/google";
+import { Geist_Mono, Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
@@ -32,16 +32,10 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 /**
- * Orbitron — squared, wide techno letterforms in the spirit of the
- * Cybertruck wordmark. Reserved for major headings (neon treatments).
- * Only font-bold (700) is used across the neon system.
+ * Orbitron was retired with the neon treatment — headings now run the
+ * clean Space Grotesk display face (the --font-neon token maps to it),
+ * which also drops a font download from every page load.
  */
-const orbitron = Orbitron({
-  variable: "--font-orbitron",
-  subsets: ["latin"],
-  weight: ["700"],
-  display: "swap",
-});
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
@@ -112,7 +106,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#060409",
+  themeColor: "#070605",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
@@ -154,7 +148,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${inter.variable} ${spaceGrotesk.variable} ${orbitron.variable} ${geistMono.variable} min-h-screen bg-background font-sans text-foreground antialiased`}
+        className={`${inter.variable} ${spaceGrotesk.variable} ${geistMono.variable} min-h-screen bg-background font-sans text-foreground antialiased`}
       >
         <a
           href="#main-content"

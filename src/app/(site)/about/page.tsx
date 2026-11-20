@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { FileCheck2 } from "lucide-react";
 import { RevealSection } from "@/components/atmosphere/reveal-section";
-import { SectionAtmosphere } from "@/components/atmosphere/section-atmosphere";
 import { PageContainer, SectionContainer } from "@/components/layout/page-container";
 import { PageHeading } from "@/components/layout/page-heading";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -66,7 +65,6 @@ export default async function AboutPage() {
   return (
     <PageContainer width="default" className="pb-16 sm:pb-24">
       <section className="relative">
-        <SectionAtmosphere variant="violet" intensity={0.4} />
         <div className="relative z-10">
           <PageHeading
             eyebrow="Company"

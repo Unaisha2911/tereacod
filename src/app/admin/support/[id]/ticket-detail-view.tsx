@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, useTransition } from "react";
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { useRouter } from "next/navigation";
 import { useConsolePath } from "@/components/shared/console-path";
 import { ArrowLeft, Lock, Send } from "lucide-react";

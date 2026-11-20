@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { useRouter } from "next/navigation";
 import { useConsolePath } from "@/components/shared/console-path";
 import { Package, Pencil, Plus, Trash2 } from "lucide-react";

@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { useState } from "react";
 import { ArrowRight, Globe } from "lucide-react";
 import {

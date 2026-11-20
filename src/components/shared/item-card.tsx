@@ -1,14 +1,14 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import { pressTap } from "@/lib/motion";
 import { Bookmark, BookmarkCheck, ImageOff, ShoppingBag } from "lucide-react";
 import { memo, useState } from "react";
 import { AvailabilityBadge } from "./status-badge";
-import { GlowSurface } from "@/components/atmosphere/glow-surface";
+import { CardSurface } from "@/components/atmosphere/card-surface";
 import { savedItemsService, useSavedItems } from "@/services/saved-items";
 import { cartService } from "@/services/cart";
 import { ensureCatalogSubset } from "@/lib/client-catalog";
@@ -77,7 +77,7 @@ export const ItemCard = memo(function ItemCard({ item, priority = false }: { ite
   };
 
   return (
-    <GlowSurface
+    <CardSurface
       as="article"
       className="h-full rounded-2xl border border-line bg-elevated/50 transition-colors duration-300 hover:border-violet-glow/35"
     >
@@ -124,7 +124,7 @@ export const ItemCard = memo(function ItemCard({ item, priority = false }: { ite
                 <span className="text-meta uppercase tracking-[0.14em]">Image unavailable</span>
               </div>
             )}
-            <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#0c0912] to-transparent" aria-hidden="true" />
+            <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[var(--bg-1)] to-transparent" aria-hidden="true" />
             {item.isNew && (
               <span className="absolute left-3 top-3 rounded-full bg-ice/15 px-2.5 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-ice backdrop-blur-sm">
                 New
@@ -205,6 +205,6 @@ export const ItemCard = memo(function ItemCard({ item, priority = false }: { ite
           </div>
         </div>
       </motion.div>
-    </GlowSurface>
+    </CardSurface>
   );
 });

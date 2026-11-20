@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { ArrowRight } from "lucide-react";
 import { RevealSection } from "@/components/atmosphere/reveal-section";
 import { NeonHeading } from "./neon-heading";
@@ -36,8 +36,8 @@ export function ProductCategoriesSection({ CATALOG_CATEGORIES }: { CATALOG_CATEG
 
   return (
     <SectionContainer spacing="lg">
-      {/* Perf trim: the per-section inferno smoke layer was removed — the
-          fixed page-level ambient smoke already carries the atmosphere. */}
+      {/* Perf trim: the former per-section smoke layer was removed along
+          with the page-level ambient smoke engine. */}
 
       <section aria-labelledby="categories-heading" className="relative z-10">
         <RevealSection className="flex flex-wrap items-end justify-between gap-6">
@@ -50,7 +50,7 @@ export function ProductCategoriesSection({ CATALOG_CATEGORIES }: { CATALOG_CATEG
           />
           <Link
             href="/collections"
-            className="group inline-flex items-center gap-2 rounded-full border border-line-strong bg-foreground/[0.03] px-5 py-2.5 text-sm font-medium text-foreground shadow-[0_0_12px_rgba(139,92,246,0.12)] transition-[border-color,box-shadow] hover:border-violet-glow/55 hover:shadow-[0_0_20px_rgba(139,92,246,0.35)]"
+            className="group inline-flex items-center gap-2 rounded-full border border-line-strong bg-foreground/[0.03] px-5 py-2.5 text-sm font-medium text-foreground transition-[border-color] hover:border-violet-glow/55"
           >
             All collections
             <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />

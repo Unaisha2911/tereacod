@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { FileWarning, LifeBuoy } from "lucide-react";
 import { AccountPage } from "@/components/account/account-page";
 import { OrderItemImage } from "@/components/account/order-item-image";

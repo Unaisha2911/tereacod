@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { Home, RotateCcw } from "lucide-react";
 import { PageContainer } from "@/components/layout/page-container";
 

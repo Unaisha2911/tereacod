@@ -22,6 +22,7 @@ import { useCart, cartLineKey } from "@/services/cart";
 import { hydrateSavedItemsFromServer } from "@/services/saved-items";
 import { setWhatsAppNumber } from "@/services/whatsapp";
 import { ensureCatalogSubset, seedCatalog } from "@/lib/client-catalog";
+import { fetchJsonWithRetry } from "@/lib/client-fetch";
 import type { CartDetail, CartLine, UserProfile } from "@/types";
 
 interface BootstrapPayload {
@@ -36,9 +37,11 @@ interface BootstrapPayload {
 
 export async function hydrateFromServer(): Promise<void> {
   try {
-    const response = await fetch("/api/v1/bootstrap", { headers: { accept: "application/json" } });
-    if (response.ok) {
-      const body = (await response.json()) as { data: BootstrapPayload };
+    // Transient 5xx/network blips retry here — a Worker hiccup must not
+    // leave the shell unhydrated for the whole page view (the "refresh
+    // shows something went wrong" class of reports).
+    const body = await fetchJsonWithRetry<{ data: BootstrapPayload }>("/api/v1/bootstrap");
+    {
       const payload = body.data;
 
       // Identity — the badge/account state derives from this.
@@ -113,9 +116,11 @@ async function hydrateWhatsAppNumber(): Promise<void> {
     return;
   }
   try {
-    const response = await fetch("/api/v1/site/settings", { headers: { accept: "application/json" } });
-    if (!response.ok) return;
-    const body = (await response.json()) as { data: { contact?: { whatsapp?: string } } };
+    const body = await fetchJsonWithRetry<{ data: { contact?: { whatsapp?: string } } }>(
+      "/api/v1/site/settings",
+      undefined,
+      2
+    );
     const whatsapp = body.data?.contact?.whatsapp;
     if (whatsapp) {
       try {

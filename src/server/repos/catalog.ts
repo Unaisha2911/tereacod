@@ -158,6 +158,39 @@ async function hydrate(rows: ProductRow[]): Promise<CatalogItem[]> {
     variantsBy.set(v.product_id, list);
   }
 
+  // FEATURED-IMAGE FALLBACK for per-origin-only listings. Product photos and
+  // variant photos live in two independent channels (product_images vs
+  // product_variants.image_media_id). A multi-origin product authored with
+  // per-origin photos ONLY used to surface CatalogItem.images = [] — every
+  // card grid rendered "Image unavailable", the product gallery fell back to
+  // the placeholder, and OG/JSON-LD lost imagery. The owner's expectation:
+  // the FIRST origin's photo automatically becomes the featured image.
+  // Preference order per product (variantRows arrive ORDER BY product_id,
+  // position, so first-match = lowest position):
+  //   1. first AVAILABLE origin variant with a photo (matches the origin the
+  //      product page auto-selects via initialVariantSelection);
+  //   2. first origin variant with a photo (any availability);
+  //   3. first variant of ANY type with a photo (colour-only listings).
+  // Authored product_images rows always win — the fallback seeds ONLY the
+  // products whose gallery channel is empty.
+  const variantFallbackBy = new Map<string, string>();
+  for (const v of variantRows) {
+    if (variantFallbackBy.has(v.product_id)) continue;
+    if (v.type === "origin" && v.available === 1 && v.image_url) {
+      variantFallbackBy.set(v.product_id, v.image_url);
+    }
+  }
+  for (const v of variantRows) {
+    if (variantFallbackBy.has(v.product_id)) continue;
+    if (v.type === "origin" && v.image_url) {
+      variantFallbackBy.set(v.product_id, v.image_url);
+    }
+  }
+  for (const v of variantRows) {
+    if (variantFallbackBy.has(v.product_id)) continue;
+    if (v.image_url) variantFallbackBy.set(v.product_id, v.image_url);
+  }
+
   const specsBy = new Map<string, SpecificationGroup[]>();
   const groupsByProduct = new Map<string, Map<string, SpecificationGroup>>();
   for (const g of groupRows) {
@@ -204,7 +237,9 @@ async function hydrate(rows: ProductRow[]): Promise<CatalogItem[]> {
       description: row.description,
       price: filsToAED(row.price_cents),
       compareAtPrice: row.compare_at_cents === null ? undefined : filsToAED(row.compare_at_cents),
-      images: imagesBy.get(row.id) ?? [],
+      images:
+        imagesBy.get(row.id) ??
+        (variantFallbackBy.has(row.id) ? [variantFallbackBy.get(row.id) as string] : []),
       specs: specsBy.get(row.id) ?? [],
       variants: variantsBy.get(row.id) ?? [],
       compatibility: parseJsonArray<string>(row.compatibility_json).length

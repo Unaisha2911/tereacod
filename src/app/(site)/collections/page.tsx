@@ -3,7 +3,6 @@ import { PageContainer } from "@/components/layout/page-container";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { NeonHeading } from "@/components/homepage/neon-heading";
 import { CategoryCard } from "@/components/shared/category-card";
-import { SectionAtmosphere } from "@/components/atmosphere/section-atmosphere";
 import { getCategories, getProducts } from "@/server/data";
 import { canonical } from "@/lib/seo";
 
@@ -20,7 +19,6 @@ export default async function CollectionsPage() {
 
   return (
     <section className="relative">
-      <SectionAtmosphere variant="violet" intensity={0.5} />
       <PageContainer className="relative z-10">
         <div className="pt-6">
           <Breadcrumbs

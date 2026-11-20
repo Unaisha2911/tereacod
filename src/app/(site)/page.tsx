@@ -25,7 +25,7 @@ export const metadata: Metadata = {
  * hero → products → categories → store collections (TEREA sticks /
  * IQOS devices) → brand collection → origins → the brand → company
  * facts → support.
- * Shell chrome (header, footer, bottom nav, ambient smoke, age gate)
+ * Shell chrome (header, footer, bottom nav, age gate)
  * comes from the (site) layout.
  */
 export default async function HomePage() {
@@ -57,9 +57,9 @@ export default async function HomePage() {
     <>
       {/* ItemList rich result — mirrors the featured strip rendered below. */}
       <JsonLd data={itemListJsonLd(featuredItems, "Featured TEREA sticks — TereaCOD UAE")} />
-      {/* Smoke note: the homepage carries NO hero/section smoke layers —
-          the fixed page-level AmbientSmoke (app shell) is the only smoke,
-          and its textures are preloaded once in the (site) layout. */}
+      {/* Atmosphere note: the homepage carries no hero/section smoke or
+          glow layers — the former ambient smoke engine has been removed
+          and sections rely on static colour washes only. */}
       <HeroSection />
       <CollectionPreview CATALOG_ITEMS={featuredItems} />
       {/* Generic collection grid — hidden entirely while the only categories

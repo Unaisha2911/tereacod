@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 import { usePathname } from "next/navigation";
 import { Bookmark, Compass, Home, ShoppingBag, UserRound } from "lucide-react";
 import { motion } from "framer-motion";
@@ -61,12 +61,12 @@ export function BottomNavigation({ items }: { items: NavigationItem[] }) {
                     aria-hidden="true"
                   />
                 )}
-                <span className={cn("relative", active && "drop-shadow-[0_0_8px_rgba(139,92,246,0.7)]")}>
+                <span className="relative">
                   <Icon className="size-[1.35rem]" aria-hidden={true} />
                   {item.href === "/cart" && cartCount > 0 && (
                     <span
                       aria-hidden="true"
-                      className="absolute -right-2 -top-1 flex min-w-4 items-center justify-center rounded-full bg-violet-glow px-1 text-[0.58rem] font-bold leading-4 text-white shadow-[0_0_8px_rgba(139,92,246,0.8)]"
+                      className="absolute -right-2 -top-1 flex min-w-4 items-center justify-center rounded-full bg-violet-glow px-1 text-[0.58rem] font-bold leading-4 text-white"
                     >
                       {cartCount > 99 ? "99+" : cartCount}
                     </span>

@@ -11,7 +11,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { PrototypeNotice } from "@/components/shared/prototype-notice";
 import { formatDateTime } from "@/lib/format";
-import Link from "next/link";
+import { Link } from "@/components/shared/shop-link";
 
 const STATUS_OPTIONS: Array<{ value: TicketStatus | "all"; label: string }> = [
   { value: "all", label: "All" },
