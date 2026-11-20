@@ -26,7 +26,7 @@ export function CategoryCard({ category, index = 0 }: { category: CatalogCategor
       viewport={revealViewport}
       transition={{ duration: 0.55, delay: Math.min(index * 0.06, 0.3), ease: [0.22, 1, 0.36, 1] }}
     >
-      <CardSurface as="article" className={cn("h-full rounded-2xl border border-line bg-elevated/45 transition-colors duration-300", accent.ring)}>
+      <CardSurface as="article" className={cn("h-full rounded-2xl border border-line bg-card transition-colors duration-300", accent.ring)}>
         <Link href={`/collections/${category.slug}`} className="flex h-full min-h-44 flex-col justify-between gap-6 p-5 sm:p-6" aria-label={`${category.name} — ${category.description}`}>
           <div className="flex items-start justify-between">
             <span className={cn("text-meta font-semibold uppercase tracking-[0.2em]", accent.text)}>

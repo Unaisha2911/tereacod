@@ -5,6 +5,7 @@ import { SiteFooter } from "./site-footer";
 import { BottomNavigation } from "./bottom-navigation";
 import { FloatingWhatsAppButton } from "./floating-whatsapp";
 import { headerNav, mobileNav, footerColumns, legalNav } from "@/server/data";
+import type { NavigationItem } from "@/types";
 
 /**
  * AppShell — public site frame.
@@ -18,12 +19,19 @@ import { headerNav, mobileNav, footerColumns, legalNav } from "@/server/data";
  * chrome — client components never read the data layer directly.
  */
 export async function AppShell({ children }: { children: React.ReactNode }) {
+  // Navigation is chrome, not content: on a transient D1/KV blip the page
+  // must still render (logo, search, cart, account, footer compliance strip
+  // are all hardcoded) instead of falling to the "something went wrong"
+  // boundary — the exact refresh-time symptom this guards. The nav repo is
+  // cached 60s with 15min stale-on-error retention, so this fallback only
+  // fires on a cold-cache failure; the next navigation refills normally.
+  const fallback: NavigationItem[][] = [[], [], [], []];
   const [header, mobile, footerCols, legal] = await Promise.all([
     headerNav(),
     mobileNav(),
     footerColumns(),
     legalNav(),
-  ]);
+  ]).catch(() => fallback);
 
   return (
     <div className="relative flex min-h-screen flex-col">

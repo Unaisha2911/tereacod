@@ -53,7 +53,7 @@ export function OriginChipsOverlay({
     return (
       <div className={cn("flex flex-wrap gap-1.5", className)}>
         <span
-          className="inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-black/60 px-2.5 py-1 text-[0.65rem] font-semibold text-foreground backdrop-blur-sm"
+          className="inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-white/90 px-2.5 py-1 text-[0.65rem] font-semibold text-foreground shadow-[0_2px_8px_-4px_rgba(23,68,105,0.3)] backdrop-blur-sm"
           title={`Origin: ${line.label}`}
         >
           <span aria-hidden="true" className="text-[0.8rem] leading-none">
@@ -76,7 +76,7 @@ export function OriginChipsOverlay({
             aria-label={`See all ${lines.length} origins of ${productName}`}
             title={`See all origins — ${lines.map((line) => line.label).join(", ")}`}
             className={cn(
-              "relative inline-flex cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full border border-line-strong bg-black/60 px-2.5 py-1 text-[0.65rem] font-semibold text-foreground backdrop-blur-sm transition-colors",
+              "relative inline-flex cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full border border-line-strong bg-white/90 px-2.5 py-1 text-[0.65rem] font-semibold text-foreground shadow-[0_2px_8px_-4px_rgba(23,68,105,0.3)] backdrop-blur-sm transition-colors",
               "hover:border-violet-glow/60 hover:text-violet-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-glow/60",
               // Expanded invisible hit-area keeps the chip visual while
               // giving thumbs a proper touch target (same pattern as the
@@ -111,7 +111,7 @@ export function OriginChipsOverlay({
                   <Link
                     href={`/products/${productSlug}?origin=${line.slug}`}
                     aria-label={`Open ${productName} — ${line.label} origin`}
-                    className="flex min-h-11 items-center gap-3 rounded-xl border border-line bg-foreground/[0.02] px-3.5 py-2.5 transition-colors hover:border-violet-glow/50 hover:bg-foreground/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-glow/50"
+                    className="flex min-h-11 items-center gap-3 rounded-xl border border-line bg-card px-3.5 py-2.5 transition-colors hover:border-violet-glow/50 hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-glow/50"
                   >
                     <span aria-hidden="true" className="text-lg leading-none">
                       {line.flag}

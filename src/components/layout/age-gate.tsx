@@ -144,7 +144,7 @@ export function AgeGate() {
                 <button
                   type="button"
                   onClick={decline}
-                  className="inline-flex min-h-12 w-full items-center justify-center rounded-full border border-line-strong bg-foreground/[0.03] font-medium text-muted-foreground transition-colors hover:border-line-strong hover:text-foreground"
+                  className="inline-flex min-h-12 w-full items-center justify-center rounded-full border border-line-strong bg-muted font-medium text-muted-foreground transition-colors hover:border-line-strong hover:bg-accent hover:text-foreground"
                 >
                   No, I&apos;m under 18
                 </button>
@@ -172,7 +172,7 @@ export function AgeGate() {
               </p>
               <a
                 href="https://www.google.com"
-                className="inline-flex min-h-11 items-center rounded-full border border-line-strong bg-foreground/[0.03] px-6 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+                className="inline-flex min-h-11 items-center rounded-full border border-line-strong bg-muted px-6 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               >
                 Leave this site
               </a>

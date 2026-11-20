@@ -79,7 +79,7 @@ export const ItemCard = memo(function ItemCard({ item, priority = false }: { ite
   return (
     <CardSurface
       as="article"
-      className="h-full rounded-2xl border border-line bg-elevated/50 transition-colors duration-300 hover:border-violet-glow/35"
+      className="h-full rounded-2xl border border-line bg-card shadow-[0_2px_12px_-6px_rgba(23,68,105,0.12)] transition-[border-color,box-shadow] duration-300 hover:border-violet-glow/35 hover:shadow-[0_10px_28px_-14px_rgba(23,68,105,0.25)]"
     >
       <motion.div
         whileHover={reduced ? undefined : { y: -4 }}
@@ -107,7 +107,7 @@ export const ItemCard = memo(function ItemCard({ item, priority = false }: { ite
           className="group relative block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-glow/50 ring-offset-2 ring-offset-background"
           aria-label={`${item.brand} ${item.name} — view product information`}
         >
-          <div className="relative aspect-square w-full overflow-hidden rounded-t-2xl bg-gradient-to-b from-white/[0.045] to-transparent">
+          <div className="relative aspect-square w-full overflow-hidden rounded-t-2xl bg-muted">
             {!imgFailed && item.images[0] ? (
               <Image
                 src={effectiveSrc}
@@ -154,7 +154,7 @@ export const ItemCard = memo(function ItemCard({ item, priority = false }: { ite
             // blurred buttons each = ~32 backdrop-filter regions sampled
             // against scrolling content — a known mobile scroll-cost
             // multiplier. Visually near-identical at this size.
-            saved ? "border-violet-glow/50 bg-violet-glow/30 text-violet-soft" : "border-line-strong bg-black/60 text-muted-foreground hover:text-foreground"
+            saved ? "border-violet-glow/50 bg-violet-glow/30 text-violet-soft" : "border-line-strong bg-white/90 text-muted-foreground hover:text-foreground"
           )}
         >
           {saved ? <BookmarkCheck className="size-4" aria-hidden="true" /> : <Bookmark className="size-4" aria-hidden="true" />}
@@ -193,7 +193,7 @@ export const ItemCard = memo(function ItemCard({ item, priority = false }: { ite
                 aria-label={blocked ? `${item.name} is currently unavailable` : `Add ${item.name} to cart`}
                 title={blocked ? "Currently unavailable" : "Add to cart"}
                 className={cn(
-                  "relative inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-line-strong bg-black/60 text-muted-foreground transition-colors hover:border-violet-glow/50 hover:text-violet-soft",
+                  "relative inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-line-strong bg-white/90 text-muted-foreground transition-colors hover:border-violet-glow/50 hover:text-violet-soft",
                   "before:absolute before:-inset-2 before:rounded-full before:content-['']",
                   blocked && "cursor-not-allowed opacity-40 hover:border-line-strong hover:text-muted-foreground"
                 )}

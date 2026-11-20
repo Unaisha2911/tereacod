@@ -24,7 +24,6 @@ import {
   X,
 } from "lucide-react";
 import { Logo } from "@/components/layout/logo";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { ConsolePathContext, consoleHref, useConsolePath } from "@/components/shared/console-path";
 import { hydrateAuthFromServer, useAuth } from "@/services/account";
 import { variants } from "@/lib/motion";
@@ -338,7 +337,6 @@ export function AdminShell({ basePath, children }: { basePath: string; children:
             {/* The bell is an honest shortcut to the support inbox — no fake
                 unread count, notifications are not a built feature yet. */}
             <ConsoleBell />
-            <ThemeToggle className="rounded-lg" />
             <UserChip />
           </div>
         </header>

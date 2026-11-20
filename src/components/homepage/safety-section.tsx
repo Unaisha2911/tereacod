@@ -28,10 +28,10 @@ const ORDERING_POINTS: Array<{ icon: LucideIcon; label: string }> = [
  */
 export function SafetySection() {
   return (
-    <SectionContainer spacing="default" className="border-y border-border bg-abyss/50">
+    <SectionContainer spacing="default" className="border-y border-line bg-muted/60">
       <section aria-labelledby="safety-heading">
         <RevealSection>
-          <div className="relative overflow-hidden rounded-3xl border border-line bg-elevated/50 p-8 sm:p-10">
+          <div className="relative overflow-hidden rounded-3xl border border-line bg-card p-8 shadow-[0_8px_30px_-18px_rgba(23,68,105,0.22)] sm:p-10">
             <div aria-hidden="true" className="absolute inset-x-0 top-0 h-px bg-warning/30" />
             <div className="flex items-start gap-5">
               <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl border border-warning/30 bg-warning/10 text-warning">
@@ -64,7 +64,7 @@ export function SafetySection() {
               {ORDERING_POINTS.map(({ icon: Icon, label }) => (
                 <li
                   key={label}
-                  className="inline-flex items-center gap-2 rounded-full border border-border bg-foreground/[0.04] px-4 py-2.5 text-[0.8rem] font-medium text-foreground"
+                  className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/50 px-4 py-2.5 text-[0.8rem] font-medium text-foreground"
                 >
                   <Icon className="size-4 shrink-0 text-ice" aria-hidden="true" />
                   {label}
@@ -77,7 +77,7 @@ export function SafetySection() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="rounded-full border border-border bg-foreground/[0.04] px-5 py-2.5 text-sm font-medium text-foreground transition-[border-color,background-color] hover:border-violet-glow/45 hover:bg-foreground/[0.08]"
+                  className="rounded-full border border-border bg-muted/50 px-5 py-2.5 text-sm font-medium text-foreground transition-[border-color,background-color] hover:border-violet-glow/45 hover:bg-accent/80"
                 >
                   {link.label}
                 </Link>

@@ -55,7 +55,7 @@ export function TurnstileWidget({
       try {
         widgetIdRef.current = window.turnstile.render(containerRef.current, {
           sitekey: SITE_KEY,
-          theme: "dark",
+          theme: "light",
           ...(action ? { action } : {}),
           callback: (token: string) => onTokenRef.current(token),
           "expired-callback": () => onTokenRef.current(null),

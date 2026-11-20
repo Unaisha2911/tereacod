@@ -31,8 +31,8 @@ export default function GlobalError({
           alignItems: "center",
           justifyContent: "center",
           padding: "24px",
-          backgroundColor: "#0d0b09",
-          color: "#f3efe8",
+          backgroundColor: "#f1f7fc",
+          color: "#14212c",
           fontFamily: "'Space Grotesk', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif",
         }}
       >
@@ -44,7 +44,7 @@ export default function GlobalError({
               fontWeight: 700,
               letterSpacing: "0.42em",
               textTransform: "uppercase",
-              color: "#ddc18d",
+              color: "#1e6ba3",
             }}
           >
             TereaCOD
@@ -56,7 +56,7 @@ export default function GlobalError({
               fontWeight: 600,
               letterSpacing: "0.24em",
               textTransform: "uppercase",
-              color: "#ef7d7d",
+              color: "#c23434",
             }}
           >
             Unexpected error
@@ -64,12 +64,12 @@ export default function GlobalError({
           <h1 style={{ margin: "14px 0 0", fontSize: "clamp(2.2rem, 7vw, 3.6rem)", lineHeight: 1.1, fontWeight: 700 }}>
             Something went wrong
           </h1>
-          <p style={{ margin: "20px auto 0", maxWidth: 420, fontSize: 15, lineHeight: 1.6, color: "rgba(243,239,232,0.66)" }}>
+          <p style={{ margin: "20px auto 0", maxWidth: 420, fontSize: 15, lineHeight: 1.6, color: "rgba(20,33,44,0.66)" }}>
             {(error.digest ? "An unexpected error interrupted the application." : error.message) ||
               "An unexpected error interrupted the application."}
           </p>
           {error.digest && (
-            <p style={{ margin: "14px 0 0", fontFamily: "monospace", fontSize: 12, color: "rgba(243,239,232,0.45)" }}>
+            <p style={{ margin: "14px 0 0", fontFamily: "monospace", fontSize: 12, color: "rgba(20,33,44,0.45)" }}>
               Reference: {error.digest}
             </p>
           )}
@@ -84,9 +84,9 @@ export default function GlobalError({
               minHeight: 48,
               padding: "0 28px",
               borderRadius: 9999,
-              border: "1px solid rgba(201,163,102,0.55)",
-              backgroundColor: "rgba(201,163,102,0.14)",
-              color: "#f3efe8",
+              border: "1px solid rgba(30,107,163,0.55)",
+              backgroundColor: "rgba(30,107,163,0.08)",
+              color: "#17598c",
               fontSize: 14,
               fontWeight: 600,
               fontFamily: "inherit",

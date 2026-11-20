@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist_Mono, Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
-import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { SITE_ORIGIN, JsonLd, organizationJsonLd, websiteJsonLd } from "@/lib/seo";
 
@@ -106,7 +105,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#070605",
+  themeColor: "#f1f7fc",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
@@ -118,11 +117,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark" data-scroll-behavior="smooth" suppressHydrationWarning>
+    <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning>
       <head>
-        {/* NOTE: the page-wide smoke texture preload moved to the (site)
-            layout — the admin console ships no smoke atmosphere and must
-            not pay 196KB of preload on every console navigation. */}
         {/* __name helper shim — FIRST script so it precedes every inline
             script the toolchain may emit. Bundlers (esbuild/SWC keepNames)
             can reference `__name` from injected inline scripts without
@@ -156,11 +152,9 @@ export default function RootLayout({
         >
           Skip to main content
         </a>
-        {/* ThemeProvider owns the html.light/dark class for the whole app
-            (storefront + admin); default stays the dark brand palette. */}
-        <ThemeProvider>
-          {children}
-        </ThemeProvider>
+        {/* Single light theme — the sky-blue smoke daylight palette is the
+            brand (no dark mode). No class switching, no hydration flash. */}
+        {children}
         <Toaster />
         {/* Site-wide structured data: Organisation + WebSite/SearchAction. */}
         <JsonLd data={[organizationJsonLd(), websiteJsonLd()]} />

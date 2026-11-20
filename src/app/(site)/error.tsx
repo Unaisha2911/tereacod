@@ -26,7 +26,7 @@ export default function SiteError({
     <PageContainer className="pb-24 pt-10 sm:pt-14">
       <div
         role="alert"
-        className="flex min-h-[60vh] flex-col items-center justify-center gap-5 rounded-3xl border border-line bg-elevated/40 px-6 py-16 text-center"
+        className="flex min-h-[60vh] flex-col items-center justify-center gap-5 rounded-3xl border border-line bg-card px-6 py-16 text-center shadow-[0_18px_50px_-24px_rgba(23,68,105,0.25)]"
       >
         <p className="text-label font-semibold uppercase tracking-[0.24em] text-error">Route fault</p>
         <h1 className="max-w-2xl font-display text-[clamp(2rem,6vw,3.5rem)] font-bold leading-tight tracking-tight text-foreground">
@@ -49,7 +49,7 @@ export default function SiteError({
           </button>
           <Link
             href="/"
-            className="inline-flex min-h-12 items-center gap-2 rounded-full border border-line-strong px-6 text-sm font-medium text-foreground transition-colors hover:border-violet-glow/50 hover:bg-foreground/[0.04]"
+            className="inline-flex min-h-12 items-center gap-2 rounded-full border border-line-strong bg-card px-6 text-sm font-medium text-foreground transition-colors hover:border-violet-glow/50 hover:bg-accent/60"
           >
             <Home className="size-4" aria-hidden="true" />
             Back to the homepage

@@ -50,7 +50,7 @@ export function BrandIntroSection() {
           </RevealSection>
 
           <RevealSection variant="imageReveal" delay={0.1}>
-            <div className="relative aspect-[4/3] overflow-hidden rounded-3xl border border-line bg-elevated">
+            <div className="relative aspect-[4/3] overflow-hidden rounded-3xl border border-line bg-muted">
               {!imgFailed ? (
                 <>
                   <Image

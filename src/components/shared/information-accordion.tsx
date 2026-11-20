@@ -54,7 +54,7 @@ export function InformationAccordion({
         <Accordion.Trigger
           disabled={panel.disabled}
           className={cn(
-            "group flex min-h-14 w-full flex-1 items-center justify-between gap-4 px-5 py-4 text-left font-display text-[0.95rem] font-semibold text-foreground transition-colors hover:bg-foreground/[0.03]",
+            "group flex min-h-14 w-full flex-1 items-center justify-between gap-4 px-5 py-4 text-left font-display text-[0.95rem] font-semibold text-foreground transition-colors hover:bg-accent/60",
             panel.disabled && "cursor-not-allowed opacity-50"
           )}
         >

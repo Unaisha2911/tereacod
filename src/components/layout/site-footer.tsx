@@ -55,7 +55,7 @@ export async function SiteFooter() {
   const columnNames = ["Explore", "Company", "Support"] as const;
 
   return (
-    <footer className="relative mt-auto border-t border-line bg-abyss">
+    <footer className="relative mt-auto border-t border-line bg-card">
       {/* Delivery promises — the ordering USPs, visible on every page.
           UspStrip keeps the 1-hour promise visually emphasized. */}
       <UspStrip className="mx-auto max-w-6xl px-4 pt-6 sm:px-6 lg:px-8" />
@@ -92,7 +92,7 @@ export async function SiteFooter() {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={`Chat with ${settings.brandName} on WhatsApp`}
-                  className="inline-flex size-10 items-center justify-center rounded-full border border-[#25d366]/35 text-muted-foreground transition-colors hover:border-[#25d366]/70 hover:text-[#15803d] dark:hover:text-[#4be382]"
+                  className="inline-flex size-10 items-center justify-center rounded-full border border-[#25d366]/35 text-muted-foreground transition-colors hover:border-[#25d366]/70 hover:text-[#15803d]"
                 >
                   <WhatsAppIcon className="size-4" />
                 </a>
@@ -104,7 +104,7 @@ export async function SiteFooter() {
                 href={buildWhatsAppLink(composeSupportMessage())}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[#15803d] underline-offset-4 transition-colors hover:underline dark:text-[#4be382]"
+                className="text-[#15803d] underline-offset-4 transition-colors hover:underline"
               >
                 {settings.contact.whatsapp}
               </a>
@@ -131,7 +131,7 @@ export async function SiteFooter() {
         </div>
 
         {/* Age notice */}
-        <div className="mt-12 rounded-2xl border border-line bg-foreground/[0.02] p-4 sm:p-5">
+        <div className="mt-12 rounded-2xl border border-line bg-muted p-4 sm:p-5">
           <p className="text-legal text-muted-foreground">
             <span className="font-semibold text-foreground">Restricted products.</span>{" "}
             {settings.ageRestrictionNotice} {settings.complianceNotice}

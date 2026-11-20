@@ -82,7 +82,7 @@ export default async function AboutPage() {
             TereaCOD is operated by {settings.brandLegalName}, a Dubai-registered trading company founded in 2021.
             We don&apos;t manufacture what we stock — we curate it. Heat-not-burn tobacco sticks
             made for IQOS ILUMA, from smooth toasted tobaccos to cooling menthols and click-capsule
-            Pearl editions, stocked under one neon-lit roof.
+            Pearl editions, stocked under one roof.
           </p>
           <p className="leading-relaxed text-foreground/90">
             Every listing in this shop is authenticity-checked against the brand&apos;s own security features

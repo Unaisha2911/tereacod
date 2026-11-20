@@ -6,19 +6,20 @@ import { cn } from "@/lib/utils";
 /**
  * Brand accent channels — one hex per brand accent. Kept as inline
  * styles (colour only) so Tailwind arbitrary classes stay clean.
- * Muted, non-neon values matching the retokened brand palette.
+ * Values follow the permanent light sky palette (deep sky, teal-sky,
+ * dusty rose) — every value is AA-readable as text on white surfaces.
  */
 export const BRAND_ACCENT_HEX: Record<Brand["accent"], string> = {
-  violet: "#c9a366",
-  ice: "#9fb5ab",
-  magenta: "#c2939d",
+  violet: "#1e6ba3",
+  ice: "#20718f",
+  magenta: "#9c5f6d",
 };
 
 /** Soft rgba companions used for accent borders (no glow shadows). */
 export const BRAND_ACCENT_GLOW: Record<Brand["accent"], string> = {
-  violet: "rgba(201, 163, 102, 0.5)",
-  ice: "rgba(159, 181, 171, 0.45)",
-  magenta: "rgba(194, 147, 157, 0.5)",
+  violet: "rgba(30, 107, 163, 0.5)",
+  ice: "rgba(32, 113, 143, 0.45)",
+  magenta: "rgba(156, 95, 109, 0.5)",
 };
 
 const chipClass =
@@ -49,7 +50,7 @@ export function BrandCard({
       href={`/brand/${brand.slug}`}
       aria-label={`${brand.name} — ${productCount} products from ${brand.origin}. Open the ${brand.name} brand page.`}
       className={cn(
-        "group relative flex min-h-44 flex-col rounded-2xl border border-line bg-elevated/45 p-5 transition-[transform,border-color] duration-300 hover:-translate-y-1 hover:border-line-strong focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-violet sm:p-6",
+        "group relative flex min-h-44 flex-col rounded-2xl border border-line bg-card p-5 transition-[transform,border-color] duration-300 hover:-translate-y-1 hover:border-line-strong focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-violet sm:p-6",
         className
       )}
     >

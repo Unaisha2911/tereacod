@@ -20,7 +20,7 @@ export function UspStrip({ className, size = "md" }: {
   );
   return (
     <ul aria-label="Delivery and payment" className={cn("flex flex-wrap items-center gap-2", className)}>
-      <li className={cn(pill, "border-line bg-foreground/[0.03] font-medium text-muted-foreground")}>
+      <li className={cn(pill, "border-line bg-muted font-medium text-muted-foreground")}>
         <Truck className={cn("shrink-0 text-violet-soft", size === "sm" ? "size-3" : "size-3.5")} aria-hidden="true" />
         {USP_FREE_DELIVERY}
       </li>
@@ -33,7 +33,7 @@ export function UspStrip({ className, size = "md" }: {
         <Zap className={cn("shrink-0 text-violet-soft", size === "sm" ? "size-3" : "size-3.5")} aria-hidden="true" />
         {USP_ONE_HOUR_DELIVERY}
       </li>
-      <li className={cn(pill, "border-line bg-foreground/[0.03] font-medium text-muted-foreground")}>
+      <li className={cn(pill, "border-line bg-muted font-medium text-muted-foreground")}>
         <Banknote className={cn("shrink-0 text-violet-soft", size === "sm" ? "size-3" : "size-3.5")} aria-hidden="true" />
         {USP_PAYMENT}
       </li>

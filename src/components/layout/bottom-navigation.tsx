@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Bookmark, Compass, Home, ShoppingBag, UserRound } from "lucide-react";
 import { motion } from "framer-motion";
 import { useCart } from "@/services/cart";
+import { useScrollDirection } from "@/hooks/use-scroll-direction";
 import { cn } from "@/lib/utils";
 import type { NavigationItem } from "@/types";
 
@@ -22,18 +23,28 @@ const ICONS: Record<string, React.ComponentType<{ className?: string; "aria-hidd
  * 48px touch targets, keyboard accessible. The Cart destination
  * carries a live item-count badge from the in-memory cart store.
  * Destinations are passed in from the server-rendered shell (mobileNav()).
+ *
+ * App-like chrome behaviour: slides off the bottom edge while the
+ * visitor scrolls down, slides back the moment they scroll up — the
+ * content gets the full screen while reading, the menu is one upward
+ * flick away. Desktop never renders this bar (md:hidden).
  */
 export function BottomNavigation({ items }: { items: NavigationItem[] }) {
   const pathname = usePathname();
   const cartCount = useCart((s) => s.lines.reduce((count, line) => count + line.qty, 0));
+  const scrollDirection = useScrollDirection();
+  const hideNav = scrollDirection === "down";
 
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
 
   return (
-    <nav
+    <motion.nav
       aria-label="Primary mobile"
-      className="glass-strong fixed inset-x-0 bottom-0 z-50 border-t border-line md:hidden"
+      initial={false}
+      animate={{ y: hideNav ? "115%" : "0%" }}
+      transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+      className="glass-strong fixed inset-x-0 bottom-0 z-50 border-t border-line shadow-[0_-10px_32px_-16px_rgba(23,68,105,0.22)] md:hidden"
       style={{ paddingBottom: "max(env(safe-area-inset-bottom, 0px), 0.25rem)" }}
     >
       <ul className="mx-auto flex max-w-lg items-stretch justify-around px-2">
@@ -81,6 +92,6 @@ export function BottomNavigation({ items }: { items: NavigationItem[] }) {
           );
         })}
       </ul>
-    </nav>
+    </motion.nav>
   );
 }

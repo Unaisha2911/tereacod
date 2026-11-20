@@ -8,9 +8,9 @@ import { Banknote, Bookmark, Menu, Search, ShoppingBag, Truck, UserRound, Zap } 
 import { Logo } from "./logo";
 import { DesktopNavigation } from "./desktop-navigation";
 import { MobileNavigation } from "./mobile-navigation";
+import { useScrollDirection } from "@/hooks/use-scroll-direction";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/services/cart";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { USP_FREE_DELIVERY, USP_ONE_HOUR_DELIVERY, USP_PAYMENT } from "@/lib/usp";
 import type { NavigationItem } from "@/types";
 
@@ -19,6 +19,10 @@ import type { NavigationItem } from "@/types";
  * Transparent over the hero, solidifies on scroll. Total height is
  * 2.25rem + 4rem (announcement + nav); the shell's <main> pads by the
  * same amount. Navigation data arrives from the server-rendered AppShell.
+ *
+ * Mobile chrome behaviour: scrolling down slides the whole header off
+ * the top; scrolling up (or nearing the top) slides it back. Desktop
+ * keeps the always-visible bar. The open mobile menu pins the header.
  */
 export function SiteHeader({
   headerNav,
@@ -34,11 +38,22 @@ export function SiteHeader({
   const pathname = usePathname();
   const router = useRouter();
   const reduced = useReducedMotion();
+  const scrollDirection = useScrollDirection();
+  const [isMobile, setIsMobile] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [quickSearch, setQuickSearch] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const cartCount = useCart((s) => s.lines.reduce((count, line) => count + line.qty, 0));
+
+  // Chrome hiding is a phone affordance — desktop keeps the fixed bar.
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const apply = () => setIsMobile(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);
@@ -61,14 +76,17 @@ export function SiteHeader({
     setSearchOpen(false);
   };
 
+  // Hide while scrolling DOWN on phones — never while the sheet is open.
+  const hideChrome = isMobile && !mobileOpen && scrollDirection === "down";
+
   return (
     <motion.header
-      initial={reduced ? false : { y: -104, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+      initial={reduced ? false : { y: "-110%", opacity: 0 }}
+      animate={{ y: hideChrome ? "-110%" : "0%", opacity: 1 }}
+      transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
       className={cn(
         "fixed inset-x-0 top-0 z-50 transition-colors duration-500",
-        scrolled ? "glass-strong shadow-[0_8px_40px_-12px_rgba(0,0,0,0.6)]" : "bg-transparent"
+        scrolled ? "glass-strong shadow-[0_10px_36px_-14px_rgba(23,68,105,0.28)]" : "bg-transparent"
       )}
       style={!scrolled ? { borderBottom: "1px solid transparent" } : undefined}
     >
@@ -158,9 +176,7 @@ export function SiteHeader({
             Account
           </Link>
 
-          {/* Light/dark switch — visible at every breakpoint (the mobile
-              sheet carries a second one); the choice persists per user. */}
-          <ThemeToggle />
+          {/* Single light brand theme — no theme toggle. */}
 
           <button
             type="button"

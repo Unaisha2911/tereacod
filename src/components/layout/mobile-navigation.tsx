@@ -6,7 +6,6 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronRight } from "lucide-react";
 import { Logo } from "./logo";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { variants } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import type { NavigationItem } from "@/types";
@@ -67,7 +66,6 @@ export function MobileNavigation({
                 <div className="flex items-center justify-between px-5 py-4">
                   <Logo />
                   <div className="flex items-center gap-1">
-                    <ThemeToggle />
                     <Dialog.Close
                       aria-label="Close menu"
                       className="inline-flex size-10 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground"

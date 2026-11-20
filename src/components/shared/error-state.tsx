@@ -30,7 +30,7 @@ export function ErrorState({
         <button
           type="button"
           onClick={onRetry}
-          className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line-strong px-6 text-sm font-medium text-foreground transition-colors hover:border-violet-glow/50 hover:bg-foreground/[0.04]"
+          className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line-strong bg-card px-6 text-sm font-medium text-foreground transition-colors hover:border-violet-glow/50 hover:bg-accent/60"
         >
           <RotateCcw className="size-4" aria-hidden="true" />
           {retryLabel}

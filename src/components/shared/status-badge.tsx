@@ -5,7 +5,7 @@ import type { Availability, ComplianceRecord, OrderStatus, TicketPriority, Ticke
 type Tone = "neutral" | "violet" | "success" | "warning" | "error" | "ice";
 
 const TONE_CLASSES: Record<Tone, string> = {
-  neutral: "border-line-strong bg-foreground/[0.05] text-muted-foreground",
+  neutral: "border-line-strong bg-muted text-muted-foreground",
   violet: "border-violet-glow/35 bg-violet-glow/12 text-violet-soft",
   success: "border-success/35 bg-success/10 text-success",
   warning: "border-warning/35 bg-warning/10 text-warning",

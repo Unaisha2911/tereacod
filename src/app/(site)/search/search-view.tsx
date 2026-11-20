@@ -256,8 +256,10 @@ export function SearchView() {
           )}
         </form>
 
+        {/* Suggestions popover — white glass card on the sky canvas with a
+            soft blue-tinted shadow (no heavy black drop). */}
         {suggestionsVisible && (
-          <div className="absolute inset-x-0 top-full z-30 mt-2 overflow-hidden rounded-2xl border border-line bg-[color:var(--bg-2)] shadow-xl shadow-black/40">
+          <div className="absolute inset-x-0 top-full z-30 mt-2 overflow-hidden rounded-2xl border border-line bg-popover shadow-[0_18px_44px_-16px_rgba(23,68,105,0.28)]">
             <p className="px-4 pb-1 pt-3 text-label font-medium uppercase tracking-[0.16em] text-muted-foreground">
               Suggestions
             </p>
@@ -267,8 +269,8 @@ export function SearchView() {
                   <Link
                     href={`/products/${s.slug}`}
                     className={cn(
-                      "flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-sm text-foreground transition-colors hover:bg-foreground/[0.05]",
-                      i === activeSuggestion && "bg-foreground/[0.08]"
+                      "flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-sm text-foreground transition-colors hover:bg-accent/60",
+                      i === activeSuggestion && "bg-accent"
                     )}
                   >
                     <span className="min-w-0 truncate">{s.name}</span>

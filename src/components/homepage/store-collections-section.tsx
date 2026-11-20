@@ -70,7 +70,7 @@ function CollectionCard({ collection, index }: { collection: StoreCollection; in
       <Link
         href={`/collections/${collection.slug}`}
         aria-label={`${collection.name} collection — browse the shelf`}
-        className="group relative flex h-full min-h-72 flex-col overflow-hidden rounded-3xl border border-line bg-elevated/45 transition-[border-color] duration-300 hover:border-violet-glow/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-glow/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        className="group relative flex h-full min-h-72 flex-col overflow-hidden rounded-3xl border border-line bg-card shadow-[0_8px_30px_-18px_rgba(23,68,105,0.25)] transition-[border-color,box-shadow] duration-300 hover:border-violet-glow/45 hover:shadow-[0_14px_36px_-16px_rgba(23,68,105,0.3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-glow/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
         {/* Collection artwork */}
         <div className="relative h-44 w-full overflow-hidden sm:h-52">

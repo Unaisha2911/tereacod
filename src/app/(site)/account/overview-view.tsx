@@ -164,7 +164,7 @@ export function OverviewView() {
           <div className="mt-4 flex items-center gap-3.5">
             <span
               aria-hidden="true"
-              className="flex size-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-glow to-ice font-display text-base font-bold text-[#0b0713]"
+              className="flex size-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-glow to-ice font-display text-base font-bold text-white"
             >
               {user.initials}
             </span>

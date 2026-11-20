@@ -25,10 +25,10 @@ export function ContentCard({
 }) {
   return (
     <RevealSection delay={Math.min(index * 0.06, 0.36)} className={cn("h-full", className)}>
-      <CardSurface className="h-full rounded-2xl border border-line bg-elevated/45 transition-colors duration-300 hover:border-violet-glow/40">
+      <CardSurface className="h-full rounded-2xl border border-line bg-card transition-colors duration-300 hover:border-violet-glow/40">
         <Link href={href} className="flex h-full min-h-40 flex-col gap-3 p-5 sm:p-6" aria-label={title}>
           {Icon && (
-            <span className="flex size-10 items-center justify-center rounded-xl border border-line bg-foreground/[0.04] text-violet-soft">
+            <span className="flex size-10 items-center justify-center rounded-xl border border-line bg-muted text-violet-soft">
               <Icon className="size-[1.15rem]" aria-hidden="true" />
             </span>
           )}
@@ -60,7 +60,7 @@ export function DocumentCard({
   const Icon = type === "pdf" ? FileText : Globe;
   const body = (
     <>
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-line bg-foreground/[0.04] text-ice">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-line bg-muted text-ice">
         <Icon className="size-[1.05rem]" aria-hidden="true" />
       </span>
       <span className="min-w-0 flex-1">
@@ -74,7 +74,7 @@ export function DocumentCard({
     </>
   );
 
-  const shell = "flex items-center gap-4 rounded-2xl border border-line bg-elevated/40 px-4 py-3.5 transition-colors hover:border-ice/40 hover:bg-elevated/70";
+  const shell = "flex items-center gap-4 rounded-2xl border border-line bg-card px-4 py-3.5 transition-colors hover:border-ice/40 hover:bg-accent/60";
 
   if (!href) {
     // No link on file — the document is shared on request.

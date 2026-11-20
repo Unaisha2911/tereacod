@@ -58,7 +58,7 @@ export function SeoContent({
             <Link
               key={link.href}
               href={link.href}
-              className="group flex items-start justify-between gap-3 rounded-2xl border border-line bg-elevated/40 p-4 transition-colors hover:border-violet-glow/40"
+              className="group flex items-start justify-between gap-3 rounded-2xl border border-line bg-card p-4 transition-colors hover:border-violet-glow/40"
             >
               <span>
                 <span className="block text-[0.92rem] font-semibold text-foreground">{link.label}</span>

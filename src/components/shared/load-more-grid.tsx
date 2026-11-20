@@ -59,7 +59,7 @@ export function LoadMoreGrid({
             disabled={loading}
             aria-label={`${loadMoreLabel} — ${remaining} more available`}
             className={cn(
-              "group inline-flex min-h-12 items-center gap-2.5 rounded-full border border-line-strong bg-foreground/[0.03] px-8",
+              "group inline-flex min-h-12 items-center gap-2.5 rounded-full border border-line-strong bg-card px-8 shadow-[0_2px_10px_-6px_rgba(23,68,105,0.18)]",
               "text-sm font-medium text-foreground transition-[border-color]",
               "hover:border-violet-glow/55",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-glow/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background",

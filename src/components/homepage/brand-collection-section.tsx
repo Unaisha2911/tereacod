@@ -42,7 +42,9 @@ export function BrandCollectionSection({ BRANDS, ITEM_COUNTS }: { BRANDS: Brand[
     <SectionContainer spacing="lg">
       <section aria-labelledby="brand-collection-heading">
         <RevealSection>
-          <div className="relative overflow-hidden rounded-3xl border border-line bg-elevated/40">
+          {/* White card floating on the sky-smoke canvas — the shop-window
+              panel. Soft blue-tinted shadow, no dark scrim. */}
+          <div className="relative overflow-hidden rounded-3xl border border-line bg-card shadow-[0_8px_30px_-18px_rgba(23,68,105,0.25)]">
             {/* Quiet top hairline — the former rainbow rail (violet → ice →
                 red → magenta gradient) is retired with the neon look. */}
             <div aria-hidden="true" className="absolute inset-x-0 top-0 h-px bg-line" />
@@ -109,7 +111,7 @@ export function BrandCollectionSection({ BRANDS, ITEM_COUNTS }: { BRANDS: Brand[
                         <Link
                           href={`/brand/${brand.slug}`}
                           aria-label={`${brand.name} — ${count} ${count === 1 ? "product" : "products"} listed`}
-                          className="block rounded-xl border border-line bg-foreground/[0.03] px-3 py-2.5 transition-colors hover:border-violet-glow/50 hover:bg-foreground/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-glow/60"
+                          className="block rounded-xl border border-line bg-muted/40 px-3 py-2.5 transition-colors hover:border-violet-glow/50 hover:bg-accent/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-glow/60"
                         >
                           <span
                             className={`block font-neon text-[0.72rem] font-bold uppercase leading-snug ${BRAND_ACCENT_TEXT[brand.accent]}`}
@@ -124,7 +126,7 @@ export function BrandCollectionSection({ BRANDS, ITEM_COUNTS }: { BRANDS: Brand[
                     ))}
                   </ul>
                 ) : (
-                  <p className="rounded-xl border border-dashed border-line-strong bg-foreground/[0.02] px-4 py-6 text-center text-sm text-muted-foreground">
+                  <p className="rounded-xl border border-dashed border-line-strong bg-muted/30 px-4 py-6 text-center text-sm text-muted-foreground">
                     Stock and product counts appear here as soon as the first drop lands.
                   </p>
                 )}

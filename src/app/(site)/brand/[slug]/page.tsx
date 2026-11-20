@@ -8,10 +8,10 @@ import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { CatalogBrowser } from "@/components/shared/catalog-browser";
 import { toCardItems } from "@/lib/catalog-card";
 import { SeoContent } from "@/components/shared/seo-content";
-import { BRAND_ACCENT_HEX } from "@/components/shared/brand-card";
 import { getBrandBySlugRepo, getBrandItems, getBrandItemCounts } from "@/server/data";
 import { ORIGIN_LINES } from "@/lib/catalog-origin";
 import { breadcrumbJsonLd, canonical, itemListJsonLd, JsonLd, siteUrl } from "@/lib/seo";
+import type { Brand } from "@/types";
 
 interface BrandPageProps {
   params: Promise<{ slug: string }>;
@@ -60,13 +60,23 @@ export async function generateMetadata({ params }: BrandPageProps): Promise<Meta
 const chipClass =
   "inline-flex items-center rounded-full border border-line bg-elevated/40 px-3 py-1.5 text-[0.75rem] leading-none text-muted-foreground";
 
+/** Sky-palette accent per brand channel — mirrors the design tokens in
+ *  globals.css (--violet #1e6ba3, --ice #20718f, --magenta #9c5f6d) so
+ *  headings and dots stay AA-readable on white. The shared BrandCard map
+ *  is intentionally not used here; it still carries legacy values. */
+const BRAND_ACCENT_SKY: Record<Brand["accent"], string> = {
+  violet: "#1e6ba3",
+  ice: "#20718f",
+  magenta: "#9c5f6d",
+};
+
 export default async function BrandPage({ params }: BrandPageProps) {
   const { slug } = await params;
   // Server data facade — brand record and its featured-first catalog items.
   const brand = await getBrandBySlugRepo(slug);
   if (!brand) notFound();
 
-  const accent = BRAND_ACCENT_HEX[brand.accent];
+  const accent = BRAND_ACCENT_SKY[brand.accent];
   // Brand items come back featured-first (shared catalog sort).
   const items = await getBrandItems(slug);
 

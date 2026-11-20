@@ -72,7 +72,7 @@ function OriginCard({
     >
       <CardSurface
         as="article"
-        className="h-full rounded-2xl border border-line bg-elevated/45 transition-colors duration-300 hover:border-violet-glow/45"
+        className="h-full rounded-2xl border border-line bg-card shadow-[0_8px_30px_-18px_rgba(23,68,105,0.25)] transition-[border-color,box-shadow] duration-300 hover:border-violet-glow/45 hover:shadow-[0_14px_36px_-16px_rgba(23,68,105,0.3)]"
       >
         <Link
           href={`/origin/${slug}`}
