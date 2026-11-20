@@ -3,7 +3,7 @@ import { PageContainer } from "@/components/layout/page-container";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { NeonHeading } from "@/components/homepage/neon-heading";
 import { CategoryCard } from "@/components/shared/category-card";
-import { getCategories, getProducts } from "@/server/data";
+import { getCategories, getPublishedProductCount } from "@/server/data";
 import { canonical } from "@/lib/seo";
 
 export const metadata: Metadata = {
@@ -30,7 +30,11 @@ export const metadata: Metadata = {
 
 /** Collections — index of browsable category shelves. */
 export default async function CollectionsPage() {
-  const [catalogCategories, catalogItems] = await Promise.all([getCategories(), getProducts()]);
+  // The shelf count in the intro copy is ONE cached COUNT query — the
+  // former getProducts() hydration loaded every product (plus 5 child
+  // queries) per request just to read .length (a Workers CPU/memory
+  // multiplier behind the intermittent 1102s).
+  const [catalogCategories, productCount] = await Promise.all([getCategories(), getPublishedProductCount()]);
 
   return (
     <section className="relative">
@@ -53,7 +57,7 @@ export default async function CollectionsPage() {
           <p className="max-w-2xl pt-5 text-lead text-muted-foreground">
             Focused collections spanning every brand we stock — heat-not-burn
             tobacco sticks and IQOS devices across all seven origin lines.
-            Pick a shelf below and browse the full {catalogItems.length}-product range.
+            Pick a shelf below and browse the full {productCount}-product range.
           </p>
         </div>
 

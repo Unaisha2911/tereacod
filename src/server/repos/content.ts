@@ -12,17 +12,22 @@ export async function listLegalDocuments(): Promise<LegalDocument[]> {
   // Legal bodies are long-lived text — cached 5 minutes (see CACHE_TTL.content).
   return cached("content:legal", CACHE_TTL.content, async () => {
   const db = await getDb();
-  const docs = await db.all<{
-    id: string;
-    slug: string;
-    title: string;
-    version: string;
-    effective_date: string;
-    last_updated: string;
-    summary: string;
-  }>(
-    `SELECT * FROM legal_documents WHERE status = 'published' ORDER BY slug`
-  );
+  // GUARD: pending remote migration / transient D1 error degrades to "no
+  // legal docs" (pages fall back to static descriptions) instead of
+  // crashing the legal pages with React #441.
+  const docs = await db
+    .all<{
+      id: string;
+      slug: string;
+      title: string;
+      version: string;
+      effective_date: string;
+      last_updated: string;
+      summary: string;
+    }>(
+      `SELECT * FROM legal_documents WHERE status = 'published' ORDER BY slug`
+    )
+    .catch(() => []);
   if (docs.length === 0) return [];
 
   const sections = await db.all<{
@@ -77,16 +82,20 @@ export async function getLegalDocument(slug: string): Promise<LegalDocument | nu
 export async function listComplianceRecords(): Promise<ComplianceRecord[]> {
   return cached("content:compliance", CACHE_TTL.content, async () => {
   const db = await getDb();
-  const rows = await db.all<{
-    id: string;
-    area: string;
-    title: string;
-    description: string;
-    status: string;
-    last_reviewed: string | null;
-    expires_at: string | null;
-    owner: string | null;
-  }>(`SELECT * FROM compliance_records ORDER BY area, title`);
+  // GUARD: degrade to "no records" on a pending remote migration instead of
+  // failing the compliance page.
+  const rows = await db
+    .all<{
+      id: string;
+      area: string;
+      title: string;
+      description: string;
+      status: string;
+      last_reviewed: string | null;
+      expires_at: string | null;
+      owner: string | null;
+    }>(`SELECT * FROM compliance_records ORDER BY area, title`)
+    .catch(() => []);
 
   // Documents are optional; seeded records reference legal docs by convention.
   return rows.map((row) => ({
@@ -115,8 +124,9 @@ export interface FaqEntryRow {
 export async function listFaqs(): Promise<FaqEntryRow[]> {
   return cached("content:faqs", CACHE_TTL.content, async () => {
     const db = await getDb();
-    return db.all<FaqEntryRow>(
-      `SELECT id, category, question, answer FROM faqs ORDER BY position, id`
-    );
+    // GUARD: degrade to "no FAQs" on a pending remote migration.
+    return db
+      .all<FaqEntryRow>(`SELECT id, category, question, answer FROM faqs ORDER BY position, id`)
+      .catch(() => []);
   });
 }

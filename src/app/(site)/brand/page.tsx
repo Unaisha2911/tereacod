@@ -7,7 +7,7 @@ import { RevealSection } from "@/components/atmosphere/reveal-section";
 import { PageContainer, SectionContainer } from "@/components/layout/page-container";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { BrandCard } from "@/components/shared/brand-card";
-import { getBrands, getProducts } from "@/server/data";
+import { getBrands, getBrandItemCounts } from "@/server/data";
 import { canonical } from "@/lib/seo";
 
 export const metadata: Metadata = {
@@ -33,14 +33,10 @@ export const metadata: Metadata = {
 };
 
 export default async function BrandDirectoryPage() {
-  // Server data facade — brands with live catalog counts.
-  const [brands, products] = await Promise.all([getBrands(), getProducts()]);
-  const counts = Object.fromEntries(
-    brands.map((brand) => [
-      brand.slug,
-      products.filter((item) => item.brand.toLowerCase() === brand.name.toLowerCase()).length,
-    ]),
-  );
+  // Server data facade — brands with live catalog counts. The per-brand
+  // counts are ONE cached GROUP BY query (brandItemCounts); the former
+  // getProducts() hydrate loaded every product just to count in JS.
+  const [brands, counts] = await Promise.all([getBrands(), getBrandItemCounts()]);
   const totalListings = Object.values(counts).reduce((sum, count) => sum + count, 0);
 
   return (

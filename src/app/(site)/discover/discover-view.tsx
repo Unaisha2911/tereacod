@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "@/components/shared/shop-link";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Link } from "@/components/shared/shop-link";
 import { PackageSearch, Search } from "lucide-react";
 import { PageHeading } from "@/components/layout/page-heading";
 import { PageContainer } from "@/components/layout/page-container";
@@ -13,7 +13,9 @@ import { OriginFilterChips } from "@/components/shared/origin-filter-chips";
 import { SeoContent } from "@/components/shared/seo-content";
 import { FilterBar } from "@/components/shared/admin-primitives";
 import { Select } from "@/components/forms/fields";
-import { SORT_OPTIONS, sortCatalogItems, type SortKey } from "@/lib/catalog-sort";
+import { SORT_OPTIONS, type SortKey } from "@/lib/catalog-sort";
+import { catalogService } from "@/services/catalog";
+import { toCardItems } from "@/lib/catalog-card";
 import { ORIGIN_LINES, originCountsFor } from "@/lib/catalog-origin";
 import { scrollIntoViewSmooth } from "@/lib/motion";
 import type { CatalogCardItem } from "@/lib/catalog-card";
@@ -32,39 +34,92 @@ const AVAILABILITY_OPTIONS: Array<{ value: AvailabilityFilter; label: string }> 
 ];
 
 /**
- * DiscoverView — the full-catalog browsing grid.
+ * DiscoverView — the full-catalog browsing grid, loaded in batches.
  *
- * The catalog arrives SERVER-RENDERED (card projection from the page) —
- * no first-paint spinner, no client catalog download, fully crawlable.
- * Collection and origin filters are LINK chips: each one lands on its
- * dedicated page (/collections/<slug>, /origin/<slug>) — those pages
- * exist for crawling and carry their own combined facets — while sort,
- * availability and Load more stay instant in-memory controls here.
+ * The first 16 products arrive SERVER-RENDERED (card projection from the
+ * page) — no first-paint spinner, fully crawlable. Everything after is
+ * fetched ON DEMAND from /api/v1/catalog/products: Load more appends the
+ * next 16, and sort/availability re-query the shelf server-side under the
+ * new ordering. Collection and origin filters remain LINK chips (each one
+ * lands on its dedicated page — /collections/<slug>, /origin/<slug> —
+ * which exist for crawling and carry their own combined facets).
  */
 export function DiscoverView({
   initialItems,
+  total,
   initialCategories,
 }: {
   initialItems: CatalogCardItem[];
+  total: number;
   initialCategories: CatalogCategory[];
 }) {
   const router = useRouter();
 
+  const [items, setItems] = useState<CatalogCardItem[]>(initialItems);
+  const [totalCount, setTotalCount] = useState(total);
   const [sort, setSort] = useState<SortValue>("featured");
   const [availability, setAvailability] = useState<AvailabilityFilter>("all");
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [loading, setLoading] = useState(false);
   const [searchValue, setSearchValue] = useState("");
+  // Guards against a superseded request writing stale results.
+  const requestIdRef = useRef(0);
 
-  const items = initialItems;
   const categories = initialCategories;
 
-  const availabilityFiltered = useMemo(
-    () => (availability === "all" ? items : items.filter((item) => item.availability === availability)),
-    [items, availability]
+  const fetchBatch = useCallback(
+    async (page: number, sortKey: SortKey, availabilityFilter: AvailabilityFilter, mode: "replace" | "append") => {
+      const requestId = ++requestIdRef.current;
+      setLoading(true);
+      try {
+        const data = await catalogService.items({
+          sort: sortKey,
+          availability: availabilityFilter,
+          page,
+          pageSize: PAGE_SIZE,
+        });
+        if (requestId !== requestIdRef.current) return;
+        const cards = toCardItems(data.items);
+        setTotalCount(data.total);
+        setItems((prev) => (mode === "append" && page > 1 ? [...prev, ...cards] : cards));
+      } catch {
+        // Keep the last-good list — Load more stays available to retry.
+      } finally {
+        if (requestId === requestIdRef.current) setLoading(false);
+      }
+    },
+    []
   );
-  const sorted = useMemo(() => sortCatalogItems(availabilityFiltered, sort), [availabilityFiltered, sort]);
-  const visible = useMemo(() => sorted.slice(0, visibleCount), [sorted, visibleCount]);
-  const hasMore = visibleCount < sorted.length;
+
+  const onLoadMore = () => {
+    void fetchBatch(Math.floor(items.length / PAGE_SIZE) + 1, sort, availability, "append");
+  };
+
+  // Sort / availability re-query the shelf server-side (page 1 replace);
+  // the batch sequence restarts from there. In-memory narrowing is gone —
+  // it required the whole catalog on the client to be correct.
+  const revealFirstBatch = () => void fetchBatch(1, sort, availability, "replace");
+
+  const onSortChange = (next: SortValue) => {
+    setSort(next);
+    void fetchBatch(1, next, availability, "replace");
+  };
+
+  const onAvailabilityChange = (next: AvailabilityFilter) => {
+    setAvailability(next);
+    void fetchBatch(1, sort, next, "replace");
+  };
+
+  const resetFilters = () => {
+    setSort("featured");
+    setAvailability("all");
+    void fetchBatch(1, "featured", "all", "replace");
+  };
+
+  const onSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const q = searchValue.trim();
+    router.push(q ? `/search?q=${encodeURIComponent(q)}` : "/search");
+  };
 
   // Bring the top of the results into view when the filters change
   // (Load more appends below the fold — no scroll for those).
@@ -78,22 +133,8 @@ export function DiscoverView({
     scrollIntoViewSmooth(resultsRef.current);
   }, [sort, availability]);
 
-  const revealFirstBatch = () => setVisibleCount(PAGE_SIZE);
-
-  const resetFilters = () => {
-    setSort("featured");
-    setAvailability("all");
-    revealFirstBatch();
-  };
-
-  const onSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const q = searchValue.trim();
-    router.push(q ? `/search?q=${encodeURIComponent(q)}` : "/search");
-  };
-
-  // Facet counts over the whole shelf — multi-origin listings count
-  // toward every line they stock.
+  // Facet counts over the ACCUMULATED batches — multi-origin listings
+  // count toward every line they stock (same contract as the search page).
   const originCounts = useMemo(() => originCountsFor(items), [items]);
 
   return (
@@ -152,10 +193,8 @@ export function DiscoverView({
           <Select
             aria-label="Sort items"
             value={sort}
-            onChange={(e) => {
-              setSort(e.target.value as SortValue);
-              revealFirstBatch();
-            }}
+            onChange={(e) => onSortChange(e.target.value as SortValue)}
+            disabled={loading}
             className="h-11 w-44 text-[0.8rem]"
           >
             {SORT_OPTIONS.map((option) => (
@@ -168,10 +207,7 @@ export function DiscoverView({
         <FilterBar
           options={AVAILABILITY_OPTIONS}
           value={availability}
-          onChange={(next) => {
-            setAvailability(next);
-            revealFirstBatch();
-          }}
+          onChange={onAvailabilityChange}
           ariaLabel="Filter by availability"
         />
       </div>
@@ -199,13 +235,13 @@ export function DiscoverView({
       {/* Results — 16 per batch behind a Load more control (no page numbers) */}
       <section ref={resultsRef} aria-label="Catalog results" className="scroll-mt-28 pt-10">
         <p aria-live="polite" className="mb-5 min-h-5 text-[0.8rem] text-muted-foreground">
-          {sorted.length > 0
-            ? `Showing ${visible.length} of ${sorted.length} ${sorted.length === 1 ? "product" : "products"}`
+          {totalCount > 0
+            ? `Showing ${Math.min(items.length, totalCount)} of ${totalCount} ${totalCount === 1 ? "product" : "products"}`
             : ""}
         </p>
 
-        {sorted.length === 0 ? (
-          items.length === 0 ? (
+        {totalCount === 0 ? (
+          availability === "all" && sort === "featured" ? (
             // The catalog itself is empty — not a filter problem.
             <EmptyState
               icon={PackageSearch}
@@ -225,10 +261,11 @@ export function DiscoverView({
           )
         ) : (
           <LoadMoreGrid
-            items={visible}
-            total={sorted.length}
-            hasMore={hasMore}
-            onLoadMore={() => setVisibleCount((count) => count + PAGE_SIZE)}
+            items={items}
+            total={totalCount}
+            hasMore={items.length < totalCount && !loading}
+            loading={loading}
+            onLoadMore={onLoadMore}
             columns={3}
           />
         )}

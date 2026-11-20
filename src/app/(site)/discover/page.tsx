@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { canonical, itemListJsonLd, JsonLd } from "@/lib/seo";
 import { toCardItems } from "@/lib/catalog-card";
 import { DiscoverView } from "./discover-view";
-import { getCategories, getProducts } from "@/server/data";
+import { getCategories } from "@/server/data";
+import { listProducts } from "@/server/repos/catalog";
 
 export const metadata: Metadata = {
   title: "Browse All Heat-Not-Burn Sticks — Full Catalog",
@@ -36,23 +37,26 @@ export const metadata: Metadata = {
 };
 
 /**
- * Discover — server-rendered shelf.
+ * Discover — server-rendered shelf, loaded in batches.
  *
- * The catalog and categories are read on the server (isolate-cached) and
- * handed to the client island as card projections. This removes the old
- * first-paint spinner + full-catalog API waterfall entirely: HTML arrives
- * with the grid already rendered (crawlable, LCP-ready), and the client
- * island only handles filter/sort/load-more interactions over the
- * in-memory projection.
+ * The FIRST 16 products and their total come from one paginated catalog
+ * read (cached 10s) and render straight in the HTML — crawlable, LCP-ready.
+ * The client island fetches every further batch from
+ * /api/v1/catalog/products on demand (Load more / sort / availability), so
+ * the page no longer serializes the ENTIRE catalog into every request —
+ * the heaviest storefront render and a Workers 1102 contributor.
  */
 export default async function DiscoverPage() {
-  const [items, categories] = await Promise.all([getProducts(), getCategories()]);
-  const cardItems = toCardItems(items);
+  const [shelf, categories] = await Promise.all([
+    listProducts({ page: 1, pageSize: 16 }),
+    getCategories(),
+  ]);
+  const cardItems = toCardItems(shelf.items);
   return (
     <>
       {/* ItemList rich result — sibling shelf pages carry the same graph. */}
       <JsonLd data={itemListJsonLd(cardItems, "Full TereaCOD catalog — TEREA sticks and IQOS devices UAE")} />
-      <DiscoverView initialItems={cardItems} initialCategories={categories} />
+      <DiscoverView initialItems={cardItems} total={shelf.total} initialCategories={categories} />
     </>
   );
 }

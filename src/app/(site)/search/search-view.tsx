@@ -33,7 +33,7 @@ interface ResultsState {
   hasMore: boolean;
 }
 
-export function SearchView() {
+export function SearchView({ initialCategories = [] }: { initialCategories?: CatalogCategory[] }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialQ = (searchParams.get("q") ?? "").trim();
@@ -50,7 +50,7 @@ export function SearchView() {
     hasMore: false,
   });
   const [retryTick, setRetryTick] = useState(0);
-  const [categories, setCategories] = useState<CatalogCategory[]>([]);
+  const categories = initialCategories;
   const [activeSuggestion, setActiveSuggestion] = useState(-1);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -64,23 +64,6 @@ export function SearchView() {
 
   const categoryName = (slug: string) =>
     categories.find((c) => c.slug === slug)?.name ?? slug.replace(/-/g, " ");
-
-  // Popular-collection chips + suggestion labels resolve through the
-  // catalog service (no direct @/data imports in client views).
-  useEffect(() => {
-    let cancelled = false;
-    catalogService
-      .categories()
-      .then((cats) => {
-        if (!cancelled) setCategories(cats);
-      })
-      .catch(() => {
-        if (!cancelled) setCategories([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   // Sync the input into the URL (q param) on a short debounce. A new
   // committed query always restarts from the first Load more batch.

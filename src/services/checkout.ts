@@ -9,6 +9,7 @@ import type {
 import { DELIVERY_METHODS, FREE_DELIVERY_THRESHOLD, type DeliveryFeeConfigOverride } from "@/services/cart";
 import { placedOrdersService } from "@/services/placed-orders";
 import { formatAED } from "@/lib/utils";
+import { create } from "zustand";
 
 /**
  * CHECKOUT SERVICE (API-backed)
@@ -101,15 +102,36 @@ interface CheckoutConfigResponse {
   };
 }
 
-let deliveryConfigCache: CheckoutDeliveryConfig | null = null;
+/**
+ * Delivery-config store — seeded by the page bootstrap (the config rides in
+ * the /api/v1/bootstrap payload) so /cart and /checkout render admin-edited
+ * fees with ZERO extra requests. `fetchCheckoutConfig` still exists as the
+ * fallback for a failed bootstrap (legacy deployments / offline recovery).
+ */
+interface DeliveryConfigState {
+  config: CheckoutDeliveryConfig;
+  seeded: boolean;
+}
+
+export const useDeliveryConfig = create<DeliveryConfigState>(() => ({
+  config: DEFAULT_DELIVERY_CONFIG,
+  seeded: false,
+}));
+
+/** Bootstrap hook — seeds the store from the single bootstrap payload. */
+export function seedDeliveryConfig(config: CheckoutDeliveryConfig): void {
+  useDeliveryConfig.setState({ config, seeded: true });
+}
 
 /**
  * GET /api/v1/checkout/config — the admin-editable delivery fees and
- * free-shipping threshold. Successful responses are cached for the session;
- * any failure falls back to the built-in constants.
+ * free-shipping threshold. The bootstrap-seeded store answers first (no
+ * network); the API call remains only as the fallback when the page was
+ * loaded without a successful bootstrap.
  */
 export async function fetchCheckoutConfig(): Promise<CheckoutDeliveryConfig> {
-  if (deliveryConfigCache) return deliveryConfigCache;
+  const state = useDeliveryConfig.getState();
+  if (state.seeded) return state.config;
   try {
     const response = await fetch("/api/v1/checkout/config", {
       headers: { accept: "application/json" },
@@ -126,16 +148,17 @@ export async function fetchCheckoutConfig(): Promise<CheckoutDeliveryConfig> {
         isMethodInfo(standard) &&
         isMethodInfo(express)
       ) {
-        deliveryConfigCache = {
+        const config: CheckoutDeliveryConfig = {
           freeThreshold: delivery.freeThreshold,
           methods: { standard, express },
         };
+        seedDeliveryConfig(config);
       }
     }
   } catch {
     // Offline or API unavailable — the built-in defaults stand.
   }
-  return deliveryConfigCache ?? DEFAULT_DELIVERY_CONFIG;
+  return useDeliveryConfig.getState().config;
 }
 
 /**

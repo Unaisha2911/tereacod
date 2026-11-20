@@ -137,9 +137,15 @@ function mapNav(row: Record<string, unknown>): NavigationItem {
 async function navAll(): Promise<Map<string, NavigationItem[]>> {
   return cached("settings:nav-all", CACHE_TTL.nav, async () => {
     const db = await getDb();
-    const rows = await db.all<Record<string, unknown>>(
-      `SELECT * FROM navigation_items WHERE enabled = 1 ORDER BY sort_order`
-    );
+    // LAYOUT-CRITICAL GUARD: the (site) layout renders every storefront page
+    // through this read. A missing navigation_items table (pending remote
+    // migration) or a transient D1 error must degrade to empty chrome —
+    // never abort the render, or EVERY page dies with React #441 / CF 1102.
+    const rows = await db
+      .all<Record<string, unknown>>(
+        `SELECT * FROM navigation_items WHERE enabled = 1 ORDER BY sort_order`
+      )
+      .catch(() => []);
     const byLocation = new Map<string, NavigationItem[]>();
     for (const row of rows) {
       const location = row.location as string;

@@ -7,7 +7,8 @@ import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { CatalogBrowser } from "@/components/shared/catalog-browser";
 import { toCardItems } from "@/lib/catalog-card";
 import { SeoContent } from "@/components/shared/seo-content";
-import { getCategoryBySlugRepo, getProducts } from "@/server/data";
+import { getCategoryBySlugRepo } from "@/server/data";
+import { listProducts } from "@/server/repos/catalog";
 import { ORIGIN_LINES } from "@/lib/catalog-origin";
 import { breadcrumbJsonLd, canonical, itemListJsonLd, JsonLd, siteUrl } from "@/lib/seo";
 
@@ -32,9 +33,13 @@ export async function generateMetadata({ params }: CollectionPageProps): Promise
       robots: { index: false, follow: false },
     };
   }
-  const items = (await getProducts()).filter((item) => item.categorySlug === category.slug);
-  const title = `${category.name} UAE — Browse ${items.length} products`;
-  const description = `${category.description} Shop ${items.length} ${category.name.toLowerCase()} delivered UAE-wide from Dubai — AED pricing, freshness-sealed stock and UAE-wide delivery from Dubai.`;
+  // Same paginated read the page body renders — the isolate cache dedupes
+  // both executions into ONE catalog query (the former getProducts()
+  // hydrate loaded EVERY product twice per request just to filter by slug
+  // in JS and read .length).
+  const shelf = await listProducts({ categorySlug: category.slug, page: 1, pageSize: 16 });
+  const title = `${category.name} UAE — Browse ${shelf.total} products`;
+  const description = `${category.description} Shop ${shelf.total} ${category.name.toLowerCase()} delivered UAE-wide from Dubai — AED pricing, freshness-sealed stock and UAE-wide delivery from Dubai.`;
   return {
     title,
     description,
@@ -78,7 +83,11 @@ export default async function CollectionPage({ params }: CollectionPageProps) {
   const category = await getCategoryBySlugRepo(slug);
   if (!category) notFound();
 
-  const items = (await getProducts()).filter((item) => item.categorySlug === category.slug);
+  // FIRST 16 server-rendered (one category-scoped catalog query + its
+  // hydrate, cached 10s); the CatalogBrowser fetches later batches from
+  // /api/v1/catalog/products on demand. Nothing loads the whole shelf.
+  const shelf = await listProducts({ categorySlug: category.slug, page: 1, pageSize: 16 });
+  const items = shelf.items;
 
   return (
     <section className="relative">
@@ -110,7 +119,7 @@ export default async function CollectionPage({ params }: CollectionPageProps) {
           <p className="pt-4 text-lead text-muted-foreground">{category.longDescription ?? category.description}</p>
           <div className="flex flex-wrap items-center gap-2 pt-6">
             <span className="inline-flex min-h-9 items-center rounded-full border border-line bg-elevated/45 px-3.5 text-[0.8rem] text-muted-foreground">
-              {items.length} {items.length === 1 ? "product" : "products"}
+              {shelf.total} {shelf.total === 1 ? "product" : "products"}
             </span>
             <span className="inline-flex min-h-9 items-center rounded-full border border-line bg-elevated/45 px-3.5 text-[0.8rem] text-muted-foreground">
               Multiple origin lines
@@ -135,7 +144,9 @@ export default async function CollectionPage({ params }: CollectionPageProps) {
         </header>
 
         <CatalogBrowser
-          items={toCardItems(items)}
+          initialItems={toCardItems(items)}
+          total={shelf.total}
+          query={{ collection: category.slug }}
           showOriginFilter
           originFilterContext={{ collection: category.slug }}
           emptyTitle="Nothing in this collection yet"

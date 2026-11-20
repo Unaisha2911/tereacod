@@ -92,59 +92,88 @@ async function hydrate(rows: ProductRow[]): Promise<CatalogItem[]> {
   const ids = rows.map((r) => r.id);
   const placeholders = ids.map(() => "?").join(",");
 
+  // DEGRADED-READ PATTERN: every child fan-out read is individually guarded.
+  // A deployment whose remote D1 is missing a table (pending migration) or a
+  // transient D1 failure must degrade to "fewer card details", NEVER abort
+  // the whole hydrate — an unguarded throw here crashes EVERY storefront
+  // view (list, detail, cart mirror) with React error #441 / CF 1102.
   const [imageRows, variantRows, groupRows, faqRows, relatedRows, ratingRows] = await Promise.all([
-    db.all<{ product_id: string; url: string; alt: string | null }>(
-      `SELECT pi.product_id, m.url, pi.alt
+    db
+      .all<{ product_id: string; url: string; alt: string | null }>(
+        `SELECT pi.product_id, m.url, pi.alt
        FROM product_images pi JOIN media_assets m ON m.id = pi.media_asset_id
        WHERE pi.product_id IN (${placeholders})
        ORDER BY pi.product_id, pi.position`,
-      ids
-    ),
-    db.all<{
-      id: string;
-      product_id: string;
-      label: string;
-      type: string;
-      swatch: string | null;
-      meta: string | null;
-      available: number;
-      price_delta_cents: number;
-      image_url: string | null;
-    }>(
-      `SELECT pv.id, pv.product_id, pv.label, pv.type, pv.swatch, pv.meta,
+        ids
+      )
+      .catch((): Array<{ product_id: string; url: string; alt: string | null }> => []),
+    db
+      .all<{
+        id: string;
+        product_id: string;
+        label: string;
+        type: string;
+        swatch: string | null;
+        meta: string | null;
+        available: number;
+        price_delta_cents: number;
+        image_url: string | null;
+      }>(
+        `SELECT pv.id, pv.product_id, pv.label, pv.type, pv.swatch, pv.meta,
               pv.available, pv.price_delta_cents, m.url AS image_url
        FROM product_variants pv
        LEFT JOIN media_assets m ON m.id = pv.image_media_id
        WHERE pv.product_id IN (${placeholders}) ORDER BY pv.product_id, pv.position`,
-      ids
-    ),
-    db.all<{ id: string; product_id: string; title: string; label: string; value: string }>(
-      `SELECT g.id, g.product_id, g.title, e.label, e.value
+        ids
+      )
+      .catch(
+        (): Array<{
+          id: string;
+          product_id: string;
+          label: string;
+          type: string;
+          swatch: string | null;
+          meta: string | null;
+          available: number;
+          price_delta_cents: number;
+          image_url: string | null;
+        }> => []
+      ),
+    db
+      .all<{ id: string; product_id: string; title: string; label: string; value: string }>(
+        `SELECT g.id, g.product_id, g.title, e.label, e.value
        FROM product_spec_groups g
        JOIN product_spec_entries e ON e.group_id = g.id
        WHERE g.product_id IN (${placeholders})
        ORDER BY g.product_id, g.position, e.position`,
-      ids
-    ),
-    db.all<{ product_id: string; question: string; answer: string }>(
-      `SELECT product_id, question, answer FROM product_faqs
+        ids
+      )
+      .catch((): Array<{ id: string; product_id: string; title: string; label: string; value: string }> => []),
+    db
+      .all<{ product_id: string; question: string; answer: string }>(
+        `SELECT product_id, question, answer FROM product_faqs
        WHERE product_id IN (${placeholders}) ORDER BY product_id, position`,
-      ids
-    ),
-    db.all<{ product_id: string; slug: string }>(
-      `SELECT r.product_id, p.slug FROM product_related r
+        ids
+      )
+      .catch((): Array<{ product_id: string; question: string; answer: string }> => []),
+    db
+      .all<{ product_id: string; slug: string }>(
+        `SELECT r.product_id, p.slug FROM product_related r
        JOIN products p ON p.id = r.related_product_id
        WHERE r.product_id IN (${placeholders}) ORDER BY r.product_id, r.position`,
-      ids
-    ),
+        ids
+      )
+      .catch((): Array<{ product_id: string; slug: string }> => []),
     // Owner-curated ratings (product_ratings, migration 0008). The .catch
     // keeps pre-migration deployments rendering: a missing table resolves
     // to "every product unrated" instead of failing the whole hydrate.
-    db.all<{ product_id: string; rating_value: number; rating_count: number }>(
-      `SELECT product_id, rating_value, rating_count
+    db
+      .all<{ product_id: string; rating_value: number; rating_count: number }>(
+        `SELECT product_id, rating_value, rating_count
        FROM product_ratings WHERE product_id IN (${placeholders})`,
-      ids
-    ).catch((): Array<{ product_id: string; rating_value: number; rating_count: number }> => []),
+        ids
+      )
+      .catch((): Array<{ product_id: string; rating_value: number; rating_count: number }> => []),
   ]);
 
   const ratingsBy = new Map<string, { value: number; count: number }>();
@@ -380,6 +409,67 @@ export async function brandItemCounts(): Promise<Record<string, number>> {
   });
 }
 
+/**
+ * Published product count — ONE cached COUNT query. Replaces the former
+ * full-catalog hydration (products + 5 child queries + JSON parsing) that
+ * pages ran just to render "N products" in a sentence (collections index,
+ * about page). CPU/memory on Workers drops from O(catalog) to O(1).
+ */
+export async function publishedProductCount(): Promise<number> {
+  return cached("catalog:published-count", CACHE_TTL.taxonomy, async () => {
+    const db = await getDb();
+    const row = await db.get<{ count: number }>(
+      `SELECT COUNT(*) AS count FROM products WHERE published_at IS NOT NULL`
+    );
+    return row?.count ?? 0;
+  });
+}
+
+/**
+ * Facet counts WITHIN one origin line — which collections/brands hold at
+ * least one product on this line. Two GROUP BY COUNT queries (cached 60s),
+ * replacing the former full-catalog hydrate + JS grouping. The origin
+ * filter mirrors listProducts exactly (product-level origin OR per-origin
+ * variant labels), so chip counts always agree with the shelf.
+ */
+export async function originFacetCounts(
+  originLine: string
+): Promise<{
+  collections: Array<{ slug: string; count: number }>;
+  brands: Array<{ slug: string; count: number }>;
+}> {
+  return cached(`catalog:origin-facets:${originLine}`, CACHE_TTL.taxonomy, async () => {
+    const db = await getDb();
+    const originWhere = `(p.origin = ? OR EXISTS (
+         SELECT 1 FROM product_variants pv
+         WHERE pv.product_id = p.id AND pv.type = 'origin'
+           AND (LOWER(pv.label) = LOWER(?) OR pv.label LIKE '%' || ? || '%')
+       ))`;
+    const params = [originLine, originLine, originLine];
+    const [collectionRows, brandRows] = await Promise.all([
+      db
+        .all<{ slug: string; count: number }>(
+          `SELECT c.slug, COUNT(*) AS count FROM products p
+           JOIN categories c ON c.id = p.category_id
+           WHERE p.published_at IS NOT NULL AND ${originWhere}
+           GROUP BY c.id ORDER BY count DESC`,
+          params
+        )
+        .catch(() => [] as Array<{ slug: string; count: number }>),
+      db
+        .all<{ slug: string; count: number }>(
+          `SELECT b.slug, COUNT(*) AS count FROM products p
+           JOIN brands b ON b.id = p.brand_id
+           WHERE p.published_at IS NOT NULL AND ${originWhere}
+           GROUP BY b.id ORDER BY count DESC`,
+          params
+        )
+        .catch(() => [] as Array<{ slug: string; count: number }>),
+    ]);
+    return { collections: collectionRows, brands: brandRows };
+  });
+}
+
 /* -------------------------------- products ------------------------------- */
 
 const SELECT_PRODUCT = `
@@ -569,17 +659,30 @@ export async function listProducts(query: CatalogQueryInput = {}): Promise<Pagin
 
   // Resolve the effective mode: probe FTS first, fall back to LIKE when it
   // matches nothing. (The probe doubles as the COUNT for the fts path.)
+  // PROBE GUARD: an FTS failure (pending remote migration → missing
+  // product_fts table, transient D1 error) must switch to the LIKE path,
+  // never abort the render — same degraded-read rule as hydrate().
   let total = 0;
+  let ftsHealthy = true;
   if (mode === "fts") {
-    const probe = buildFilter("fts");
-    const row = await db.get<{ count: number }>(
-      `SELECT COUNT(*) AS count FROM products p
+    try {
+      const probe = buildFilter("fts");
+      const row = await db.get<{ count: number }>(
+        `SELECT COUNT(*) AS count FROM products p
        JOIN brands b ON b.id = p.brand_id
        JOIN categories c ON c.id = p.category_id
        WHERE ${probe.whereSql}`,
-      probe.params
-    );
-    total = row?.count ?? 0;
+        probe.params
+      );
+      total = row?.count ?? 0;
+    } catch (error) {
+      ftsHealthy = false;
+      mode = "like"; // skip the FTS fragments entirely for this request
+      console.error(
+        "[catalog] FTS probe failed — falling back to LIKE scan:",
+        error instanceof Error ? error.message : error
+      );
+    }
     if (total === 0) mode = "like";
   }
 
@@ -599,11 +702,15 @@ export async function listProducts(query: CatalogQueryInput = {}): Promise<Pagin
   // bm25-ordered: name hits outrank keyword hits, keyword hits outrank
   // tagline/description hits. Any explicit sort (price, newest, name) keeps
   // its own ordering; the FTS filter still decides WHAT matches.
-  const relevance = mode !== "none" && sortKey === "featured";
+  // RELEVANCE GUARD: the bm25 SELECT joins the FTS tables directly, so a
+  // pending remote migration (missing product_fts) would throw here — fall
+  // back to the plain SELECT instead of failing the search render.
+  const relevance = mode !== "none" && sortKey === "featured" && ftsHealthy;
 
   const rows = relevance
-    ? await db.all<ProductRow>(
-        `SELECT p.*, b.name AS brand_name, c.slug AS category_slug,
+    ? await db
+        .all<ProductRow>(
+          `SELECT p.*, b.name AS brand_name, c.slug AS category_slug,
            (
              SELECT COALESCE(SUM(iv.qty_on_hand - iv.qty_reserved), 0)
              FROM inventory iv WHERE iv.product_id = p.id
@@ -619,8 +726,18 @@ export async function listProducts(query: CatalogQueryInput = {}): Promise<Pagin
          WHERE ${buildFilter(mode, true).whereSql}
          ORDER BY search_rank ASC, p.is_featured DESC, p.published_at DESC, p.name ASC
          LIMIT ? OFFSET ?`,
-        [...buildFilter(mode, true).params, pageSize, (page - 1) * pageSize]
-      )
+          [...buildFilter(mode, true).params, pageSize, (page - 1) * pageSize]
+        )
+        .catch(async (error: unknown) => {
+          console.error(
+            "[catalog] bm25 relevance SELECT failed — falling back to plain listing:",
+            error instanceof Error ? error.message : error
+          );
+          return db.all<ProductRow>(
+            `${SELECT_PRODUCT} WHERE ${filter.whereSql} ORDER BY ${SORT_SQL[sortKey]} LIMIT ? OFFSET ?`,
+            [...filter.params, pageSize, (page - 1) * pageSize]
+          );
+        })
     : await db.all<ProductRow>(
         `${SELECT_PRODUCT} WHERE ${filter.whereSql} ORDER BY ${SORT_SQL[sortKey]} LIMIT ? OFFSET ?`,
         [...filter.params, pageSize, (page - 1) * pageSize]
@@ -780,9 +897,14 @@ export async function suggestProducts(partial: string, limit = 6): Promise<Sugge
   // pipeline (COUNT + page + 5 hydration queries = 7 round trips) to return
   // 6 names for the highest-QPS public endpoint. bm25 ordering (name-weighted)
   // puts the closest title match first instead of alphabetical order.
+  // GUARD: on an FTS failure (pending remote migration / transient D1 error)
+  // fall back to a plain prefix scan — suggestions are a nice-to-have and
+  // must never surface as a failed request (the search page treats suggest
+  // failures as a broken combobox otherwise).
   const db = await getDb();
-  return db.all<Suggestion>(
-    `SELECT p.slug, p.name, b.name AS brand, c.slug AS category
+  try {
+    return await db.all<Suggestion>(
+      `SELECT p.slug, p.name, b.name AS brand, c.slug AS category
      FROM product_fts_idx
      JOIN product_fts ON product_fts.rowid = product_fts_idx.rowid
      JOIN products p ON p.id = product_fts.product_id
@@ -792,8 +914,26 @@ export async function suggestProducts(partial: string, limit = 6): Promise<Sugge
      ORDER BY bm25(product_fts_idx, 10.0, 4.0, 4.0, 1.0, 8.0) ASC,
               p.is_featured DESC, p.name ASC
      LIMIT ?`,
-    [ftsQuery(trimmed), limit]
-  );
+      [ftsQuery(trimmed), limit]
+    );
+  } catch (error) {
+    console.error(
+      "[catalog] FTS suggest failed — falling back to LIKE scan:",
+      error instanceof Error ? error.message : error
+    );
+    const like = `%${trimmed.replace(/[%_]/g, "")}%`;
+    return db.all<Suggestion>(
+      `SELECT p.slug, p.name, b.name AS brand, c.slug AS category
+       FROM products p
+       JOIN brands b ON b.id = p.brand_id
+       JOIN categories c ON c.id = p.category_id
+       WHERE p.published_at IS NOT NULL
+         AND (p.name LIKE ? OR p.keywords LIKE ? OR b.name LIKE ?)
+       ORDER BY p.is_featured DESC, p.name ASC
+       LIMIT ?`,
+      [like, like, like, limit]
+    );
+  }
 }
 
 export async function allProductSlugs(): Promise<Array<{ slug: string; updated_at: string }>> {

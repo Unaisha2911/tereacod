@@ -19,12 +19,13 @@ import type {
 import {
   listBrands,
   listCategories,
-  listAllPublishedProducts,
   listProducts,
   getProduct,
   getBrand as getBrandBySlug,
   getCategory as getCategoryBySlug,
   brandItemCounts,
+  publishedProductCount,
+  originFacetCounts,
 } from "@/server/repos/catalog";
 import {
   getSiteSettings,
@@ -80,13 +81,6 @@ export function getCategoryBySlugRepo(slug: string): Promise<CatalogCategory | n
   return getCategoryBySlug(slug);
 }
 
-export async function getProducts(): Promise<CatalogItem[]> {
-  // Single products query + one hydration fan-out (cached 10s at the repo).
-  // Replaces the former page-by-page drain through listProducts — that was
-  // 7 D1 round trips per 48-row page, executed serially on every request.
-  return listAllPublishedProducts();
-}
-
 export function getProductBySlug(slug: string): Promise<CatalogItem | null> {
   return getProduct(slug);
 }
@@ -103,9 +97,13 @@ export function getBrandItemCounts(): Promise<Record<string, number>> {
   return brandItemCounts();
 }
 
-/** Catalog items for a brand landing page (featured-first, full page). */
-export async function getBrandItems(slug: string): Promise<CatalogItem[]> {
-  const page = await listProducts({ brandSlug: slug, pageSize: 48, page: 1 });
-  return page.items;
+/** Published catalog size — one cached COUNT (never hydrate the catalog for a count). */
+export function getPublishedProductCount(): Promise<number> {
+  return publishedProductCount();
+}
+
+/** Collections/brands holding products on one origin line — cached GROUP BY counts. */
+export function getOriginFacetCounts(originLine: string) {
+  return originFacetCounts(originLine);
 }
 

@@ -2,14 +2,16 @@
  * CLIENT BOOTSTRAP — one request to hydrate everything.
  * -----------------------------------------------------
  * hydrateFromServer() fetches GET /api/v1/bootstrap ONCE per page load and
- * fills the auth store, the cart store, the WhatsApp number and the client
- * catalog mirror (the cart payload already carries its products) from the
- * single payload. Saved-items hydration follows only for signed-in users.
+ * fills the auth store, the cart store, the WhatsApp number, the delivery
+ * config (cart/checkout fee estimates) and the client catalog mirror (the
+ * cart payload already carries its products) from the single payload. For
+ * signed-in users the saved-items list rides in the same payload — there is
+ * no separate per-page request at all.
  *
- * Request budget per page load:
- *   guest, no cart cookie :  1 request  (was 3)
- *   guest with cart       :  1 request  (was 3 + catalog subset)
- *   signed-in             :  2 requests (was 4-5 + catalog subset)
+ * Request budget per page load (every public page):
+ *   guest                 :  1 request  (zero D1 queries server-side)
+ *   guest with cart       :  1 request
+ *   signed-in             :  1 request  (saved items included)
  *
  * If the bootstrap endpoint is unreachable (old deployment mid-release,
  * network blip) the legacy parallel fan-out — auth/session + cart +
@@ -19,18 +21,30 @@
 
 import { useAuth } from "@/services/account";
 import { useCart, cartLineKey } from "@/services/cart";
-import { hydrateSavedItemsFromServer } from "@/services/saved-items";
+import { hydrateSavedItemsFromServer, useSavedItems } from "@/services/saved-items";
 import { setWhatsAppNumber } from "@/services/whatsapp";
+import { seedDeliveryConfig } from "@/services/checkout";
 import { ensureCatalogSubset, seedCatalog } from "@/lib/client-catalog";
 import { fetchJsonWithRetry } from "@/lib/client-fetch";
-import type { CartDetail, CartLine, UserProfile } from "@/types";
+import type { CartDetail, CartLine, SavedItem, UserProfile } from "@/types";
+
+/** The client-shaped delivery config the bootstrap payload carries. */
+interface DeliveryConfigPayload {
+  freeThreshold: number;
+  methods: {
+    standard: { label: string; fee: number; eta: string };
+    express: { label: string; fee: number; eta: string };
+  };
+}
 
 interface BootstrapPayload {
   user: UserProfile | null;
   isStaff: boolean;
   lines: CartLine[];
   detail: CartDetail | null;
+  saved?: SavedItem[];
   whatsapp: string | null;
+  delivery?: DeliveryConfigPayload;
   cartCookiePresent: boolean;
   cookieName: string;
 }
@@ -81,8 +95,38 @@ export async function hydrateFromServer(): Promise<void> {
       // WhatsApp number from the same payload (admin-managed site setting).
       if (payload.whatsapp) setWhatsAppNumber(payload.whatsapp);
 
-      // Saved items — signed-in only; guests skip the request entirely.
-      await hydrateSavedItemsFromServer(Boolean(payload.user));
+      // Delivery config — seeds the checkout/cart fee store so those pages
+      // never need GET /checkout/config on load. The payload carries the
+      // client shape verbatim (converted server-side from the fils config).
+      if (payload.delivery) seedDeliveryConfig(payload.delivery);
+
+      // Saved items — from the SAME payload for signed-in users (zero extra
+      // requests). Guests hydrate instantly (empty). Only the guest→account
+      // push of locally-bookmarked ids still talks to /account/saved, and
+      // only when the visitor actually has local bookmarks.
+      const savedItems = Array.isArray(payload.saved) ? payload.saved : null;
+      if (savedItems && payload.user) {
+        const localIds = useSavedItems
+          .getState()
+          .items.filter((i) => !savedItems.some((s) => s.itemId === i.itemId))
+          .map((i) => i.itemId);
+        // Locally-saved (guest) ids are pushed BEFORE the server list
+        // replaces local state — otherwise anything bookmarked while
+        // signed out is destroyed.
+        await Promise.all(
+          localIds.map((itemId) =>
+            fetch("/api/v1/account/saved", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ productId: itemId }),
+            }).catch(() => undefined)
+          )
+        );
+        useSavedItems.getState().setItems(savedItems);
+        useSavedItems.getState().setHydrated();
+      } else {
+        await hydrateSavedItemsFromServer(Boolean(payload.user));
+      }
       return;
     }
   } catch {

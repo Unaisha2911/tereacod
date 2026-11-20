@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Link } from "@/components/shared/shop-link";
 import { Minus, Plus, ShoppingBag, Trash2, Truck } from "lucide-react";
 import { PageHeading } from "@/components/layout/page-heading";
@@ -14,10 +13,8 @@ import { cartService, deliveryFeeFor, useCart } from "@/services/cart";
 import { UspStrip } from "@/components/shared/usp-strip";
 import { useCatalogReady } from "@/lib/client-catalog";
 import {
-  DEFAULT_DELIVERY_CONFIG,
-  fetchCheckoutConfig,
   toDeliveryFeeOverride,
-  type CheckoutDeliveryConfig,
+  useDeliveryConfig,
 } from "@/services/checkout";
 import { WhatsAppOrderButton } from "@/components/shared/whatsapp-order-button";
 import { composeCartMessage, openWhatsApp } from "@/services/whatsapp";
@@ -31,17 +28,10 @@ export function CartView() {
   const hydrated = useCart((s) => s.hydrated);
   const { toast } = useToast();
 
-  // Admin-editable delivery fees — fall back to the built-in constants.
-  const [deliveryConfig, setDeliveryConfig] = useState<CheckoutDeliveryConfig>(DEFAULT_DELIVERY_CONFIG);
-  useEffect(() => {
-    let cancelled = false;
-    fetchCheckoutConfig().then((next) => {
-      if (!cancelled) setDeliveryConfig(next);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  // Admin-editable delivery fees — seeded by the page bootstrap (the config
+  // rides in /api/v1/bootstrap), so no per-mount config request. Until the
+  // bootstrap resolves, the built-in constants estimate correctly.
+  const deliveryConfig = useDeliveryConfig((s) => s.config);
 
   const cart = cartService.getCartDetail(lines);
   const { totals, hasBlocked } = cart;

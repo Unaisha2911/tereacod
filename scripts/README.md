@@ -50,12 +50,34 @@ bun run db:seed:kv:remote      # 5. settings documents → Workers KV
 seed content — a bootstrap tool, not a merge tool. The exported artifacts
 embed the admin password hash and are gitignored (`mode 0600`).
 
+## Creating the ratings table on a LIVE remote (no seed data)
+
+When the remote D1 already holds a live, admin-authored catalog, the only
+schema piece migration 0008 adds that the storefront and admin console
+need is the `product_ratings` TABLE itself. This flow creates exactly
+that — no rating rows are pushed, nothing else is touched:
+
+```bash
+bun run db:ratings:table          # generate scripts/ratings-table.sql (inspect first)
+bun run db:ratings:table:remote   # create the table on remote D1 (idempotent)
+```
+
+- The DDL is verbatim from `migrations/0008_product_ratings.sql` and uses
+  `CREATE TABLE IF NOT EXISTS` — safe to re-run, no migration-tracking
+  side effects.
+- NO seed rating rows are inserted. Ratings for the live catalog are
+  authored per product in the admin console (product editor); unrated
+  products simply render unrated.
+- Nothing else is read or written — products, orders, settings,
+  navigation and every other remote table stay untouched.
+
 ## Other tooling
 
 | File | Purpose | npm script |
 | --- | --- | --- |
 | `seed.ts` | The single seed — see above. | `db:seed`, `db:seed:reset` |
 | `export-d1-seed.ts` | Turns the seeded local DB into Cloudflare deploy artifacts: `scripts/seed-d1.sql` + `scripts/seed-kv/*.json` (gitignored — they embed the admin password hash). | `db:seed:export` |
+| `ratings-table.ts` | product_ratings TABLE-ONLY creator for a live remote — idempotent `CREATE TABLE IF NOT EXISTS`, no rows, no seed data, nothing else touched. | `db:ratings:table`, `db:ratings:table:remote` |
 | `kv-remote.ts` | Applies `scripts/seed-kv/*.json` to the Workers KV `SETTINGS` binding. | `db:seed:kv:remote` |
 | `media-sync-remote.ts` | Uploads locally-stored media bytes (`public/uploads/` + `media_blobs`) to the production R2 bucket so seeded/uploaded media URLs resolve remotely. | — |
 | `admin-password.ts` | Verify / reset the admin password hash. `verify` reads the remote hash from stdin (wrangler JSON) or `--hash`; `set` writes `db/set-admin-password.sql` for one surgical remote UPDATE. Mirrors `src/server/password.ts` exactly. | `admin:password:verify`, `admin:password:set`, `admin:password:set:remote` |

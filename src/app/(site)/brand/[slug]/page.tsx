@@ -8,7 +8,8 @@ import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { CatalogBrowser } from "@/components/shared/catalog-browser";
 import { toCardItems } from "@/lib/catalog-card";
 import { SeoContent } from "@/components/shared/seo-content";
-import { getBrandBySlugRepo, getBrandItems, getBrandItemCounts } from "@/server/data";
+import { getBrandBySlugRepo } from "@/server/data";
+import { brandItemCounts, listProducts } from "@/server/repos/catalog";
 import { ORIGIN_LINES } from "@/lib/catalog-origin";
 import { breadcrumbJsonLd, canonical, itemListJsonLd, JsonLd, siteUrl } from "@/lib/seo";
 import type { Brand } from "@/types";
@@ -36,7 +37,7 @@ export async function generateMetadata({ params }: BrandPageProps): Promise<Meta
   // One cached COUNT query — the former path loaded the FULL published
   // catalog (a products query + 5 hydration queries per cold render) just
   // to count one brand's items in memory.
-  const count = (await getBrandItemCounts())[slug] ?? 0;
+  const count = (await brandItemCounts())[slug] ?? 0;
   const title = `${brand.name} UAE — ${count} product${count === 1 ? "" : "s"} in stock`;
   const description = `${brand.name} — ${brand.tagline}. ${brand.blurb} Authenticity-checked stock, AED pricing and UAE-wide delivery from the TereaCOD Dubai warehouse.`;
   return {
@@ -83,8 +84,11 @@ export default async function BrandPage({ params }: BrandPageProps) {
   if (!brand) notFound();
 
   const accent = BRAND_ACCENT_SKY[brand.accent];
-  // Brand items come back featured-first (shared catalog sort).
-  const items = await getBrandItems(slug);
+  // FIRST 16 server-rendered (one brand-scoped catalog query, cached 10s);
+  // the CatalogBrowser fetches later batches on demand. The former
+  // getBrandItems() hydrated up to 48 products per request up front.
+  const shelf = await listProducts({ brandSlug: slug, page: 1, pageSize: 16 });
+  const items = shelf.items;
 
   return (
     <PageContainer width="default" className="pb-16 sm:pb-24">
@@ -120,7 +124,7 @@ export default async function BrandPage({ params }: BrandPageProps) {
             <li className={chipClass}>{brand.origin}</li>
             <li className={chipClass}>est. {brand.established}</li>
             <li className={chipClass}>
-              {items.length} {items.length === 1 ? "product" : "products"}
+              {shelf.total} {shelf.total === 1 ? "product" : "products"}
             </li>
           </ul>
         </div>
@@ -139,12 +143,14 @@ export default async function BrandPage({ params }: BrandPageProps) {
             <span style={{ color: accent }}>{brand.name}</span>
           </h2>
           <p className="mt-2 text-legal text-muted-foreground">
-            {items.length} listings · authenticity-checked stock · AED pricing
+            {shelf.total} listings · authenticity-checked stock · AED pricing
           </p>
         </RevealSection>
         <div className="mt-8">
           <CatalogBrowser
-            items={toCardItems(items)}
+            initialItems={toCardItems(items)}
+            total={shelf.total}
+            query={{ brand: brand.slug }}
             showOriginFilter
             originFilterContext={{ brand: brand.slug }}
             emptyTitle={`No ${brand.name} products listed yet`}

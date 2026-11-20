@@ -27,11 +27,9 @@ import { cartService, deliveryFeeFor, useCart } from "@/services/cart";
 import { UspStrip } from "@/components/shared/usp-strip";
 import { useCatalogReady } from "@/lib/client-catalog";
 import {
-  DEFAULT_DELIVERY_CONFIG,
   checkoutService,
-  fetchCheckoutConfig,
   toDeliveryFeeOverride,
-  type CheckoutDeliveryConfig,
+  useDeliveryConfig,
 } from "@/services/checkout";
 import { formatAED, cn } from "@/lib/utils";
 
@@ -89,17 +87,10 @@ export function CheckoutView() {
   const hydrated = useCart((s) => s.hydrated);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // Admin-editable delivery fees — fall back to the built-in constants.
-  const [config, setConfig] = useState<CheckoutDeliveryConfig>(DEFAULT_DELIVERY_CONFIG);
-  useEffect(() => {
-    let cancelled = false;
-    fetchCheckoutConfig().then((next) => {
-      if (!cancelled) setConfig(next);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  // Admin-editable delivery fees — seeded by the page bootstrap (the config
+  // rides in /api/v1/bootstrap), so no per-mount config request. Until the
+  // bootstrap resolves, the built-in constants estimate correctly.
+  const config = useDeliveryConfig((s) => s.config);
 
   // Coupon preview state.
   const [couponInput, setCouponInput] = useState("");

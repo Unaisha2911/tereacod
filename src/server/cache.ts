@@ -62,17 +62,21 @@ const MAX_ENTRY_BYTES = 2 * 1024 * 1024;
 const EXPIRED_RETENTION_MS = 15 * 60_000;
 
 /**
- * Cheap SHALLOW size estimate (no deep traversal — called on every set):
- * strings measure directly, arrays/objects estimate their own shell plus a
- * bounded sample of children. Good enough to bound memory; exactness is
- * not the goal.
+ * Cheap SHALLOW size estimate (called on every set): strings measure
+ * directly at ANY depth — they dominate real memory (a product description
+ * is one string), and the former depth-2 cutoff counted every nested string
+ * as 64 bytes, so hydrated catalog values estimated ~50× under their true
+ * footprint. The L1/L2 ceilings then admitted values that actually blew the
+ * isolate's ~128 MB budget — the error-1102 failure mode this budget exists
+ * to prevent. Container recursion stays bounded (depth cap + sampled
+ * children) so the estimate cost stays negligible.
  */
 function estimateSize(value: unknown, depth = 0): number {
   if (value === null || value === undefined) return 8;
   const type = typeof value;
   if (type === "string") return 2 * (value as string).length + 16;
   if (type === "number" || type === "boolean" || type === "bigint") return 16;
-  if (depth >= 2) return 64; // stop recursing — bounded estimate
+  if (depth >= 8) return 256; // stop recursing — bounded estimate
   if (Array.isArray(value)) {
     let size = 40;
     const sample = value.length > 64 ? 64 : value.length;

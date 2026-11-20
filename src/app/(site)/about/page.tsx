@@ -4,7 +4,7 @@ import { RevealSection } from "@/components/atmosphere/reveal-section";
 import { PageContainer, SectionContainer } from "@/components/layout/page-container";
 import { PageHeading } from "@/components/layout/page-heading";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { getSettings, getProducts } from "@/server/data";
+import { getSettings, getPublishedProductCount } from "@/server/data";
 import { canonical } from "@/lib/seo";
 
 export const metadata: Metadata = {
@@ -53,12 +53,15 @@ const TIMELINE: Array<{ year: string; title: string; body: string }> = [
 ];
 
 export default async function AboutPage() {
-  const [settings, products] = await Promise.all([getSettings(), getProducts()]);
+  // The "Products listed" stat is ONE cached COUNT query — the former
+  // getProducts() hydrated the whole catalog (6 queries + JSON parse) per
+  // request to read a single number.
+  const [settings, productCount] = await Promise.all([getSettings(), getPublishedProductCount()]);
 
   const STATS: Array<{ value: string; label: string }> = [
     { value: "2021", label: "Trading from Dubai since" },
     { value: "100%", label: "Authenticity-checked stock" },
-    { value: String(products.length), label: "Products listed" },
+    { value: String(productCount), label: "Products listed" },
     { value: "UAE-wide", label: "Delivery coverage" },
   ];
 

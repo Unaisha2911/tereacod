@@ -2,10 +2,11 @@ import { withApi, ok } from "@/server/api/guard";
 import { toUserProfile, getUserById } from "@/server/repos/users";
 import { isStaff } from "@/server/rbac";
 import { readCartToken } from "@/server/api/http";
-import { getActiveCart, getRawLines, buildCartDetail } from "@/server/repos/cart";
-import { getSiteSettings } from "@/server/repos/settings";
+import { getActiveCart, getRawLines, buildCartDetail, DELIVERY_METHOD_LABELS } from "@/server/repos/cart";
+import { getSiteSettings, getDeliveryConfig } from "@/server/repos/settings";
+import { listSavedItemIds } from "@/server/repos/users";
 import { CART_COOKIE } from "@/server/env";
-import type { CartDetail, CartLine, UserProfile } from "@/types";
+import type { CartDetail, CartLine, SavedItem, UserProfile } from "@/types";
 
 const EMPTY_DETAIL: CartDetail = {
   lines: [],
@@ -22,11 +23,16 @@ const EMPTY_DETAIL: CartDetail = {
  * identity/cart in D1, which doubled cart work and multiplied subrequests on
  * exactly the cold-isolate bursts that trip the Workers CPU limit. This
  * endpoint resolves the cart ONCE and returns identity + cart + WhatsApp
- * settings in a single payload; saved-items stay a separate signed-in-only
- * request (guests skip it entirely).
+ * settings in a single payload.
  *
- * Anonymous visitor with no cart cookie: zero D1 queries (one KV settings
- * read, cached).
+ * Request budget after this endpoint (every public page):
+ *   guest, no cart cookie :  1 request total, zero D1 queries (KV reads cached)
+ *   signed-in             :  1 request total — saved items now ride in the
+ *                            same payload (the separate GET /account/saved
+ *                            per page load is gone; guests skip them entirely)
+ *
+ * The admin-editable delivery config rides along too, so /cart and /checkout
+ * render their fee estimates without touching GET /checkout/config.
  */
 export const GET = withApi(
   { rateLimit: { limit: 60, windowMs: 60 * 1000, key: "bootstrap" } },
@@ -41,6 +47,7 @@ export const GET = withApi(
 
     let user: UserProfile | null = null;
     let staff = false;
+    let saved: SavedItem[] = [];
     if (identity) {
       // identity.roles already carries the permission set resolved by
       // getCurrentIdentity — re-querying RBAC here (as the old session
@@ -48,18 +55,32 @@ export const GET = withApi(
       const row = await getUserById(identity.user.id);
       user = row ? toUserProfile(row) : null;
       staff = isStaff(identity.roles);
+      // Saved items ride in the same payload (signed-in only; the account
+      // mirror stays authoritative). No extra round trip — one D1 read.
+      saved = await listSavedItemIds(identity.user.id);
     }
 
-    // WhatsApp number rides along — the old path fetched /api/v1/site/settings
-    // as a third request on every first load.
-    const settings = await getSiteSettings();
+    // WhatsApp number + delivery config ride along — the old path fetched
+    // /api/v1/site/settings and /api/v1/checkout/config as extra requests
+    // from the cart and checkout pages. The config arrives in the EXACT
+    // client shape /checkout/config returns (same conversion, one source:
+    // DELIVERY_METHOD_LABELS), so the client seeds its store verbatim.
+    const [settings, delivery] = await Promise.all([getSiteSettings(), getDeliveryConfig()]);
 
     return ok({
       user,
       isStaff: staff,
       lines,
       detail,
+      saved,
       whatsapp: settings?.contact?.whatsapp ?? null,
+      delivery: {
+        freeThreshold: delivery.freeThresholdFils / 100,
+        methods: {
+          standard: { ...DELIVERY_METHOD_LABELS.standard, fee: delivery.standardFeeFils / 100 },
+          express: { ...DELIVERY_METHOD_LABELS.express, fee: delivery.expressFeeFils / 100 },
+        },
+      },
       cartCookiePresent: Boolean(token),
       cookieName: CART_COOKIE,
     });

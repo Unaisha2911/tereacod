@@ -8,11 +8,11 @@ import { CatalogBrowser } from "@/components/shared/catalog-browser";
 import { OriginFilterChips } from "@/components/shared/origin-filter-chips";
 import { toCardItems } from "@/lib/catalog-card";
 import { SeoContent } from "@/components/shared/seo-content";
-import { getProducts, getCategories, getBrands } from "@/server/data";
-import { ORIGIN_LINES, originLineBySlug, originSlugsForItem, type OriginLine } from "@/lib/catalog-origin";
+import { getBrands, getCategories, getOriginFacetCounts } from "@/server/data";
+import { listProducts } from "@/server/repos/catalog";
+import { ORIGIN_LINES, originLineBySlug, originSlugsForItem } from "@/lib/catalog-origin";
 import { USP_FREE_DELIVERY, USP_ONE_HOUR_DELIVERY, USP_PAYMENT } from "@/lib/usp";
 import { breadcrumbJsonLd, canonical, itemListJsonLd, JsonLd, siteUrl } from "@/lib/seo";
-import type { Brand, CatalogItem } from "@/types";
 
 interface OriginPageProps {
   params: Promise<{ slug: string }>;
@@ -34,79 +34,20 @@ function originHref(slug: string, context: FacetContext, overrides?: FacetContex
   return qs ? `/origin/${slug}?${qs}` : `/origin/${slug}`;
 }
 
-/**
- * Contextual query match — mirrors the FTS-backed /search surface so the
- * combined search × origin shelf shows the same products the search page
- * counted for its origin chip. Matched fields: name, tagline, brand,
- * description, composed keywords (origin lines, variant labels, flavour
- * synonyms, SKU, model — see composeSearchKeywords), nicotine strength and
- * variant labels. Whole-needle OR per-token (≥3 chars) so "japan menthol"
- * behaves like the FTS query, and simple prefixes match ("purp" → Purple).
- */
-function matchesQuery(item: CatalogItem, q: string): boolean {
-  const haystack = [
-    item.name,
-    item.tagline,
-    item.brand,
-    item.description,
-    item.keywords ?? "",
-    item.origin ?? "",
-    item.model ?? "",
-    item.nicotineStrength ?? "",
-    ...item.variants.map((v) => v.label),
-  ]
-    .join(" \u00b7 ")
-    .toLowerCase();
-  const needle = q.toLowerCase().trim();
-  if (!needle) return true;
-  if (haystack.includes(needle)) return true;
-  const tokens = needle.split(/\s+/).filter((t) => t.length >= 3);
-  if (tokens.length === 0) return false;
-  return tokens.every((token) => haystack.includes(token) || haystack.includes(token.replace(/(?:ies|s)$/g, "")));
-}
+const SHELF_PAGE_SIZE = 16;
 
 /**
- * The shelf for one origin line under the combined facets — the
- * intersection of (this line) × (?collection) × (?brand) × (?q). The
- * brand facet accepts either the brand slug (what brand pages carry) or
- * its exact name. ONE shared implementation so the <title> count always
- * matches the rendered shelf.
+ * Resolve the ?brand= facet (a brand SLUG or its exact name) into the slug
+ * the catalog repo filters by. Unknown values pass through — the shelf
+ * resolves to empty rather than erroring.
  */
-function filterOriginShelf(
-  allItems: CatalogItem[],
-  line: OriginLine,
-  facets: FacetContext,
-  brands: Brand[]
-): CatalogItem[] {
-  let items = allItems.filter((item) => originSlugsForItem(item).includes(line.slug));
-  if (facets.collection) items = items.filter((item) => item.categorySlug === facets.collection);
-  if (facets.brand) {
-    const needle = facets.brand.toLowerCase();
-    const brandName =
-      brands.find((b) => b.slug.toLowerCase() === needle)?.name ??
-      brands.find((b) => b.name.toLowerCase() === needle)?.name ??
-      facets.brand;
-    items = items.filter((item) => item.brand.toLowerCase() === brandName.toLowerCase());
-  }
-  if (facets.q) items = items.filter((item) => matchesQuery(item, facets.q as string));
-  return items;
-}
-
-/** Group items by a facet value, keep non-empty groups sorted by count. */
-function buildFacetChips(
-  items: CatalogItem[],
-  keyOf: (item: CatalogItem) => string,
-  labelOf: (value: string) => string
-): Array<{ value: string; label: string; count: number }> {
-  const counts = new Map<string, number>();
-  for (const item of items) {
-    const key = keyOf(item);
-    if (!key) continue;
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-  }
-  return [...counts.entries()]
-    .map(([value, count]) => ({ value, label: labelOf(value), count }))
-    .sort((a, b) => b.count - a.count);
+async function resolveBrandFacet(value: string | undefined): Promise<string | undefined> {
+  if (!value) return undefined;
+  const brands = await getBrands();
+  const match =
+    brands.find((b) => b.slug.toLowerCase() === value.toLowerCase()) ??
+    brands.find((b) => b.name.toLowerCase() === value.toLowerCase());
+  return match?.slug ?? value;
 }
 
 export async function generateStaticParams() {
@@ -127,11 +68,21 @@ export async function generateMetadata({ params, searchParams }: OriginPageProps
   }
   const { collection, brand, q } = await searchParams;
   const trimmedQ = q?.trim() || undefined;
-  const [allItems, brands] = await Promise.all([getProducts(), getBrands()]);
-  const items = filterOriginShelf(allItems, line, { collection, brand, q: trimmedQ }, brands);
+  const brandSlug = await resolveBrandFacet(brand);
+  // Same paginated read the page body renders — the isolate cache dedupes
+  // both executions into ONE catalog query (the former getProducts()
+  // hydrate loaded EVERY product twice per request just to filter in JS).
+  const shelf = await listProducts({
+    originLine: line.dbValue,
+    categorySlug: collection,
+    brandSlug,
+    query: trimmedQ,
+    page: 1,
+    pageSize: SHELF_PAGE_SIZE,
+  });
   // Combined views keep the line's canonical meta (the URL canonicals to
   // the clean /origin/<slug>) with the facet count reflected in the title.
-  const title = `${line.metaTitle.split("|")[0].trim()} — ${items.length} ${items.length === 1 ? "product" : "products"}`;
+  const title = `${line.metaTitle.split("|")[0].trim()} — ${shelf.total} ${shelf.total === 1 ? "product" : "products"}`;
   const description = line.metaDescription;
   return {
     title,
@@ -167,7 +118,12 @@ export async function generateMetadata({ params, searchParams }: OriginPageProps
  *  narrows the shelf to the intersection — collection shelves, brand
  *  pages and search link here with their context carried along, and this
  *  page offers collection/brand chips + a clearable active-filter bar, so
- *  every facet combination is a real, working URL. */
+ *  every facet combination is a real, working URL.
+ *
+ *  Every number on this page comes from a scoped COUNT (listProducts
+ *  pagination meta + originFacetCounts GROUP BY queries) — the page never
+ *  hydrates the full catalog, which under burst traffic is what pushed
+ *  Workers over its resource limit (error 1102). */
 export default async function OriginPage({ params, searchParams }: OriginPageProps) {
   const { slug } = await params;
   const line = originLineBySlug(slug);
@@ -177,11 +133,28 @@ export default async function OriginPage({ params, searchParams }: OriginPagePro
   const trimmedQ = q?.trim() || undefined;
   const facets: FacetContext = { collection, brand, q: trimmedQ };
   const isCombined = Boolean(collection || brand || trimmedQ);
+  const brandSlug = await resolveBrandFacet(brand);
 
-  const [allItems, categories, brands] = await Promise.all([getProducts(), getCategories(), getBrands()]);
+  const [categories, brands, shelf, facetCounts] = await Promise.all([
+    getCategories(),
+    getBrands(),
+    // FIRST 16 of the scoped shelf (origin × collection × brand × q) — one
+    // catalog query + its hydrate, cached 10s; Load more fetches batches
+    // from /api/v1/catalog/products on demand.
+    listProducts({
+      originLine: line.dbValue,
+      categorySlug: collection,
+      brandSlug,
+      query: trimmedQ,
+      page: 1,
+      pageSize: SHELF_PAGE_SIZE,
+    }),
+    // Collections/brands holding products on THIS line — two cached GROUP
+    // BY COUNT queries (was: full-catalog hydrate + JS grouping).
+    getOriginFacetCounts(line.dbValue),
+  ]);
 
-  const items = filterOriginShelf(allItems, line, facets, brands);
-  const originItems = allItems.filter((item) => originSlugsForItem(item).includes(line.slug));
+  const items = shelf.items;
   const otherLines = ORIGIN_LINES.filter((other) => other.slug !== line.slug);
 
   // Display names for the active-filter chips.
@@ -198,14 +171,18 @@ export default async function OriginPage({ params, searchParams }: OriginPagePro
   // currently active hides its own chip row (the active bar shows it).
   const collectionChips = collection
     ? []
-    : buildFacetChips(originItems, (item) => item.categorySlug, (value) => categories.find((c) => c.slug === value)?.name ?? value);
+    : facetCounts.collections.map((row) => ({
+        value: row.slug,
+        label: categories.find((c) => c.slug === row.slug)?.name ?? row.slug,
+        count: row.count,
+      }));
   const brandChips = brand
     ? []
-    : buildFacetChips(
-        originItems,
-        (item) => item.brand.toLowerCase(),
-        (value) => brands.find((b) => b.name.toLowerCase() === value)?.name ?? value
-      );
+    : facetCounts.brands.map((row) => ({
+        value: row.slug,
+        label: brands.find((b) => b.slug === row.slug)?.name ?? row.slug,
+        count: row.count,
+      }));
 
   const activeFilters = [
     collection
@@ -221,21 +198,24 @@ export default async function OriginPage({ params, searchParams }: OriginPagePro
 
   // Facet-aware counts for the sibling origin chips — within the active
   // collection/brand/search scope, how many products sit on each line.
-  const facetOriginCounts = isCombined
-    ? (() => {
-        const scoped = allItems
-          .filter((item) => (collection ? item.categorySlug === collection : true))
-          .filter((item) =>
-            contextBrandName ? item.brand.toLowerCase() === contextBrandName.toLowerCase() : true
-          )
-          .filter((item) => (trimmedQ ? matchesQuery(item, trimmedQ) : true));
-        const counts: Record<string, number> = {};
-        for (const line2 of ORIGIN_LINES) {
-          counts[line2.slug] = scoped.filter((item) => originSlugsForItem(item).includes(line2.slug)).length;
-        }
-        return counts;
-      })()
-    : undefined;
+  // ONE scoped list read (origin filter dropped, capped at 48 — the count
+  // saturates beyond that shelf size) instead of the full-catalog hydrate.
+  let facetOriginCounts: Record<string, number> | undefined;
+  if (isCombined) {
+    const scoped = await listProducts({
+      categorySlug: collection,
+      brandSlug,
+      query: trimmedQ,
+      page: 1,
+      pageSize: 48,
+    });
+    facetOriginCounts = Object.fromEntries(
+      ORIGIN_LINES.map((line2) => [
+        line2.slug,
+        scoped.items.filter((item) => originSlugsForItem(item).includes(line2.slug)).length,
+      ])
+    );
+  }
 
   return (
     <section className="relative">
@@ -269,7 +249,7 @@ export default async function OriginPage({ params, searchParams }: OriginPagePro
           <p className="pt-4 text-lead text-muted-foreground">{line.intro}</p>
           <div className="flex flex-wrap items-center gap-2 pt-6">
             <span className="inline-flex min-h-9 items-center rounded-full border border-line bg-elevated/45 px-3.5 text-[0.8rem] text-muted-foreground">
-              {items.length} {items.length === 1 ? "flavour" : "flavours"}
+              {shelf.total} {shelf.total === 1 ? "flavour" : "flavours"}
             </span>
             <span className="inline-flex min-h-9 items-center rounded-full border border-line bg-elevated/45 px-3.5 text-[0.8rem] text-muted-foreground">
               {USP_FREE_DELIVERY}
@@ -346,7 +326,9 @@ export default async function OriginPage({ params, searchParams }: OriginPagePro
         </header>
 
         <CatalogBrowser
-          items={toCardItems(items)}
+          initialItems={toCardItems(items)}
+          total={shelf.total}
+          query={{ origin: slug, collection, brand: brandSlug, q: trimmedQ }}
           emptyTitle={`No TEREA ${line.chipLabel} sticks listed yet`}
           emptyBody={
             isCombined
