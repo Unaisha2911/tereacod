@@ -28,6 +28,7 @@ import type {
   SpecificationGroup,
 } from "@/types";
 import type { SortKey } from "@/lib/catalog-sort";
+import { composeSearchKeywords } from "@/lib/search-keywords";
 import { filsToAED } from "@/server/money";
 import { newId } from "@/server/ids";
 
@@ -55,11 +56,14 @@ interface ProductRow {
   compatibility_json: string | null;
   conformity_json: string | null;
   warnings_json: string | null;
+  keywords: string | null;
   published_at: string | null;
   brand_name: string;
   category_slug: string;
   available_qty: number | null;
   variant_unavailable: number | null;
+  /** bm25 rank — present only on the relevance-ranked search SELECT. */
+  search_rank?: number;
 }
 
 function deriveAvailability(row: ProductRow): Availability {
@@ -88,7 +92,7 @@ async function hydrate(rows: ProductRow[]): Promise<CatalogItem[]> {
   const ids = rows.map((r) => r.id);
   const placeholders = ids.map(() => "?").join(",");
 
-  const [imageRows, variantRows, groupRows, faqRows, relatedRows] = await Promise.all([
+  const [imageRows, variantRows, groupRows, faqRows, relatedRows, ratingRows] = await Promise.all([
     db.all<{ product_id: string; url: string; alt: string | null }>(
       `SELECT pi.product_id, m.url, pi.alt
        FROM product_images pi JOIN media_assets m ON m.id = pi.media_asset_id
@@ -133,7 +137,27 @@ async function hydrate(rows: ProductRow[]): Promise<CatalogItem[]> {
        WHERE r.product_id IN (${placeholders}) ORDER BY r.product_id, r.position`,
       ids
     ),
+    // Owner-curated ratings (product_ratings, migration 0008). The .catch
+    // keeps pre-migration deployments rendering: a missing table resolves
+    // to "every product unrated" instead of failing the whole hydrate.
+    db.all<{ product_id: string; rating_value: number; rating_count: number }>(
+      `SELECT product_id, rating_value, rating_count
+       FROM product_ratings WHERE product_id IN (${placeholders})`,
+      ids
+    ).catch((): Array<{ product_id: string; rating_value: number; rating_count: number }> => []),
   ]);
+
+  const ratingsBy = new Map<string, { value: number; count: number }>();
+  for (const r of ratingRows) {
+    // Defensive bounds mirror the CHECK constraints — a corrupted/legacy row
+    // must never leak into visible stars or Product JSON-LD. REAL storage
+    // surfaces float artifacts (4.6 -> 4.599999904632568), so the value is
+    // normalised to one decimal here — the only precision ratings use.
+    const value = Math.round(r.rating_value * 10) / 10;
+    if (value >= 0.5 && value <= 5 && r.rating_count >= 1) {
+      ratingsBy.set(r.product_id, { value, count: r.rating_count });
+    }
+  }
 
   const imagesBy = new Map<string, string[]>();
   for (const img of imageRows) {
@@ -254,8 +278,10 @@ async function hydrate(rows: ProductRow[]): Promise<CatalogItem[]> {
       isNew: row.is_new === 1,
       nicotineStrength: row.nicotine_strength ?? undefined,
       ageRestricted: row.age_restricted === 1,
+      rating: ratingsBy.get(row.id),
       faqs: faqsBy.get(row.id),
       relatedSlugs: relatedBy.get(row.id),
+      keywords: row.keywords ?? undefined,
     };
     return item;
   });
@@ -411,16 +437,16 @@ export async function listProducts(query: CatalogQueryInput = {}): Promise<Pagin
   ].join("|");
 
   return cached(cacheKey, CACHE_TTL.catalogList, async () => {
-  const where: string[] = [`p.published_at IS NOT NULL`];
-  const params: unknown[] = [];
+  const baseWhere: string[] = [`p.published_at IS NOT NULL`];
+  const baseParams: unknown[] = [];
 
   if (query.categorySlug) {
-    where.push(`c.slug = ?`);
-    params.push(query.categorySlug);
+    baseWhere.push(`c.slug = ?`);
+    baseParams.push(query.categorySlug);
   }
   if (query.brandSlug) {
-    where.push(`b.slug = ?`);
-    params.push(query.brandSlug);
+    baseWhere.push(`b.slug = ?`);
+    baseParams.push(query.brandSlug);
   }
   if (query.originLine) {
     // Origin is a FACET over both origin sources: the product-level
@@ -428,59 +454,177 @@ export async function listProducts(query: CatalogQueryInput = {}): Promise<Pagin
     // multi-origin listings (Japan + Italy variants) must surface under
     // every line they stock. Variant labels resolve loosely (exact or
     // contained) so authored labels like "Japan (Domestic)" still match.
-    where.push(
+    baseWhere.push(
       `(p.origin = ? OR EXISTS (
          SELECT 1 FROM product_variants pv
          WHERE pv.product_id = p.id AND pv.type = 'origin'
            AND (LOWER(pv.label) = LOWER(?) OR pv.label LIKE '%' || ? || '%')
        ))`
     );
-    params.push(query.originLine, query.originLine, query.originLine);
+    baseParams.push(query.originLine, query.originLine, query.originLine);
   }
   if (query.availability && query.availability !== "all") {
     const STOCK = `(SELECT COALESCE(SUM(iv.qty_on_hand - iv.qty_reserved), 0)
                     FROM inventory iv WHERE iv.product_id = p.id)`;
     if (query.availability === "in_stock") {
-      where.push(`p.editorial_availability IS NULL AND ${STOCK} > p.low_stock_threshold`);
+      baseWhere.push(`p.editorial_availability IS NULL AND ${STOCK} > p.low_stock_threshold`);
     } else if (query.availability === "low_stock") {
-      where.push(
+      baseWhere.push(
         `p.editorial_availability IS NULL AND ${STOCK} > 0 AND ${STOCK} <= p.low_stock_threshold`
       );
     } else if (query.availability === "out_of_stock") {
-      where.push(`p.editorial_availability IS NULL AND ${STOCK} <= 0`);
+      baseWhere.push(`p.editorial_availability IS NULL AND ${STOCK} <= 0`);
     } else if (query.availability === "unavailable") {
-      where.push(`p.editorial_availability = 'unavailable'`);
+      baseWhere.push(`p.editorial_availability = 'unavailable'`);
     }
   }
-  if (query.query && query.query.trim()) {
-    // External-content FTS: resolve ids through the content table via rowid.
-    where.push(
-      `p.id IN (
-         SELECT c.product_id FROM product_fts_idx f
-         JOIN product_fts c ON c.rowid = f.rowid
-         WHERE product_fts_idx MATCH ?
-       )`
+
+  const rawQuery = query.query?.trim() ?? "";
+
+  // ---- search filters -------------------------------------------------
+  // Three modes: "fts" (the normal path — external-content FTS5 MATCH),
+  // "like" (fallback — the FTS tokenizer splits hyphenated codes and
+  // mixed-alphanumeric strings like "ILUMA-i" or SKU fragments badly, so
+  // an empty FTS result retries with a plain substring scan across every
+  // searchable column INCLUDING variant labels), and "none" (browsing).
+  type SearchMode = "fts" | "like" | "none";
+  let mode: SearchMode = rawQuery ? "fts" : "none";
+
+  /** FTS ids fragment — works for both COUNT and the plain SELECT. */
+  const ftsIdsWhere = `p.id IN (
+       SELECT c.product_id FROM product_fts_idx f
+       JOIN product_fts c ON c.rowid = f.rowid
+       WHERE product_fts_idx MATCH ?
+     )`;
+  /** Direct MATCH fragment — REQUIRED for the relevance SELECT: bm25()
+   *  binds to a MATCH constraint in the SAME query, not one nested in a
+   *  subquery (a nested MATCH makes bm25() return 0 for every row and the
+   *  ranking silently degenerates to its tie-break). */
+  const ftsMatchWhere = `product_fts_idx MATCH ?`;
+
+  /** LIKE fallback fragment + params, built together to stay in sync. */
+  const buildLikeSearch = (input: string): { sql: string; params: unknown[] } => {
+    const whole = `%${input}%`;
+    const mainCols = [
+      "p.name",
+      "p.tagline",
+      "p.description",
+      "p.keywords",
+      "p.model",
+      "p.origin",
+      "p.sku",
+      "b.name",
+      "c.name",
+    ];
+    const parts: string[] = [];
+    const params: unknown[] = [];
+    parts.push(
+      `(${mainCols.map((c) => `${c} LIKE ?`).join(" OR ")}
+       OR EXISTS (SELECT 1 FROM product_variants pv
+                  WHERE pv.product_id = p.id AND pv.label LIKE ?))`
     );
-    params.push(ftsQuery(query.query.trim()));
-  }
+    params.push(...mainCols.map(() => whole), whole);
+    // Multi-word queries: per-token hits on the high-signal columns, so
+    // "japan menthol" still matches "TEREA Black Menthol" (Japan line).
+    const tokens = input
+      .split(/\s+/)
+      .filter((t) => t.length >= 3)
+      .slice(0, 6);
+    if (tokens.length > 0) {
+      const tokenCols = ["p.name", "p.tagline", "p.keywords", "p.origin", "p.model"];
+      parts.push(
+        tokens
+          .map(
+            () =>
+              `(${tokenCols.map((c) => `${c} LIKE ?`).join(" OR ")}
+               OR EXISTS (SELECT 1 FROM product_variants pv
+                          WHERE pv.product_id = p.id AND pv.label LIKE ?))`
+          )
+          .join(" OR ")
+      );
+      for (const token of tokens) {
+        params.push(...tokenCols.map(() => `%${token}%`), `%${token}%`);
+      }
+    }
+    return { sql: `(${parts.join(" OR ")})`, params };
+  };
 
-  const whereSql = where.join(" AND ");
+  const buildFilter = (
+    searchMode: SearchMode,
+    /** fts mode: direct `product_fts_idx MATCH ?` instead of the IN-subquery. */
+    directMatch = false
+  ): { whereSql: string; params: unknown[] } => {
+    const where = [...baseWhere];
+    const params = [...baseParams];
+    if (searchMode === "fts") {
+      where.push(directMatch ? ftsMatchWhere : ftsIdsWhere);
+      params.push(ftsQuery(rawQuery));
+    } else if (searchMode === "like") {
+      const like = buildLikeSearch(rawQuery);
+      where.push(like.sql);
+      params.push(...like.params);
+    }
+    return { whereSql: where.join(" AND "), params };
+  };
 
-  const [totalRow] = await Promise.all([
-    db.get<{ count: number }>(
+  // Resolve the effective mode: probe FTS first, fall back to LIKE when it
+  // matches nothing. (The probe doubles as the COUNT for the fts path.)
+  let total = 0;
+  if (mode === "fts") {
+    const probe = buildFilter("fts");
+    const row = await db.get<{ count: number }>(
       `SELECT COUNT(*) AS count FROM products p
        JOIN brands b ON b.id = p.brand_id
        JOIN categories c ON c.id = p.category_id
-       WHERE ${whereSql}`,
-      params
-    ),
-  ]);
-  const total = totalRow?.count ?? 0;
+       WHERE ${probe.whereSql}`,
+      probe.params
+    );
+    total = row?.count ?? 0;
+    if (total === 0) mode = "like";
+  }
 
-  const rows = await db.all<ProductRow>(
-    `${SELECT_PRODUCT} WHERE ${whereSql} ORDER BY ${SORT_SQL[sortKey]} LIMIT ? OFFSET ?`,
-    [...params, pageSize, (page - 1) * pageSize]
-  );
+  const filter = buildFilter(mode);
+  if (mode !== "fts") {
+    const row = await db.get<{ count: number }>(
+      `SELECT COUNT(*) AS count FROM products p
+       JOIN brands b ON b.id = p.brand_id
+       JOIN categories c ON c.id = p.category_id
+       WHERE ${filter.whereSql}`,
+      filter.params
+    );
+    total = row?.count ?? 0;
+  }
+
+  // RELEVANCE RANKING — the search page's default "featured" sort becomes
+  // bm25-ordered: name hits outrank keyword hits, keyword hits outrank
+  // tagline/description hits. Any explicit sort (price, newest, name) keeps
+  // its own ordering; the FTS filter still decides WHAT matches.
+  const relevance = mode !== "none" && sortKey === "featured";
+
+  const rows = relevance
+    ? await db.all<ProductRow>(
+        `SELECT p.*, b.name AS brand_name, c.slug AS category_slug,
+           (
+             SELECT COALESCE(SUM(iv.qty_on_hand - iv.qty_reserved), 0)
+             FROM inventory iv WHERE iv.product_id = p.id
+           ) AS available_qty,
+           (SELECT COUNT(*) FROM product_variants pv
+             WHERE pv.product_id = p.id AND pv.available = 0) AS variant_unavailable,
+           bm25(product_fts_idx, 10.0, 4.0, 4.0, 1.0, 8.0) AS search_rank
+         FROM products p
+         JOIN brands b ON b.id = p.brand_id
+         JOIN categories c ON c.id = p.category_id
+         JOIN product_fts cfts ON cfts.product_id = p.id
+         JOIN product_fts_idx ON product_fts_idx.rowid = cfts.rowid
+         WHERE ${buildFilter(mode, true).whereSql}
+         ORDER BY search_rank ASC, p.is_featured DESC, p.published_at DESC, p.name ASC
+         LIMIT ? OFFSET ?`,
+        [...buildFilter(mode, true).params, pageSize, (page - 1) * pageSize]
+      )
+    : await db.all<ProductRow>(
+        `${SELECT_PRODUCT} WHERE ${filter.whereSql} ORDER BY ${SORT_SQL[sortKey]} LIMIT ? OFFSET ?`,
+        [...filter.params, pageSize, (page - 1) * pageSize]
+      );
 
   const items = await hydrate(rows);
   return {
@@ -634,17 +778,19 @@ export async function suggestProducts(partial: string, limit = 6): Promise<Sugge
   if (!trimmed) return [];
   // One lightweight FTS query — the previous path ran the full paginated
   // pipeline (COUNT + page + 5 hydration queries = 7 round trips) to return
-  // 6 names for the highest-QPS public endpoint.
+  // 6 names for the highest-QPS public endpoint. bm25 ordering (name-weighted)
+  // puts the closest title match first instead of alphabetical order.
   const db = await getDb();
   return db.all<Suggestion>(
     `SELECT p.slug, p.name, b.name AS brand, c.slug AS category
-     FROM product_fts_idx f
-     JOIN product_fts cfts ON cfts.rowid = f.rowid
-     JOIN products p ON p.id = cfts.product_id
+     FROM product_fts_idx
+     JOIN product_fts ON product_fts.rowid = product_fts_idx.rowid
+     JOIN products p ON p.id = product_fts.product_id
      JOIN brands b ON b.id = p.brand_id
      JOIN categories c ON c.id = p.category_id
      WHERE product_fts_idx MATCH ? AND p.published_at IS NOT NULL
-     ORDER BY p.is_featured DESC, p.name ASC
+     ORDER BY bm25(product_fts_idx, 10.0, 4.0, 4.0, 1.0, 8.0) ASC,
+              p.is_featured DESC, p.name ASC
      LIMIT ?`,
     [ftsQuery(trimmed), limit]
   );
@@ -879,6 +1025,19 @@ export async function adminGetProduct(idOrSlug: string): Promise<AdminProductDet
   );
   if (!row) return null;
 
+  // Owner-curated rating — independent read so a pre-migration deployment
+  // (missing product_ratings table) returns an unrated editor instead of a
+  // 500 on the admin detail endpoint.
+  let ratingRow: { rating_value: number; rating_count: number } | null = null;
+  try {
+    ratingRow = await db.get<{ rating_value: number; rating_count: number }>(
+      `SELECT rating_value, rating_count FROM product_ratings WHERE product_id = ?`,
+      [row.id]
+    );
+  } catch {
+    ratingRow = null;
+  }
+
   const [imageRows, variantRows, groupRows, documentRows] = await Promise.all([
     db.all<{ id: string; media_asset_id: string; url: string; alt: string | null }>(
       `SELECT pi.id, pi.media_asset_id, m.url, pi.alt
@@ -949,6 +1108,8 @@ export async function adminGetProduct(idOrSlug: string): Promise<AdminProductDet
     ageRestricted: row.age_restricted === 1,
     keywords: row.keywords,
     lowStockThreshold: row.low_stock_threshold,
+    ratingValue: ratingRow === null ? null : Math.round(ratingRow.rating_value * 10) / 10,
+    ratingCount: ratingRow?.rating_count ?? null,
     warnings: parseJsonArray<string>(row.warnings_json),
     conformity: parseJsonArray<ConformityInfo>(row.conformity_json),
     images,
@@ -985,7 +1146,7 @@ export async function adminCreateProduct(input: AdminCreateProductInput): Promis
 
   const brand = await db.get<{ id: string; name: string }>(`SELECT id, name FROM brands WHERE id = ?`, [input.brandId]);
   if (!brand) return failure("validation", "Choose a brand that exists.");
-  const category = await db.get<{ id: string }>(`SELECT id FROM categories WHERE id = ?`, [input.categoryId]);
+  const category = await db.get<{ id: string; name: string }>(`SELECT id, name FROM categories WHERE id = ?`, [input.categoryId]);
   if (!category) return failure("validation", "Choose a category that exists.");
 
   const skuTaken = await db.get<{ id: string }>(`SELECT id FROM products WHERE sku = ?`, [input.sku]);
@@ -1012,8 +1173,23 @@ export async function adminCreateProduct(input: AdminCreateProductInput): Promis
     },
     {
       sql: `INSERT INTO product_fts (product_id, name, brand, tagline, description, keywords)
-            VALUES (?, ?, ?, ?, ?, '')`,
-      params: [id, input.name, brand.name, tagline, description],
+            VALUES (?, ?, ?, ?, ?, ?)`,
+      params: [
+        id,
+        input.name,
+        brand.name,
+        tagline,
+        description,
+        // Contextual searchability from day one: origin, category, SKU and
+        // model are searchable even before the operator authors keywords.
+        composeSearchKeywords({
+          name: input.name,
+          brand: brand.name,
+          origin: input.origin?.trim() || null,
+          category: category.name,
+          sku: input.sku,
+        }),
+      ],
     },
   ]);
 
@@ -1068,9 +1244,12 @@ export async function adminUpdateProduct(id: string, patch: AdminProductPatch): 
     if (!brand) return failure("validation", "Choose a brand that exists.");
     brandName = brand.name;
   }
+  // Final category name feeds the FTS reindex below (category is searchable).
+  let categoryName = row.category_name ?? "";
   if (patch.categoryId !== undefined && patch.categoryId !== row.category_id) {
-    const category = await db.get<{ id: string }>(`SELECT id FROM categories WHERE id = ?`, [patch.categoryId]);
+    const category = await db.get<{ id: string; name: string }>(`SELECT id, name FROM categories WHERE id = ?`, [patch.categoryId]);
     if (!category) return failure("validation", "Choose a category that exists.");
+    categoryName = category.name;
   }
 
   // Money: resolve the final price/compare-at pair and keep the CHECK happy.
@@ -1303,6 +1482,21 @@ export async function adminUpdateProduct(id: string, patch: AdminProductPatch): 
   }
 
   // FTS reindex in the same batch — final editorial values are known here.
+  // Variant labels are resolved first (existing rows + this patch's creates,
+  // renames and removals) so origin lines and flavours stay searchable the
+  // moment the operator edits them.
+  const variantLabelRows = await db.all<{ id: string; label: string }>(
+    `SELECT id, label FROM product_variants WHERE product_id = ?`,
+    [row.id]
+  );
+  const removedVariantIds = new Set(patch.variantDeletes ?? []);
+  const variantLabels: string[] = [];
+  for (const variant of variantLabelRows) {
+    if (removedVariantIds.has(variant.id)) continue;
+    const rename = patch.variantUpdates?.find((u) => u.id === variant.id && u.label !== undefined);
+    variantLabels.push(rename?.label ?? variant.label);
+  }
+  for (const create of patch.variantCreates ?? []) variantLabels.push(create.label);
   statements.push({
     sql: `INSERT INTO product_fts (product_id, name, brand, tagline, description, keywords)
           VALUES (?, ?, ?, ?, ?, ?)
@@ -1314,7 +1508,19 @@ export async function adminUpdateProduct(id: string, patch: AdminProductPatch): 
       brandName,
       patch.tagline ?? row.tagline,
       patch.description ?? row.description,
-      patch.keywords !== undefined ? (patch.keywords ?? "") : (row.keywords ?? ""),
+      // ENRICHED keyword payload — admin keywords stay authoritative, then
+      // variant labels (origin lines / flavours), then structured context.
+      composeSearchKeywords({
+        name: patch.name ?? row.name,
+        brand: brandName,
+        keywords: patch.keywords !== undefined ? patch.keywords : row.keywords,
+        origin: patch.origin !== undefined ? patch.origin : row.origin,
+        category: categoryName,
+        model: patch.model !== undefined ? patch.model : row.model,
+        sku: row.sku,
+        nicotineStrength: patch.nicotineStrength !== undefined ? patch.nicotineStrength : row.nicotine_strength,
+        variantLabels,
+      }),
     ],
   });
 
@@ -1331,6 +1537,30 @@ export async function adminUpdateProduct(id: string, patch: AdminProductPatch): 
   if (patch.expectedVersion !== undefined && (fresh?.version ?? 0) !== row.version + 1) {
     return failure("conflict", "Someone else updated this product — reload to continue.");
   }
+
+  // Rating write — isolated from the main batch so a pre-migration
+  // deployment (no product_ratings table yet) can never fail the save of
+  // the other fields; the editor just shows the rating as unset.
+  if (patch.rating !== undefined) {
+    try {
+      if (patch.rating === null) {
+        await db.run(`DELETE FROM product_ratings WHERE product_id = ?`, [row.id]);
+      } else {
+        await db.run(
+          `INSERT INTO product_ratings (product_id, rating_value, rating_count, updated_at)
+           VALUES (?, ?, ?, ?)
+           ON CONFLICT(product_id) DO UPDATE SET
+             rating_value = excluded.rating_value,
+             rating_count = excluded.rating_count,
+             updated_at = excluded.updated_at`,
+          [row.id, patch.rating.value, patch.rating.count, now]
+        );
+      }
+    } catch (error) {
+      console.warn(`[catalog] rating write skipped for ${row.id}:`, error);
+    }
+  }
+
   invalidateCache("catalog:");
   return { ok: true, data: { version: fresh?.version ?? row.version + 1 } };
 }
@@ -1369,6 +1599,13 @@ export async function adminDeleteProduct(id: string): Promise<AdminResult<{ slug
       return failure("conflict", "This product has orders or saved references — unpublish it instead of deleting.");
     }
     throw error;
+  }
+  // Rating row cleanup — best-effort (pre-migration deployments have no
+  // product_ratings table; ON DELETE CASCADE covers migrated ones anyway).
+  try {
+    await db.run(`DELETE FROM product_ratings WHERE product_id = ?`, [row.id]);
+  } catch {
+    /* table not migrated yet — nothing to clean */
   }
   invalidateCache("catalog:");
   return { ok: true, data: { slug: row.slug, name: row.name } };

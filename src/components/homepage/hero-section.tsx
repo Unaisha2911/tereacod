@@ -42,7 +42,7 @@ export function HeroSection() {
   return (
     <section
       aria-labelledby="hero-heading"
-      className="relative -mt-[6.25rem] flex min-h-[100svh] items-center overflow-hidden"
+      className="relative -mt-16 flex min-h-[100svh] items-center overflow-hidden"
     >
       {/* Legibility veil — lifts the smoke wash under the fixed header and
           above the fold edge so text stays crisp on the light canvas */}

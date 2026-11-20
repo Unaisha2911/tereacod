@@ -42,6 +42,16 @@ const patchSchema = z.object({
   origin: z.string().trim().max(80).nullable().optional(),
   keywords: z.string().trim().max(500).nullable().optional(),
   lowStockThreshold: z.number().int().min(0).max(9999).optional(),
+  // Owner-curated customer rating — { value, count } upserts, null clears.
+  // Mirrored into the visible rating strip and the Product JSON-LD
+  // aggregateRating, so bounds match what can honestly be displayed.
+  rating: z
+    .object({
+      value: z.number().min(0.5).max(5),
+      count: z.number().int().min(1).max(1_000_000),
+    })
+    .nullable()
+    .optional(),
   warnings: z.array(z.string().trim().min(1).max(300)).max(30).optional(),
   conformity: z
     .array(
@@ -156,6 +166,7 @@ export const PATCH = withApi(
       origin: body.origin,
       keywords: body.keywords,
       lowStockThreshold: body.lowStockThreshold,
+      rating: body.rating,
       warnings: body.warnings,
       conformity: body.conformity?.map((c) => ({
         label: c.label,

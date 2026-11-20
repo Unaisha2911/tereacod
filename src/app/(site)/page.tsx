@@ -18,6 +18,21 @@ export const metadata: Metadata = {
   description:
     "Order TEREA sticks online in the UAE from TereaCOD — TEREA delivery UAE-wide with 1-hour delivery from Dubai and free delivery at AED 300+. Authentic IQOS TEREA heated tobacco sticks across every origin line — Uzbekistan, Tajikistan, Kyrgyzstan, Indonesia, Switzerland (Duty Free), Japan and Italy — priced in AED and paid by cash or card on delivery.",
   ...canonical("/"),
+  openGraph: {
+    title: "TEREA Delivery UAE — Buy TEREA Sticks Online | TereaCOD",
+    description:
+      "TEREA delivery UAE-wide with 1-hour delivery from Dubai and free delivery at AED 300+. Authentic IQOS TEREA heated tobacco sticks across every origin line, paid by cash or card on delivery.",
+    url: "/",
+    siteName: "TereaCOD",
+    type: "website",
+    locale: "en_AE",
+    images: [{ url: "/og-image.jpg", width: 1200, height: 630, alt: "TereaCOD — TEREA delivery across the UAE with cash or card on delivery" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "TEREA Delivery UAE — Buy TEREA Sticks Online | TereaCOD",
+    images: ["/og-image.jpg"],
+  },
 };
 
 /**

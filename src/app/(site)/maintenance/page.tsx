@@ -5,7 +5,10 @@ import { LifeBuoy } from "lucide-react";
 import { getSettings } from "@/server/data";
 
 export const metadata: Metadata = {
-  robots: { index: false, follow: true }, title: "Scheduled maintenance" };
+  robots: { index: false, follow: true },
+  title: "Scheduled maintenance",
+  description: "TereaCOD is briefly offline for scheduled maintenance — TEREA delivery orders resume shortly with cash or card on delivery across the UAE.",
+};
 
 /** Maintenance state — template for planned downtime. */
 export default async function MaintenancePage() {

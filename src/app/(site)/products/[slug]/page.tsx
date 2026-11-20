@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Star } from "lucide-react";
 import { Link } from "@/components/shared/shop-link";
 import { notFound } from "next/navigation";
 import { PageContainer } from "@/components/layout/page-container";
@@ -20,6 +21,47 @@ interface ProductPageProps {
   searchParams: Promise<{ origin?: string | string[] }>;
 }
 
+/**
+ * Visible customer-rating strip (owner-curated product_ratings data).
+ * Doubles as the on-page evidence the Product JSON-LD aggregateRating
+ * requires — markup without this visible counterpart is a rich-result
+ * violation. Fractional scores render via a width-clipped fill overlay,
+ * so 4.6 / 5 paints 92% of the star row without half-glyph juggling.
+ */
+function RatingStrip({ rating }: { rating: { value: number; count: number } }) {
+  const stars = (filled: boolean) => (
+    <span
+      aria-hidden="true"
+      className={`flex gap-0.5 ${filled ? "text-amber-500" : "text-line"}`}
+    >
+      {Array.from({ length: 5 }, (_, i) => (
+        <Star key={i} className="size-3.5" fill="currentColor" strokeWidth={0} />
+      ))}
+    </span>
+  );
+  return (
+    <div
+      className="flex flex-wrap items-center gap-x-2.5 gap-y-1"
+      role="img"
+      aria-label={`Rated ${rating.value} out of 5 by ${rating.count} customers`}
+    >
+      <span className="relative inline-block align-middle" aria-hidden="true">
+        {stars(false)}
+        <span
+          className="absolute inset-y-0 left-0 overflow-hidden"
+          style={{ width: `${Math.min(100, Math.max(0, (rating.value / 5) * 100))}%` }}
+        >
+          {stars(true)}
+        </span>
+      </span>
+      <span className="text-sm text-muted-foreground">
+        <strong className="font-semibold text-foreground">{rating.value.toFixed(1)}</strong>
+        {" "}/ 5 · {rating.count} customer {rating.count === 1 ? "rating" : "ratings"}
+      </span>
+    </div>
+  );
+}
+
 // No generateStaticParams: the catalog is authored in the admin console after
 // go-live, so a build-time enumeration reads an EMPTY local database in CI
 // (returning nothing) while still contending for the fresh SQLite file with
@@ -29,11 +71,18 @@ interface ProductPageProps {
 export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {
   const { slug } = await params;
   const item = await getProductBySlug(slug);
-  // notFound() is raised here in generateMetadata (and again in the page body)
-  // so unknown slugs return a real 404 status code. No loading.tsx Suspense
-  // boundary exists on this route by design — raising notFound() only in a
-  // streamed body would ship a 200 soft-404.
-  if (!item) notFound();
+  // Unknown slug: the page body below raises notFound() — under the (site)
+  // loading boundary (Next 16.4.5) a BODY-level notFound still commits a
+  // real 404 status, while a metadata-level one flushes a 200 soft-404.
+  // Metadata therefore degrades to a conservative noindex block so the
+  // not-found shell can never enter the index, and per-page OG stays out
+  // of the 404 path entirely.
+  if (!item) {
+    return {
+      title: "Page not found",
+      robots: { index: false, follow: false },
+    };
+  }
   // Per-page social cards (shallow-merged over the layout defaults) — the
   // product's own name, copy and lead image, not the generic site OG art.
   const ogImages = item.images.length
@@ -115,14 +164,17 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
       title: "Description",
       content: <p>{item.description}</p>,
     },
-    {
-      id: "specifications",
-      title: "Specifications",
-      // On mobile the spec sheet is already expanded inline above the
-      // price, so the collapsed accordion copy would only duplicate it.
-      className: item.specs.length > 0 ? "hidden lg:block" : undefined,
-      content: <SpecificationList groups={item.specs} />,
-    },
+    // Specifications render ONLY when authored — on every viewport, expanded
+    // directly below the Description panel (mobile order: description → spec).
+    ...(item.specs.length > 0
+      ? [
+          {
+            id: "specifications",
+            title: "Specifications",
+            content: <SpecificationList groups={item.specs} />,
+          } satisfies AccordionPanel,
+        ]
+      : []),
     ...(item.faqs?.length
       ? [
           {
@@ -193,28 +245,14 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
             <h1 className="text-h1 font-bold">{item.name}</h1>
             <p className="text-lead text-muted-foreground">{item.tagline}</p>
 
-            {/* Mobile only — the full spec sheet is expanded inline here,
-                just before the price. On desktop specs live in the
-                "Product details" accordion below (panel stays lg+ only). */}
-            {item.specs.length > 0 && (
-              <section
-                aria-labelledby="mobile-specs-heading"
-                className="scroll-mt-28 lg:hidden"
-              >
-                <h2
-                  id="mobile-specs-heading"
-                  className="text-label font-semibold uppercase tracking-[0.18em] text-violet-soft"
-                >
-                  Specifications
-                </h2>
-                <div className="pt-3">
-                  <SpecificationList groups={item.specs} />
-                </div>
-              </section>
-            )}
+            {/* Visible mirror of the aggregateRating in the Product JSON-LD
+                above — present only for owner-rated listings. */}
+            {item.rating && <RatingStrip rating={item.rating} />}
 
             {/* Price — rendered by ProductDetailShell so it reacts to the
-                selected colour/origin options. */}
+                selected colour/origin options. On mobile the full spec
+                sheet lives in the "Product details" accordion below,
+                expanded directly under the Description panel. */}
 
         </ProductDetailShell>
 
@@ -228,8 +266,9 @@ export default async function ProductPage({ params, searchParams }: ProductPageP
             Description and specifications are expanded by default; toggle any panel as you like.
           </p>
           <div className="pt-6">
-            {/* Description + specifications start expanded (desktop accordion;
-                on mobile the spec sheet is already inline above the price). */}
+            {/* Description and specifications (when authored) start expanded,
+                on every viewport — description first, specifications directly
+                below it. */}
             <InformationAccordion
               panels={panels}
               defaultOpen={[

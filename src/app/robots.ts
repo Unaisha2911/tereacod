@@ -9,7 +9,8 @@ import { siteUrl } from "@/lib/seo";
  *
  * Indexing policy: the storefront is crawlable; the admin console and
  * transactional/utility routes are disallowed and additionally carry
- * noindex metadata in their route layouts.
+ * per-page noindex metadata (defence in depth — disallowed URLs can't be
+ * crawled, noindexed ones that are fetched report their real status).
  */
 export default function robots(): MetadataRoute.Robots {
   return {

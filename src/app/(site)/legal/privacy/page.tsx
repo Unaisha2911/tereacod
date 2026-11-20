@@ -9,7 +9,9 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     ...canonical("/legal/privacy"),
     title: doc?.title ?? "Privacy Notice",
-    description: doc?.summary,
+    description:
+      doc?.summary ??
+      "How TereaCOD collects, uses, stores and protects customer personal data for UAE orders — account details, delivery addresses, age verification records and your privacy rights under UAE law.",
   };
 }
 

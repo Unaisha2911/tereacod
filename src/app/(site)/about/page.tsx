@@ -12,6 +12,21 @@ export const metadata: Metadata = {
   description:
     "TereaCOD is the UAE's TEREA delivery specialist: authentic IQOS TEREA heated tobacco sticks curated, authenticity-checked and delivered UAE-wide from Dubai. Cash or card on delivery, transparent AED pricing, WhatsApp ordering and age-verified delivery — buy TEREA online in the UAE with confidence.",
   ...canonical("/about"),
+  openGraph: {
+    title: "Our Story — About the UAE's TEREA Delivery Specialist",
+    description:
+      "TereaCOD is the UAE's TEREA delivery specialist: authentic IQOS TEREA heated tobacco sticks curated, authenticity-checked and delivered UAE-wide from Dubai — cash or card on delivery.",
+    url: "/about",
+    siteName: "TereaCOD",
+    type: "website",
+    locale: "en_AE",
+    images: [{ url: "/og-image.jpg", width: 1200, height: 630, alt: "The TereaCOD story — the UAE's TEREA delivery specialist" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Our Story — About the UAE's TEREA Delivery Specialist",
+    images: ["/og-image.jpg"],
+  },
 };
 
 const TIMELINE: Array<{ year: string; title: string; body: string }> = [

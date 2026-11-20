@@ -4,7 +4,10 @@ import { WifiOff } from "lucide-react";
 import { OfflineActions } from "./offline-actions";
 
 export const metadata: Metadata = {
-  robots: { index: false, follow: true }, title: "You're offline" };
+  robots: { index: false, follow: true },
+  title: "You're offline",
+  description: "TereaCOD is unreachable right now — check your connection and reload to continue shopping TEREA sticks with cash or card on delivery.",
+};
 
 /** Offline / unavailable state — template shown when connectivity drops. */
 export default function OfflinePage() {

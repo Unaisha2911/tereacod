@@ -9,7 +9,9 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     ...canonical("/legal/consumer-information"),
     title: doc?.title ?? "Consumer Information",
-    description: doc?.summary,
+    description:
+      doc?.summary ??
+      "Consumer information for TereaCOD customers — nicotine health warnings, age-verification requirements, delivery coverage across the Emirates and how to contact UAE consumer protection authorities.",
   };
 }
 

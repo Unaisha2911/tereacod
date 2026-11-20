@@ -24,9 +24,15 @@ interface BrandPageProps {
 export async function generateMetadata({ params }: BrandPageProps): Promise<Metadata> {
   const { slug } = await params;
   const brand = await getBrandBySlugRepo(slug);
-  // notFound() in metadata (head-blocking) — see products/[slug] note; a
-  // streamed-body notFound() would be softened to a 200 by loading.tsx.
-  if (!brand) notFound();
+  // Unknown slug: the body raises notFound() (real 404 status under the
+  // (site) loading boundary — metadata-level notFound would flush a 200
+  // soft-404). Metadata degrades to a noindex block for the 404 shell.
+  if (!brand) {
+    return {
+      title: "Page not found",
+      robots: { index: false, follow: false },
+    };
+  }
   // One cached COUNT query — the former path loaded the FULL published
   // catalog (a products query + 5 hydration queries per cold render) just
   // to count one brand's items in memory.

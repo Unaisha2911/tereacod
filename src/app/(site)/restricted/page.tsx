@@ -5,7 +5,10 @@ import { ShieldX, Lock, UserRound } from "lucide-react";
 import { PrototypeNotice } from "@/components/shared/prototype-notice";
 
 export const metadata: Metadata = {
-  robots: { index: false, follow: true }, title: "Access restricted" };
+  robots: { index: false, follow: true },
+  title: "Access restricted",
+  description: "This TereaCOD area requires an authorised staff account — customers can continue shopping the storefront or contact support for help.",
+};
 
 /** Access-restricted state — for areas requiring role authorization. */
 export default function RestrictedPage() {

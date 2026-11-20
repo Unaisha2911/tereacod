@@ -48,8 +48,8 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
     <div className="relative flex min-h-screen flex-col">
       <GradientBackdrop variant="page" />
       <SiteHeader headerNav={header} mobileNav={mobile} footerColumns={footerCols} legalNav={legal} />
-      {/* pt clears the fixed header (announcement strip 2.25rem + nav 4rem). */}
-      <main id="main-content" className="flex-1 pt-[6.25rem]">{children}</main>
+      {/* pt clears the fixed header (single nav row, 4rem). */}
+      <main id="main-content" className="flex-1 pt-16">{children}</main>
       <SiteFooter />
       <BottomNavigation items={mobile} />
       {/* Conversational ordering CTA — fixed bottom-right, above the mobile nav */}

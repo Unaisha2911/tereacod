@@ -1,7 +1,7 @@
 /**
  * TereaCOD — storefront USP lines.
  *
- * The ordering promises shown across the storefront (announcement bar,
+ * The ordering promises shown across the storefront (hero chips/micro-labels,
  * product page, cart, checkout, homepage, footer, origin pages). Single
  * source of truth so the wording never drifts between surfaces — the
  * free-delivery threshold here must match

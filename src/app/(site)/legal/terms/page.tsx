@@ -9,7 +9,9 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     ...canonical("/legal/terms"),
     title: doc?.title ?? "Terms of Sale",
-    description: doc?.summary,
+    description:
+      doc?.summary ??
+      "TereaCOD terms of sale for UAE orders — pricing in AED, cash or card on delivery, age-verified delivery of nicotine products, returns and liability under UAE consumer law.",
   };
 }
 

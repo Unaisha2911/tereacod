@@ -105,6 +105,9 @@ interface EditorState {
   origin: string;
   keywords: string;
   lowStockThreshold: string;
+  /** Owner-curated rating inputs (empty = unrated). */
+  ratingValue: string;
+  ratingCount: string;
   featured: boolean;
   isNew: boolean;
   status: "draft" | "published";
@@ -139,6 +142,8 @@ function buildState(detail: AdminProductDetail): EditorState {
     origin: detail.origin ?? "",
     keywords: detail.keywords ?? "",
     lowStockThreshold: String(detail.lowStockThreshold),
+    ratingValue: detail.ratingValue === null ? "" : String(Math.round(detail.ratingValue * 10) / 10),
+    ratingCount: detail.ratingCount === null ? "" : String(detail.ratingCount),
     featured: detail.featured,
     isNew: detail.isNew,
     status: detail.published ? "published" : "draft",
@@ -275,6 +280,44 @@ export function ProductEditorView({ detail }: { detail: AdminProductDetail }) {
       return null;
     }
 
+    // Customer rating — both fields or neither (a value without a count
+    // would render a star row with no denominator). Value rounds to one
+    // decimal; server bounds are 0.5–5 with an integer count of 1+.
+    let rating: AdminProductPatch["rating"];
+    const ratingValueRaw = state.ratingValue.trim();
+    const ratingCountRaw = state.ratingCount.trim();
+    if (ratingValueRaw === "" && ratingCountRaw === "") {
+      rating = null;
+    } else {
+      const ratingNum = Number(ratingValueRaw);
+      const countNum = Number(ratingCountRaw);
+      if (ratingValueRaw === "" || ratingCountRaw === "") {
+        toast({
+          variant: "destructive",
+          title: "Rating incomplete",
+          description: "Fill in both the rating value and the ratings count, or clear both to leave the product unrated.",
+        });
+        return null;
+      }
+      if (!Number.isFinite(ratingNum) || ratingNum < 0.5 || ratingNum > 5) {
+        toast({
+          variant: "destructive",
+          title: "Invalid rating",
+          description: "The rating value must be between 0.5 and 5.",
+        });
+        return null;
+      }
+      if (!Number.isInteger(countNum) || countNum < 1) {
+        toast({
+          variant: "destructive",
+          title: "Invalid rating count",
+          description: "The ratings count must be a whole number of 1 or more.",
+        });
+        return null;
+      }
+      rating = { value: Math.round(ratingNum * 10) / 10, count: countNum };
+    }
+
     return {
       name: state.name.trim(),
       model: state.model.trim() || null,
@@ -288,6 +331,7 @@ export function ProductEditorView({ detail }: { detail: AdminProductDetail }) {
       origin: state.origin.trim() || null,
       keywords: state.keywords.trim() || null,
       lowStockThreshold: Math.max(0, Math.round(Number(state.lowStockThreshold) || 0)),
+      rating,
       warnings: state.warnings.map((w) => w.trim()).filter(Boolean),
       conformity: state.conformity
         .map((c) => ({ ...c, label: c.label.trim() }))
@@ -789,6 +833,38 @@ export function ProductEditorView({ detail }: { detail: AdminProductDetail }) {
                 </FormField>
                 <FormField label="Search keywords" htmlFor="p-keywords" hint="Comma-separated terms that feed storefront search." className="sm:col-span-2">
                   <TextInput id="p-keywords" value={state.keywords} onChange={(e) => patch({ keywords: e.target.value })} maxLength={500} />
+                </FormField>
+                <FormField
+                  label="Customer rating"
+                  htmlFor="p-rating-value"
+                  hint="Optional — renders as a visible star strip on the product page and feeds the Google review rich result. Leave both fields empty to keep the listing unrated."
+                  className="sm:col-span-2"
+                >
+                  <div className="grid grid-cols-2 gap-3 sm:max-w-sm">
+                    <TextInput
+                      id="p-rating-value"
+                      type="number"
+                      inputMode="decimal"
+                      step="0.1"
+                      min="0.5"
+                      max="5"
+                      aria-label="Rating value out of five"
+                      placeholder="Value (0.5–5)"
+                      value={state.ratingValue}
+                      onChange={(e) => patch({ ratingValue: e.target.value })}
+                    />
+                    <TextInput
+                      id="p-rating-count"
+                      type="number"
+                      inputMode="numeric"
+                      step="1"
+                      min="1"
+                      aria-label="Number of customer ratings"
+                      placeholder="Ratings count"
+                      value={state.ratingCount}
+                      onChange={(e) => patch({ ratingCount: e.target.value })}
+                    />
+                  </div>
                 </FormField>
               </div>
             </FormSection>

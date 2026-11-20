@@ -9,7 +9,9 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     ...canonical("/legal/cookies"),
     title: doc?.title ?? "Cookie Notice",
-    description: doc?.summary,
+    description:
+      doc?.summary ??
+      "The cookies TereaCOD uses to run the UAE storefront — session and cart cookies, analytics measurement and how to control them in your browser.",
   };
 }
 

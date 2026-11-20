@@ -3,9 +3,7 @@
  *
  * ONE database (db/tereacod.db) · ONE seed file. Prepares a fresh
  * deployment (e.g. the tereacod.ae production push) with everything the
- * site needs EXCEPT the catalog — products, brands and categories are
- * authored in the admin console after go-live, so they are deliberately
- * NOT seeded:
+ * site needs INCLUDING the starter storefront catalog:
  *
  *   • settings (site copy, delivery config, feature flags)   — text content
  *   • navigation (header / mobile / footer / legal strip)    — text content
@@ -14,13 +12,16 @@
  *   • FAQs                                                   — text content
  *   • RBAC (permissions + roles) + the single admin login    — admin access
  *   • brand/logo media rows + logo/favicon/og asset check    — logos
+ *   • STARTER CATALOG — 2 brands + 18 published TEREA/IQOS listings with
+ *     images, origin/colour variants, specs, FAQs, ratings, related links,
+ *     inventory and enriched FTS search rows (src/data/catalog-seed.ts)
  *
- * Not seeded (removed from the former mega-seed): products, brands,
- * categories, coupons, demo customers, demo orders, demo support
- * tickets, audit history. Re-running is SAFE on a live store — it only
- * converges the sections above and never deletes catalog, order or
- * media rows created at runtime, and it never touches an existing
- * admin password (rotate deliberately with
+ * Not seeded: coupons, demo customers, demo orders, demo support tickets,
+ * audit history. Re-running is SAFE on a live store — catalog rows are
+ * INSERT OR IGNORE on stable ids (admin edits at runtime are never
+ * clobbered; a deliberately deleted product is restored — remove it from
+ * src/data/catalog-seed.ts if that is not wanted). It never touches an
+ * existing admin password (rotate deliberately with
  * `ADMIN_PASSWORD=… bun run db:seed`).
  *
  * Usage:
@@ -44,6 +45,8 @@ import { NAVIGATION_ITEMS } from "../src/data/navigation";
 import { LEGAL_DOCUMENTS } from "../src/data/legal";
 import { COMPLIANCE_RECORDS } from "../src/data/compliance";
 import { FAQS } from "../src/app/(site)/help/faq/faqs";
+import { CATALOG_SEED_BRANDS, CATALOG_SEED_PRODUCTS } from "../src/data/catalog-seed";
+import { composeSearchKeywords } from "../src/lib/search-keywords";
 
 const RESET = process.argv.includes("--reset");
 const DB_FILE = path.join(process.cwd(), "db", "tereacod.db");
@@ -426,6 +429,231 @@ for (const asset of BRAND_MEDIA) {
   });
 }
 
+/* ---------------------------- storefront catalog --------------------------- */
+
+/**
+ * STARTER CATALOG — brands, products and every child collection (images,
+ * variants, specs, FAQs, ratings, related, inventory, FTS).
+ *
+ * Everything is INSERT OR IGNORE on STABLE ids, so:
+ *   • re-running the seed never duplicates rows,
+ *   • admin edits made at runtime (prices, copy, stock, imagery, publish
+ *     state) are NEVER clobbered,
+ *   • a product an admin deliberately deleted is intentionally restored
+ *     on the next seed run — remove it from CATALOG_SEED_PRODUCTS if that
+ *     is not wanted.
+ *
+ * FTS keywords are composed with composeSearchKeywords() — admin keywords
+ * PLUS origin lines, variant labels, category, SKU and model — so
+ * contextual search (origins, flavours, device names) works from first
+ * boot, not only for console-authored listings.
+ */
+console.log(
+  `• storefront catalog (${CATALOG_SEED_PRODUCTS.length} products, ${CATALOG_SEED_BRANDS.length} brands)`
+);
+
+// Store categories — normally present via migration 0007. INSERT OR IGNORE
+// keeps a manually-authored category with either slug untouched.
+const STORE_CATEGORIES = [
+  {
+    id: "cat_store_terea_sticks",
+    slug: "terea-sticks",
+    name: "TEREA Sticks",
+    description: "The full TEREA heat-not-burn stick range for IQOS ILUMA — every origin line, flavour family and edition on one shelf.",
+    longDescription:
+      "Browse the complete TEREA sticks collection: smooth toasted tobaccos, crisp menthols and click-capsule Pearl editions across all sourcing lines. Every pack is authenticity-checked, priced in AED and dispatched from Dubai with cash or card on delivery.",
+    accent: "violet",
+    position: 1,
+  },
+  {
+    id: "cat_store_iqos_devices",
+    slug: "iqos-devices",
+    name: "IQOS Devices",
+    description: "IQOS ILUMA heated-tobacco devices and official accessories — the hardware that heats every TEREA stick.",
+    longDescription:
+      "The IQOS devices collection: ILUMA and ILUMA i pocket devices, holders, chargers and official accessories. Authentic hardware, AED pricing and UAE-wide delivery with cash or card payment at the door.",
+    accent: "ice",
+    position: 2,
+  },
+] as const;
+for (const cat of STORE_CATEGORIES) {
+  db.prepare(
+    `INSERT OR IGNORE INTO categories
+       (id, slug, name, description, long_description, accent, featured, position, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`
+  ).run(cat.id, cat.slug, cat.name, cat.description, cat.longDescription, cat.accent, cat.position, now, now);
+}
+
+const categoryIdBySlug = new Map<string, string>();
+for (const row of db.prepare(`SELECT id, slug FROM categories`).all() as Array<{ id: string; slug: string }>) {
+  categoryIdBySlug.set(row.slug, row.id);
+}
+
+for (const brand of CATALOG_SEED_BRANDS) {
+  db.prepare(
+    `INSERT OR IGNORE INTO brands
+       (id, slug, name, tagline, blurb, description, origin, established, accent, featured, logo_media_id, position, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)`
+  ).run(
+    brand.id,
+    brand.slug,
+    brand.name,
+    brand.tagline,
+    brand.blurb,
+    brand.description,
+    brand.origin,
+    brand.established,
+    brand.accent,
+    brand.featured ? 1 : 0,
+    brand.position,
+    now,
+    now
+  );
+}
+
+// Media assets for the committed /products/*.jpg placeholder photography —
+// deterministic ids keyed by filename stem so re-runs are no-ops.
+const mediaIdByUrl = new Map<string, string>();
+const seedImageUrls = [...new Set(CATALOG_SEED_PRODUCTS.flatMap((p) => p.images))];
+for (const url of seedImageUrls) {
+  const filename = url.split("/").pop() ?? url;
+  const id = `med_seed_${filename.replace(/\.[a-z]+$/i, "").replace(/-/g, "_")}`;
+  db.prepare(
+    `INSERT OR IGNORE INTO media_assets
+       (id, filename, folder, type, mime, size_bytes, width, height, alt, status, r2_key, url, variants_json, uploaded_by, uploaded_at, deleted_at)
+     VALUES (?, ?, 'products', 'image', 'image/jpeg', 120000, 1200, 1200, ?, 'ready', ?, ?, '{}', 'seed', ?, NULL)`
+  ).run(id, filename, `${filename} — TereaCOD seed catalog photo`, `products/${filename}`, url, now);
+  mediaIdByUrl.set(url, id);
+}
+
+let catalogSeeded = 0;
+for (const p of CATALOG_SEED_PRODUCTS) {
+  const brand = CATALOG_SEED_BRANDS.find((b) => b.slug === p.brand);
+  const categoryId = categoryIdBySlug.get(p.category);
+  if (!brand || !categoryId) {
+    console.warn(`  ! skipped ${p.slug} — missing brand/category row`);
+    continue;
+  }
+
+  const variantLabels = [
+    ...(p.originVariants ?? []).map((v) => v.label),
+    ...(p.colorVariants ?? []).map((v) => v.label),
+  ];
+  const composedKeywords = composeSearchKeywords({
+    name: p.name,
+    brand: brand.name,
+    keywords: p.keywords.join(", "),
+    origin: p.origin ?? null,
+    category: categoryIdBySlug.has(p.category) ? STORE_CATEGORIES.find((c) => c.slug === p.category)?.name ?? null : null,
+    model: p.model ?? null,
+    sku: p.sku,
+    nicotineStrength: p.nicotine ?? null,
+    variantLabels,
+  });
+
+  db.prepare(
+    `INSERT OR IGNORE INTO products
+       (id, slug, name, brand_id, category_id, sku, model, tagline, description,
+        price_cents, compare_at_cents, currency, editorial_availability, low_stock_threshold,
+        is_featured, is_new, nicotine_strength, age_restricted, origin,
+        compatibility_json, conformity_json, warnings_json, keywords,
+        published_at, created_at, updated_at, version)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'AED', NULL, 8, ?, ?, ?, 1, ?, '{}', '{}', '[]', ?, ?, ?, ?, 1)`
+  ).run(
+    p.id,
+    p.slug,
+    p.name,
+    brand.id,
+    categoryId,
+    p.sku,
+    p.model ?? null,
+    p.tagline,
+    p.description,
+    p.priceFils,
+    p.compareAtFils ?? null,
+    p.featured ? 1 : 0,
+    p.isNew ? 1 : 0,
+    p.nicotine ?? null,
+    p.origin ?? null,
+    composedKeywords,
+    now,
+    now,
+    now
+  );
+
+  db.prepare(
+    `INSERT OR IGNORE INTO product_fts (product_id, name, brand, tagline, description, keywords)
+     VALUES (?, ?, ?, ?, ?, ?)`
+  ).run(p.id, p.name, brand.name, p.tagline, p.description, composedKeywords);
+
+  p.images.forEach((url, index) => {
+    db.prepare(
+      `INSERT OR IGNORE INTO product_images (id, product_id, media_asset_id, alt, position)
+       VALUES (?, ?, ?, ?, ?)`
+    ).run(`pimg_${p.id}_${index}`, p.id, mediaIdByUrl.get(url), `${p.name} — seed photo ${index + 1}`, index);
+  });
+
+  (p.originVariants ?? []).forEach((variant, index) => {
+    db.prepare(
+      `INSERT OR IGNORE INTO product_variants
+         (id, product_id, label, type, swatch, meta, image_media_id, available, price_delta_cents, position)
+       VALUES (?, ?, ?, 'origin', NULL, NULL, NULL, 1, ?, ?)`
+    ).run(`pv_${p.id}_o${index}`, p.id, variant.label, variant.deltaFils, index);
+  });
+  (p.colorVariants ?? []).forEach((variant, index) => {
+    db.prepare(
+      `INSERT OR IGNORE INTO product_variants
+         (id, product_id, label, type, swatch, meta, image_media_id, available, price_delta_cents, position)
+       VALUES (?, ?, ?, 'color', ?, NULL, NULL, 1, ?, ?)`
+    ).run(`pv_${p.id}_c${index}`, p.id, variant.label, variant.swatch, variant.deltaFils ?? 0, index);
+  });
+
+  p.specs.forEach((group, gi) => {
+    const groupId = `spg_${p.id}_${gi}`;
+    db.prepare(
+      `INSERT OR IGNORE INTO product_spec_groups (id, product_id, title, position) VALUES (?, ?, ?, ?)`
+    ).run(groupId, p.id, group.title, gi);
+    group.entries.forEach((entry, ei) => {
+      db.prepare(
+        `INSERT OR IGNORE INTO product_spec_entries (id, group_id, label, value, position) VALUES (?, ?, ?, ?, ?)`
+      ).run(`spe_${p.id}_${gi}_${ei}`, groupId, entry.label, entry.value, ei);
+    });
+  });
+
+  (p.faqs ?? []).forEach((faq, index) => {
+    db.prepare(
+      `INSERT OR IGNORE INTO product_faqs (id, product_id, question, answer, position) VALUES (?, ?, ?, ?, ?)`
+    ).run(`pfq_${p.id}_${index}`, p.id, faq.question, faq.answer, index);
+  });
+
+  if (p.rating) {
+    db.prepare(
+      `INSERT OR IGNORE INTO product_ratings (product_id, rating_value, rating_count, updated_at)
+       VALUES (?, ?, ?, ?)`
+    ).run(p.id, p.rating.value, p.rating.count, now);
+  }
+
+  db.prepare(
+    `INSERT OR IGNORE INTO inventory (product_id, variant_id, qty_on_hand, qty_reserved, backorderable, updated_at)
+     VALUES (?, '', 60, 0, 0, ?)`
+  ).run(p.id, now);
+
+  catalogSeeded++;
+}
+
+// Related rows — second pass so references resolve regardless of seed order.
+for (const p of CATALOG_SEED_PRODUCTS) {
+  p.related.forEach((slug, index) => {
+    const target = db.prepare(`SELECT id FROM products WHERE slug = ?`).get(slug) as { id: string } | undefined;
+    if (target) {
+      db.prepare(
+        `INSERT OR IGNORE INTO product_related (product_id, related_product_id, position) VALUES (?, ?, ?)`
+      ).run(p.id, target.id, index);
+    }
+  });
+}
+console.log(`  ✓ catalog written: ${catalogSeeded}/${CATALOG_SEED_PRODUCTS.length} products published`);
+
 /* ---------------------------------- done ----------------------------------- */
 
 const count = (table: string): number =>
@@ -444,7 +672,7 @@ console.log("✓ seed complete:", {
   media: count("media_assets"),
 });
 console.log(
-  `  catalog left to the admin console — products: ${count("products")}, brands: ${count("brands")}, categories: ${count("categories")}`
+  `  storefront catalog seeded — products: ${count("products")} (${catalogSeeded} from seed), brands: ${count("brands")}, categories: ${count("categories")}`
 );
 console.log(
   `  admin sign-in: ${adminEmail} / ${

@@ -34,14 +34,35 @@ function originHref(slug: string, context: FacetContext, overrides?: FacetContex
   return qs ? `/origin/${slug}?${qs}` : `/origin/${slug}`;
 }
 
-/** Loose query match — name, tagline or brand contains the needle. */
-function matchesQuery(item: Pick<CatalogItem, "name" | "tagline" | "brand">, q: string): boolean {
-  const needle = q.toLowerCase();
-  return (
-    item.name.toLowerCase().includes(needle) ||
-    item.tagline.toLowerCase().includes(needle) ||
-    item.brand.toLowerCase().includes(needle)
-  );
+/**
+ * Contextual query match — mirrors the FTS-backed /search surface so the
+ * combined search × origin shelf shows the same products the search page
+ * counted for its origin chip. Matched fields: name, tagline, brand,
+ * description, composed keywords (origin lines, variant labels, flavour
+ * synonyms, SKU, model — see composeSearchKeywords), nicotine strength and
+ * variant labels. Whole-needle OR per-token (≥3 chars) so "japan menthol"
+ * behaves like the FTS query, and simple prefixes match ("purp" → Purple).
+ */
+function matchesQuery(item: CatalogItem, q: string): boolean {
+  const haystack = [
+    item.name,
+    item.tagline,
+    item.brand,
+    item.description,
+    item.keywords ?? "",
+    item.origin ?? "",
+    item.model ?? "",
+    item.nicotineStrength ?? "",
+    ...item.variants.map((v) => v.label),
+  ]
+    .join(" \u00b7 ")
+    .toLowerCase();
+  const needle = q.toLowerCase().trim();
+  if (!needle) return true;
+  if (haystack.includes(needle)) return true;
+  const tokens = needle.split(/\s+/).filter((t) => t.length >= 3);
+  if (tokens.length === 0) return false;
+  return tokens.every((token) => haystack.includes(token) || haystack.includes(token.replace(/(?:ies|s)$/g, "")));
 }
 
 /**
@@ -95,7 +116,15 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params, searchParams }: OriginPageProps): Promise<Metadata> {
   const { slug } = await params;
   const line = originLineBySlug(slug);
-  if (!line) notFound();
+  // Unknown slug: the body raises notFound() (real 404 status under the
+  // (site) loading boundary — metadata-level notFound would flush a 200
+  // soft-404). Metadata degrades to a noindex block for the 404 shell.
+  if (!line) {
+    return {
+      title: "Page not found",
+      robots: { index: false, follow: false },
+    };
+  }
   const { collection, brand, q } = await searchParams;
   const trimmedQ = q?.trim() || undefined;
   const [allItems, brands] = await Promise.all([getProducts(), getBrands()]);

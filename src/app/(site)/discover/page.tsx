@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { canonical } from "@/lib/seo";
+import { canonical, itemListJsonLd, JsonLd } from "@/lib/seo";
 import { toCardItems } from "@/lib/catalog-card";
 import { DiscoverView } from "./discover-view";
 import { getCategories, getProducts } from "@/server/data";
@@ -18,6 +18,21 @@ export const metadata: Metadata = {
     "terea switzerland duty free uae",
   ],
   ...canonical("/discover"),
+  openGraph: {
+    title: "Browse All Heat-Not-Burn Sticks — Full Catalog",
+    description:
+      "The full TereaCOD range — heat-not-burn tobacco sticks made for IQOS ILUMA across all seven origin lines, UAE-wide delivery with cash or card on delivery.",
+    url: "/discover",
+    siteName: "TereaCOD",
+    type: "website",
+    locale: "en_AE",
+    images: [{ url: "/og-image.jpg", width: 1200, height: 630, alt: "TereaCOD full catalog — TEREA sticks and IQOS devices delivered across the UAE" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Browse All Heat-Not-Burn Sticks — Full Catalog",
+    images: ["/og-image.jpg"],
+  },
 };
 
 /**
@@ -32,5 +47,12 @@ export const metadata: Metadata = {
  */
 export default async function DiscoverPage() {
   const [items, categories] = await Promise.all([getProducts(), getCategories()]);
-  return <DiscoverView initialItems={toCardItems(items)} initialCategories={categories} />;
+  const cardItems = toCardItems(items);
+  return (
+    <>
+      {/* ItemList rich result — sibling shelf pages carry the same graph. */}
+      <JsonLd data={itemListJsonLd(cardItems, "Full TereaCOD catalog — TEREA sticks and IQOS devices UAE")} />
+      <DiscoverView initialItems={cardItems} initialCategories={categories} />
+    </>
+  );
 }

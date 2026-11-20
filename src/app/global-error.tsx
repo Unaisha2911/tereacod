@@ -22,7 +22,7 @@ export default function GlobalError({
   }, [error]);
 
   return (
-    <html lang="en">
+    <html lang="en-AE" dir="ltr">
       <body
         style={{
           margin: 0,

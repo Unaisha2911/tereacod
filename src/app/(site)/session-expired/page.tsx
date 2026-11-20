@@ -4,7 +4,10 @@ import { PageContainer } from "@/components/layout/page-container";
 import { Clock, LogIn } from "lucide-react";
 
 export const metadata: Metadata = {
-  robots: { index: false, follow: true }, title: "Session expired" };
+  robots: { index: false, follow: true },
+  title: "Session expired",
+  description: "Your TereaCOD session has ended for security — sign in again to continue your TEREA order.",
+};
 
 /** Session-expired state — shown when an authenticated period ends. */
 export default function SessionExpiredPage() {

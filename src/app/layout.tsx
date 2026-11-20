@@ -78,7 +78,16 @@ export const metadata: Metadata = {
   robots: {
     index: true,
     follow: true,
-    googleBot: { index: true, follow: true },
+    googleBot: {
+      index: true,
+      follow: true,
+      // Advanced crawler directives — serve large OG imagery to crawlers and
+      // leave snippet length unconstrained (max-snippet -1 lets Google pick
+      // the optimal description length for query intent).
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
   },
   openGraph: {
     title: `${BRAND.name} — ${BRAND.tagline}`,
@@ -117,8 +126,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning>
+    // lang "en-AE": English content for a UAE audience (matches og:locale
+    // en_AE and the web manifest). dir "ltr" is stated explicitly so the
+    // document's language direction is declared, not merely defaulted.
+    <html lang="en-AE" dir="ltr" data-scroll-behavior="smooth" suppressHydrationWarning>
       <head>
+        {/* Early connection warm-up for the analytics tag — the GTM bootstrap
+            below (and its gtm.js fetch) benefits on every navigation. */}
+        <link rel="preconnect" href="https://www.googletagmanager.com" />
+        <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
         {/* __name helper shim — FIRST script so it precedes every inline
             script the toolchain may emit. Bundlers (esbuild/SWC keepNames)
             can reference `__name` from injected inline scripts without

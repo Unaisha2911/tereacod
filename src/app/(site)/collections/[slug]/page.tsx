@@ -23,9 +23,15 @@ interface CollectionPageProps {
 export async function generateMetadata({ params }: CollectionPageProps): Promise<Metadata> {
   const { slug } = await params;
   const category = await getCategoryBySlugRepo(slug);
-  // notFound() in metadata (head-blocking) — see products/[slug] note; a
-  // streamed-body notFound() would be softened to a 200 by loading.tsx.
-  if (!category) notFound();
+  // Unknown slug: the body raises notFound() (real 404 status under the
+  // (site) loading boundary — metadata-level notFound would flush a 200
+  // soft-404). Metadata degrades to a noindex block for the 404 shell.
+  if (!category) {
+    return {
+      title: "Page not found",
+      robots: { index: false, follow: false },
+    };
+  }
   const items = (await getProducts()).filter((item) => item.categorySlug === category.slug);
   const title = `${category.name} UAE — Browse ${items.length} products`;
   const description = `${category.description} Shop ${items.length} ${category.name.toLowerCase()} delivered UAE-wide from Dubai — AED pricing, freshness-sealed stock and UAE-wide delivery from Dubai.`;

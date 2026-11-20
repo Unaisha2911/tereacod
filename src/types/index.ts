@@ -149,6 +149,19 @@ export interface CatalogItem {
   nicotineStrength?: string;
   /** UAE law: nicotine products are 18+; accessories (coils, cables) may not be. */
   ageRestricted: boolean;
+  /**
+   * Composed search-keyword payload (admin synonyms + origin lines, variant
+   * labels, category, SKU, model — see composeSearchKeywords). Surfaced for
+   * in-memory contextual filtering (origin shelf × ?q= combined views) so
+   * client-side matching agrees with the FTS-backed /search results.
+   */
+  keywords?: string;
+  /**
+   * Owner-curated customer rating (product_ratings table) — rendered on the
+   * product page as visible stars and mirrored verbatim into the Product
+   * JSON-LD aggregateRating. Absent for unrated listings.
+   */
+  rating?: { value: number; count: number };
   faqs?: Array<{ question: string; answer: string }>;
   relatedSlugs?: string[];
 }
@@ -229,6 +242,9 @@ export interface AdminProductDetail extends AdminProductSummary {
   ageRestricted: boolean;
   keywords: string | null;
   lowStockThreshold: number;
+  /** Owner-curated rating (product_ratings) — null when unrated. */
+  ratingValue: number | null;
+  ratingCount: number | null;
   warnings: string[];
   conformity: ConformityInfo[];
   images: AdminProductImage[];
@@ -265,6 +281,11 @@ export interface AdminProductPatch {
   origin?: string | null;
   keywords?: string | null;
   lowStockThreshold?: number;
+  /**
+   * Customer rating write — { value, count } upserts, null clears the
+   * rating. Omitted = no change. Validated upstream (0.5–5, count ≥ 1).
+   */
+  rating?: { value: number; count: number } | null;
   warnings?: string[];
   conformity?: ConformityInfo[];
   images?: AdminProductImage[];

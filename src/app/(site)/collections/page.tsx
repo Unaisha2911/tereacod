@@ -11,6 +11,21 @@ export const metadata: Metadata = {
   description:
     "Shop TereaCOD by collection — heat-not-burn tobacco sticks and IQOS devices made for IQOS ILUMA across all seven origin lines. Authentic stock, AED pricing, UAE-wide delivery.",
   ...canonical("/collections"),
+  openGraph: {
+    title: "Shop Heat-Not-Burn Collections — IQOS ILUMA Tobacco Sticks",
+    description:
+      "Shop TereaCOD by collection — heat-not-burn tobacco sticks and IQOS devices across all seven origin lines, delivered UAE-wide.",
+    url: "/collections",
+    siteName: "TereaCOD",
+    type: "website",
+    locale: "en_AE",
+    images: [{ url: "/collections/terea-sticks-collection.jpg", width: 1344, height: 768, alt: "TEREA sticks collections at TereaCOD UAE" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Shop Heat-Not-Burn Collections — IQOS ILUMA Tobacco Sticks",
+    images: ["/collections/terea-sticks-collection.jpg"],
+  },
 };
 
 /** Collections — index of browsable category shelves. */

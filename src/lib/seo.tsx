@@ -117,6 +117,17 @@ const AVAILABILITY_SCHEMA: Record<CatalogItem["availability"], string> = {
  * group, and origin (or colour) options can carry a price delta. Announcing
  * the bare base price would disagree with the price the page actually shows
  * and charges whenever the default selection includes an origin premium.
+ *
+ * When the listing carries an owner-curated rating (product_ratings table,
+ * surfaced as visible stars on the page), the SAME numbers are mirrored into
+ * aggregateRating — Google only honours review markup that matches visible
+ * on-page content, so unrated products simply omit the property.
+ *
+ * shippingDetails mirrors the live delivery config (DEFAULT_DELIVERY_CONFIG):
+ * AED 25 standard rate across the Emirates, FREE over the AED 300 threshold,
+ * same-day/1-hour fulfilment from the Dubai warehouse. Schema.org has no
+ * conditional-rate model, so the standard rate is announced (the free-over-
+ * threshold rule is copy on every storefront surface).
  */
 export function productJsonLd(item: CatalogItem, brandName?: string): JsonLdObject {
   const defaultIds = selectedVariantIds(initialVariantSelection(item.variants ?? []));
@@ -135,6 +146,17 @@ export function productJsonLd(item: CatalogItem, brandName?: string): JsonLdObje
     ...(item.model ? { mpn: item.model } : {}),
     ...(item.images.length ? { image: item.images.map((src) => siteAssetUrl(src)) } : {}),
     ...(brandName ? { brand: { "@type": "Brand", name: brandName } } : {}),
+    ...(item.rating
+      ? {
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: item.rating.value,
+            ratingCount: item.rating.count,
+            bestRating: 5,
+            worstRating: 1,
+          },
+        }
+      : {}),
     offers: {
       "@type": "Offer",
       url: siteUrl(`/products/${item.slug}`),
@@ -143,6 +165,16 @@ export function productJsonLd(item: CatalogItem, brandName?: string): JsonLdObje
       availability: AVAILABILITY_SCHEMA[item.availability] ?? "https://schema.org/InStock",
       itemCondition: "https://schema.org/NewCondition",
       seller: { "@type": "Organization", name: "TereaCOD" },
+      shippingDetails: {
+        "@type": "OfferShippingDetails",
+        shippingRate: { "@type": "MonetaryAmount", value: 25, currency: "AED" },
+        shippingDestination: { "@type": "DefinedRegion", addressCountry: "AE" },
+        deliveryTime: {
+          "@type": "ShippingDeliveryTime",
+          handlingTime: { "@type": "QuantitativeValue", minValue: 0, maxValue: 1, unitCode: "DAY" },
+          transitTime: { "@type": "QuantitativeValue", minValue: 0, maxValue: 1, unitCode: "DAY" },
+        },
+      },
       ...(item.compareAtPrice !== undefined
         ? { priceValidUntil: new Date(new Date().getFullYear() + 1, 0, 1).toISOString().slice(0, 10) }
         : {}),

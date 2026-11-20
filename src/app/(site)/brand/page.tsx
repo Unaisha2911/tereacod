@@ -15,6 +15,21 @@ export const metadata: Metadata = {
   description:
     "IQOS ILUMA heat-not-burn tobacco sticks in the UAE — all seven sourcing lines from Uzbekistan and Switzerland (Duty Free) to Japan and Italy — authenticity-checked stock, AED pricing and UAE-wide delivery from Dubai.",
   ...canonical("/brand"),
+  openGraph: {
+    title: "IQOS ILUMA UAE — Every Brand We Stock",
+    description:
+      "IQOS ILUMA heat-not-burn tobacco sticks in the UAE — all seven sourcing lines, authenticity-checked stock, AED pricing and UAE-wide delivery from Dubai.",
+    url: "/brand",
+    siteName: "TereaCOD",
+    type: "website",
+    locale: "en_AE",
+    images: [{ url: "/brand/craft.jpg", width: 1344, height: 768, alt: "The TereaCOD brand directory — authentic TEREA lines stocked in Dubai" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "IQOS ILUMA UAE — Every Brand We Stock",
+    images: ["/brand/craft.jpg"],
+  },
 };
 
 export default async function BrandDirectoryPage() {
