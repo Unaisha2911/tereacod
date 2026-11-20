@@ -25,7 +25,18 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   // boundary — the exact refresh-time symptom this guards. The nav repo is
   // cached 60s with 15min stale-on-error retention, so this fallback only
   // fires on a cold-cache failure; the next navigation refills normally.
-  const fallback: NavigationItem[][] = [[], [], [], []];
+  //
+  // Typed as the EXACT tuple Promise.all resolves with. A loose
+  // NavigationItem[][] fallback widens the awaited value to
+  // `tuple | NavigationItem[][]`, and destructuring that union mis-types
+  // footerCols as `NavigationItem[][] | NavigationItem[]` — the production
+  // type check (next build) rejected it; dev mode never surfaced it.
+  const fallback: [
+    NavigationItem[],
+    NavigationItem[],
+    NavigationItem[][],
+    NavigationItem[],
+  ] = [[], [], [], []];
   const [header, mobile, footerCols, legal] = await Promise.all([
     headerNav(),
     mobileNav(),
