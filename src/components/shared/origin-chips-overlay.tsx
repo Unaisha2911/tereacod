@@ -12,7 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
+import { cn, formatAED } from "@/lib/utils";
 import type { OriginLine } from "@/lib/catalog-origin";
 
 /**
@@ -24,8 +24,14 @@ import type { OriginLine } from "@/lib/catalog-origin";
  *    a stack of chips. On mobile the stacked chips used to crawl over the
  *    whole product image; one compact trigger keeps the photo visible.
  *    Tapping it opens a bottom sheet (mobile) / compact dialog (desktop)
- *    listing EVERY sourcing line; each row deep-links to the product page
- *    with that origin preselected (`/products/<slug>?origin=<line>`).
+ *    listing EVERY sourcing line WITH its live AED price; each row
+ *    deep-links to the product page with that origin preselected
+ *    (`/products/<slug>?origin=<line>`), so the price shown in the popup
+ *    is the price the product page opens at.
+ *
+ * Prices arrive keyed by origin-line slug from the card — they are part of
+ * the card projection the list endpoints already return, so this popup
+ * never fetches anything itself.
  *
  * The overlay renders as a SIBLING of the card's image Link (the card
  * positions it absolutely) — a real button must never live inside an
@@ -35,11 +41,14 @@ export function OriginChipsOverlay({
   lines,
   productSlug,
   productName,
+  prices,
   className,
 }: {
   lines: readonly OriginLine[];
   productSlug: string;
   productName: string;
+  /** Per-origin prices keyed by line slug (undefined → rows without prices). */
+  prices?: Record<string, { price: number; available: boolean }>;
   /** Positioning classes from the card — `absolute bottom-3 left-3 …`. */
   className?: string;
 }) {
@@ -65,7 +74,7 @@ export function OriginChipsOverlay({
     );
   }
 
-  // Multi-origin — one trigger, full list in the dialog.
+  // Multi-origin — one trigger, full priced list in the dialog.
   return (
     <div className={cn("flex flex-wrap gap-1.5", className)}>
       <Dialog open={open} onOpenChange={setOpen}>
@@ -73,7 +82,7 @@ export function OriginChipsOverlay({
           <button
             type="button"
             aria-haspopup="dialog"
-            aria-label={`See all ${lines.length} origins of ${productName}`}
+            aria-label={`See all ${lines.length} origins and prices of ${productName}`}
             title={`See all origins — ${lines.map((line) => line.label).join(", ")}`}
             className={cn(
               "relative inline-flex cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full border border-line-strong bg-white/90 px-2.5 py-1 text-[0.65rem] font-semibold text-foreground shadow-[0_2px_8px_-4px_rgba(23,68,105,0.3)] backdrop-blur-sm transition-colors",
@@ -98,32 +107,49 @@ export function OriginChipsOverlay({
           )}
         >
           <DialogHeader>
-            <DialogTitle className="font-display text-base font-semibold">All origins</DialogTitle>
+            <DialogTitle className="font-display text-base font-semibold">All origins &amp; prices</DialogTitle>
             <DialogDescription className="text-[0.82rem]">
-              {productName} is stocked from {lines.length} sourcing lines — pick one to open it
-              with that origin selected.
+              {productName} is stocked from {lines.length} sourcing lines — every line with its
+              pack price. Pick one to open it with that origin selected.
             </DialogDescription>
           </DialogHeader>
           <ul role="list" className="max-h-[52vh] space-y-1.5 overflow-y-auto sm:max-h-72">
-            {lines.map((line) => (
-              <li key={line.slug}>
-                <DialogClose asChild>
-                  <Link
-                    href={`/products/${productSlug}?origin=${line.slug}`}
-                    aria-label={`Open ${productName} — ${line.label} origin`}
-                    className="flex min-h-11 items-center gap-3 rounded-xl border border-line bg-card px-3.5 py-2.5 transition-colors hover:border-violet-glow/50 hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-glow/50"
-                  >
-                    <span aria-hidden="true" className="text-lg leading-none">
-                      {line.flag}
-                    </span>
-                    <span className="flex-1 text-[0.86rem] font-medium text-foreground">
-                      {line.label}
-                    </span>
-                    <ArrowRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                  </Link>
-                </DialogClose>
-              </li>
-            ))}
+            {lines.map((line) => {
+              const price = prices?.[line.slug];
+              return (
+                <li key={line.slug}>
+                  <DialogClose asChild>
+                    <Link
+                      href={`/products/${productSlug}?origin=${line.slug}`}
+                      aria-label={
+                        price
+                          ? `Open ${productName} — ${line.label} origin, ${formatAED(price.price)}`
+                          : `Open ${productName} — ${line.label} origin`
+                      }
+                      className="flex min-h-11 items-center gap-3 rounded-xl border border-line bg-card px-3.5 py-2.5 transition-colors hover:border-violet-glow/50 hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-glow/50"
+                    >
+                      <span aria-hidden="true" className="text-lg leading-none">
+                        {line.flag}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-[0.86rem] font-medium text-foreground">
+                        {line.label}
+                      </span>
+                      {price &&
+                        (price.available ? (
+                          <span className="shrink-0 font-display text-[0.86rem] font-semibold text-foreground">
+                            {formatAED(price.price)}
+                          </span>
+                        ) : (
+                          <span className="shrink-0 rounded-full border border-line px-2 py-0.5 text-[0.62rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                            Sold out
+                          </span>
+                        ))}
+                      <ArrowRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                    </Link>
+                  </DialogClose>
+                </li>
+              );
+            })}
           </ul>
         </DialogContent>
       </Dialog>

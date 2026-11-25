@@ -16,9 +16,13 @@ import { cn } from "@/lib/utils";
  * opens the Japan line pre-narrowed to that collection, and the origin
  * page keeps the combination clearable via its active-filter bar.
  *
- * Counts are facet counts (multi-origin listings count toward EVERY line
- * they stock) and zero-count lines stay hidden unless they are the page
- * you are already on.
+ * ALL SEVEN LINES ALWAYS RENDER: each is a real, crawlable landing page,
+ * so a line with no (or not-yet-loaded) products shows an honest 0 badge
+ * instead of vanishing — the old zero-count hiding made the filter look
+ * broken/incomplete whenever a sourcing line was empty or its products
+ * simply sat in a later Load-more batch. Counts are facet counts
+ * (multi-origin listings count toward EVERY line they stock) and are
+ * display-only; when `counts` is omitted the chips render without badges.
  */
 export function OriginFilterChips({
   counts,
@@ -27,7 +31,7 @@ export function OriginFilterChips({
   ariaLabel = "Shop by origin line",
   className,
 }: {
-  /** Facet counts per line slug — hides zero-count lines when omitted. */
+  /** Facet counts per line slug — display-only (0 badges included). */
   counts?: Record<string, number>;
   /** Other active filters carried into the origin page's combined view. */
   context?: Record<string, string | undefined>;
@@ -51,7 +55,7 @@ export function OriginFilterChips({
     flag: line.flag,
     href: hrefFor(line.slug),
     count: counts?.[line.slug],
-  })).filter((option) => (counts ? (option.count ?? 0) > 0 || option.slug === activeSlug : true));
+  }));
 
   return (
     <div

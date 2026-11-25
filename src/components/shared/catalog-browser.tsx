@@ -71,13 +71,24 @@ export function CatalogBrowser({
       setLoading(true);
       try {
         const data = await catalogService.items({
-          ...query,
+          // Key mapping — the shelf-filter echo uses URL-style names
+          // (collection / brand / origin / q) while the service contract
+          // uses its own (categorySlug / brandSlug / originSlug / query).
+          // Mapping them explicitly keeps Load-more and sort batches scoped
+          // to the SAME shelf — spreading the raw echo silently dropped
+          // every filter and page 2+ mixed in the whole catalog.
+          categorySlug: query?.collection,
+          brandSlug: query?.brand,
+          originSlug: query?.origin,
+          query: query?.q,
           sort: sortKey,
           page,
           pageSize: PAGE_SIZE,
         });
         if (requestId !== requestIdRef.current) return; // a newer request superseded this one
-        const cards = toCardItems(data.items);
+        // Same active-origin re-price as the server-rendered first batch:
+        // on origin shelves every card shows THAT line's price.
+        const cards = toCardItems(data.items, { activeOriginSlug: query?.origin });
         setTotalCount(data.total);
         setItems((prev) => (mode === "append" && page > 1 ? [...prev, ...cards] : cards));
       } catch {
@@ -152,6 +163,7 @@ export function CatalogBrowser({
         emptyTitle={emptyTitle}
         emptyBody={emptyBody}
         loadMoreLabel={loadMoreLabel}
+        activeOriginSlug={query?.origin}
       />
     </div>
   );

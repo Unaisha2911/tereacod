@@ -26,6 +26,7 @@ export function LoadMoreGrid({
   loadMoreLabel = "Load more products",
   pageSize = 16,
   className,
+  activeOriginSlug,
 }: {
   /** Items currently visible in the grid. */
   items: CatalogCardItem[];
@@ -44,12 +45,20 @@ export function LoadMoreGrid({
   /** Batch size the caller reveals per load — keeps the +N badge honest. */
   pageSize?: number;
   className?: string;
+  /** Origin line this shelf is filtered by — cards re-price to it. */
+  activeOriginSlug?: string;
 }) {
   const remaining = Math.max(0, total - items.length);
 
   return (
     <div className={className}>
-      <ItemGrid items={items} columns={columns} emptyTitle={emptyTitle} emptyBody={emptyBody} />
+      <ItemGrid
+        items={items}
+        columns={columns}
+        emptyTitle={emptyTitle}
+        emptyBody={emptyBody}
+        activeOriginSlug={activeOriginSlug}
+      />
 
       {hasMore && (
         <div className="mt-10 flex flex-col items-center gap-2.5">

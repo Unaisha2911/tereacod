@@ -335,8 +335,12 @@ export interface OriginResolvable {
  * seven-line origin system stored composite strings (e.g. "Uzbekistan,
  * Tajikistan, Kazakhstan, Indonesia & Duty Free") — those fall back to a
  * keyword match so existing shelves keep their origin chips and filters.
+ *
+ * Exported: the card projection (lib/catalog-card) resolves the active
+ * shelf origin against variant labels, and the per-origin price helpers
+ * below build on it.
  */
-function originLineForLabel(label: string): OriginLine | null {
+export function originLineForLabel(label: string): OriginLine | null {
   const exact = ORIGIN_LINES.find((line) => line.dbValue === label);
   if (exact) return exact;
 
@@ -373,6 +377,87 @@ export function originLinesForItem(item: OriginResolvable): OriginLine[] {
 /** All origin line slugs the listing belongs to (multi-origin safe). */
 export function originSlugsForItem(item: OriginResolvable): string[] {
   return originLinesForItem(item).map((line) => line.slug);
+}
+
+// ---------------------------------------------------------------------------
+// PER-ORIGIN PRICING (cards + "See all origins" popup)
+// ---------------------------------------------------------------------------
+
+/**
+ * One resolved per-origin price row for cards and the origins popup.
+ * Prices are ABSOLUTE AED unit prices (base price + that variant's delta),
+ * not deltas — every surface shows the number the visitor will actually
+ * pay for that sourcing line.
+ */
+export interface OriginVariantPrice {
+  /** Origin line slug (the seven-line system). */
+  slug: string;
+  /** Display label of the resolved line. */
+  label: string;
+  /** Absolute AED unit price for this origin. */
+  price: number;
+  /** Whether this origin variant is currently orderable. */
+  available: boolean;
+}
+
+/**
+ * Resolve the per-origin price rows a listing carries, from EITHER shape
+ * the UI hands around:
+ *
+ *  - full CatalogItem        → its origin-type variants (base + priceDelta)
+ *  - CatalogCardItem project → the compact variantOriginPrices rows
+ *
+ * Lets ItemCard render the price range and the "See all origins" popup
+ * rows with exact per-line prices with ZERO extra server round-trips —
+ * the prices ride along with data the list endpoints already return
+ * (variants hydrate in the same bounded IN query as the products, so no
+ * additional D1 reads are introduced anywhere).
+ *
+ * Labels that do not resolve to a known origin line are skipped; the
+ * first variant per line wins.
+ */
+export function originPricesForItem(item: {
+  price?: number;
+  variants?: Array<{ type: string; label: string; priceDelta?: number; available: boolean }>;
+  variantOriginPrices?: Array<{ label: string; price: number; available: boolean }>;
+}): OriginVariantPrice[] {
+  const base = item.price ?? 0;
+  const rows: OriginVariantPrice[] = [];
+  const seen = new Set<string>();
+  const consider = (label: string, price: number, available: boolean) => {
+    const line = originLineForLabel(label);
+    if (!line || seen.has(line.slug)) return;
+    seen.add(line.slug);
+    rows.push({ slug: line.slug, label: line.label, price, available });
+  };
+  if (item.variants) {
+    for (const variant of item.variants) {
+      if (variant.type === "origin") {
+        consider(variant.label, base + (variant.priceDelta ?? 0), variant.available);
+      }
+    }
+  } else if (item.variantOriginPrices) {
+    for (const row of item.variantOriginPrices) {
+      consider(row.label, row.price, row.available);
+    }
+  }
+  return rows;
+}
+
+/**
+ * The price a card should display on a shelf filtered to `originSlug`:
+ * the matching origin variant's price when the listing stocks that line,
+ * otherwise undefined (caller falls back to the base price — a listing
+ * whose product-level origin IS the filtered line is already priced
+ * correctly). Available variants win over unavailable ones.
+ */
+export function originPriceForSlug(
+  prices: ReadonlyArray<OriginVariantPrice>,
+  originSlug: string | undefined | null
+): OriginVariantPrice | undefined {
+  if (!originSlug) return undefined;
+  const matches = prices.filter((row) => row.slug === originSlug);
+  return matches.find((row) => row.available) ?? matches[0];
 }
 
 /**

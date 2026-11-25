@@ -326,7 +326,7 @@ export default async function OriginPage({ params, searchParams }: OriginPagePro
         </header>
 
         <CatalogBrowser
-          initialItems={toCardItems(items)}
+          initialItems={toCardItems(items, { activeOriginSlug: slug })}
           total={shelf.total}
           query={{ origin: slug, collection, brand: brandSlug, q: trimmedQ }}
           emptyTitle={`No TEREA ${line.chipLabel} sticks listed yet`}

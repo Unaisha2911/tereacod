@@ -14,6 +14,7 @@ import {
   findInCatalog,
   isCatalogLoaded,
 } from "@/lib/client-catalog";
+import { originVariantIdForSlug } from "@/lib/catalog-origin";
 
 /**
  * CART STORE + SERVICE (API-backed)
@@ -325,13 +326,22 @@ export const cartService = {
    * could add "Midnight Blue" while the product page default was
    * "Midnight Blue + Japan" at a different (origin-premium) price.
    *
+   * `originSlug` (optional) promotes the shelf's origin line into the
+   * selection: on an origin-filtered shelf (/origin/italy) the card shows
+   * THAT line's origin-priced number, so quick-add must add the same line
+   * — otherwise the toast would announce a different price than the one
+   * the visitor tapped. Unknown/unavailable lines fall back to the default
+   * selection (same semantics as the ?origin= deep link).
+   *
    * Returns the joined variant id plus the delta-adjusted unit price for the
    * confirmation toast, or null when the product is not in the mirror.
    */
-  defaultVariantConfig(productSlug: string): { variantId: string | null; unitPrice: number } | null {
+  defaultVariantConfig(productSlug: string, originSlug?: string): { variantId: string | null; unitPrice: number } | null {
     const product = findInCatalog(productSlug);
     if (!product) return null;
-    const ids = selectedVariantIds(initialVariantSelection(product.variants));
+    const ids = selectedVariantIds(
+      initialVariantSelection(product.variants, originVariantIdForSlug(product.variants, originSlug))
+    );
     if (ids.length === 0) return { variantId: null, unitPrice: product.price };
     const byId = new Map(product.variants.map((v) => [v.id, v]));
     const resolved = ids

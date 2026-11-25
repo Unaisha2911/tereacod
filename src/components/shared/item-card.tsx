@@ -12,7 +12,8 @@ import { CardSurface } from "@/components/atmosphere/card-surface";
 import { savedItemsService, useSavedItems } from "@/services/saved-items";
 import { cartService } from "@/services/cart";
 import { ensureCatalogSubset } from "@/lib/client-catalog";
-import { originLinesForItem } from "@/lib/catalog-origin";
+import { originLinesForItem, originPricesForItem, originPriceForSlug } from "@/lib/catalog-origin";
+import type { OriginVariantPrice } from "@/lib/catalog-origin";
 import { OriginChipsOverlay } from "./origin-chips-overlay";
 import { ToastAction } from "@/components/ui/toast";
 import { useToast } from "@/hooks/use-toast";
@@ -24,8 +25,27 @@ import { formatAED, cn } from "@/lib/utils";
  * ItemCard — reusable catalog card.
  * Image + failure state, brand/name, metadata, price, availability,
  * saved control + quick-add (API-backed stores), pointer + keyboard interaction.
+ *
+ * PRICING CONTRACT (multi-origin listings):
+ *  - Unfiltered shelves show the price RANGE when the origin lines carry
+ *    different prices (AED 50 – 52); the "See all origins" popup lists the
+ *    exact price per line. All of it derives from data the list endpoints
+ *    already returned — no per-card fetches.
+ *  - Origin-filtered shelves (activeOriginSlug) show THAT line's price.
+ *  - Quick-add mirrors the displayed configuration: on an origin-filtered
+ *    shelf it adds the shelf's origin (shelf-consistent pricing), elsewhere
+ *    the product page default (the "from" price of the range).
  */
-export const ItemCard = memo(function ItemCard({ item, priority = false }: { item: CatalogCardItem; priority?: boolean }) {
+export const ItemCard = memo(function ItemCard({
+  item,
+  priority = false,
+  activeOriginSlug,
+}: {
+  item: CatalogCardItem;
+  priority?: boolean;
+  /** Slug of the origin line this shelf is filtered by (/origin/<slug>). */
+  activeOriginSlug?: string;
+}) {
   const reduced = useReducedMotion();
   const router = useRouter();
   const { toast } = useToast();
@@ -45,6 +65,23 @@ export const ItemCard = memo(function ItemCard({ item, priority = false }: { ite
   // Shared logic with the origin filter chips / landing pages, so a
   // product always shows the same origins everywhere it is listed.
   const originLines = originLinesForItem(item);
+  // Per-origin prices (slug → row) — rides along with the card projection
+  // or the full item; no extra requests. Drives the popup prices, the
+  // card's price range and the active-origin re-price.
+  const originPrices = originPricesForItem(item);
+  const originPriceBySlug: Record<string, OriginVariantPrice> = Object.fromEntries(
+    originPrices.map((row) => [row.slug, row])
+  );
+  const priceRows = originPrices.map((row) => row.price);
+  const hasPriceRange =
+    originPrices.length > 1 && Math.min(...priceRows) !== Math.max(...priceRows);
+  const minPrice = priceRows.length ? Math.min(...priceRows) : item.price;
+  const maxPrice = priceRows.length ? Math.max(...priceRows) : item.price;
+  const activeOriginPrice = originPriceForSlug(originPrices, activeOriginSlug);
+  // The compare-at "was" price is authored against the base configuration:
+  // hide it whenever the displayed number is origin-adjusted or a range.
+  const showCompareAt =
+    item.compareAtPrice !== undefined && !hasPriceRange && !activeOriginPrice;
 
   const onToggleSaved = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -62,15 +99,15 @@ export const ItemCard = memo(function ItemCard({ item, priority = false }: { ite
     // variant as soon as the fetch resolves.
     void (async () => {
       await ensureCatalogSubset({ slugs: [item.slug] }).catch(() => undefined);
-      // Mirror the product page's pre-selected configuration (first available
-      // option of EVERY group — colour AND origin) and use its delta-adjusted
-      // unit price in the confirmation: an origin option with a premium must
-      // not be announced at the base price.
-      const config = cartService.defaultVariantConfig(item.slug);
+      // Mirror the pre-selected configuration — on an origin-filtered shelf
+      // THAT line's origin (so the added line and toast price match the
+      // card's origin price), elsewhere the product page default (the
+      // range's "from" price). Origin premiums are always included.
+      const config = cartService.defaultVariantConfig(item.slug, activeOriginSlug);
       cartService.addItem(item.slug, config?.variantId ?? null, 1);
       toast({
         title: "Added to cart",
-        description: `${item.name} · ${formatAED(config?.unitPrice ?? item.price)}`,
+        description: `${item.name}${activeOriginPrice ? ` · ${activeOriginPrice.label}` : ""} · ${formatAED(config?.unitPrice ?? item.price)}`,
         action: <ToastAction altText="View cart" onClick={() => router.push("/cart")}>View cart</ToastAction>,
       });
     })();
@@ -136,6 +173,7 @@ export const ItemCard = memo(function ItemCard({ item, priority = false }: { ite
           lines={originLines}
           productSlug={item.slug}
           productName={item.name}
+          prices={originPriceBySlug}
           className="absolute bottom-3 left-3 z-10 max-w-[calc(100%-1.5rem)]"
         />
         </div>
@@ -176,13 +214,34 @@ export const ItemCard = memo(function ItemCard({ item, priority = false }: { ite
           </h3>
           <p className="line-clamp-2 text-[0.82rem] leading-relaxed text-muted-foreground">{item.tagline}</p>
           <div className="mt-auto space-y-2.5 pt-2">
-            {/* Price row + quick-add */}
+            {/* Price row + quick-add. Origin-aware: a true range on
+                unfiltered shelves (exact per-line prices live in the
+                See-all-origins popup), the shelf line's price on
+                origin-filtered ones. */}
             <div className="flex items-center justify-between gap-2">
-              <p className="font-display text-[1.02rem] font-semibold text-foreground">
-                {formatAED(item.price)}
-                {item.compareAtPrice !== undefined && (
+              <p
+                className="font-display text-[1.02rem] font-semibold text-foreground"
+                aria-label={
+                  activeOriginPrice
+                    ? `${activeOriginPrice.label} line — ${formatAED(activeOriginPrice.price)}`
+                    : hasPriceRange
+                      ? `From ${formatAED(minPrice)} to ${formatAED(maxPrice)} depending on origin`
+                      : formatAED(item.price)
+                }
+              >
+                {activeOriginPrice
+                  ? formatAED(activeOriginPrice.price)
+                  : hasPriceRange
+                    ? formatAED(minPrice)
+                    : formatAED(item.price)}
+                {hasPriceRange && !activeOriginPrice && (
+                  <span className="text-[0.78rem] font-normal text-muted-foreground">
+                    {" "}– {formatAED(maxPrice)}
+                  </span>
+                )}
+                {showCompareAt && (
                   <span className="ml-2 text-[0.78rem] font-normal text-muted-foreground line-through">
-                    {formatAED(item.compareAtPrice)}
+                    {formatAED(item.compareAtPrice as number)}
                   </span>
                 )}
               </p>

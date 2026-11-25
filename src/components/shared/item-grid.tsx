@@ -18,12 +18,15 @@ export function ItemGrid({
   emptyTitle = "No items found",
   emptyBody = "Try adjusting your filters or search terms.",
   className,
+  activeOriginSlug,
 }: {
   items: CatalogCardItem[];
   columns?: 3 | 4;
   emptyTitle?: string;
   emptyBody?: string;
   className?: string;
+  /** Origin line this shelf is filtered by — cards re-price to it. */
+  activeOriginSlug?: string;
 }) {
   const reduced = useReducedMotion();
 
@@ -45,7 +48,7 @@ export function ItemGrid({
     >
       {items.map((item, i) => (
         <motion.div key={item.id} variants={reduced ? undefined : staggerItem}>
-          <ItemCard item={item} priority={i < 4} />
+          <ItemCard item={item} priority={i < 4} activeOriginSlug={activeOriginSlug} />
         </motion.div>
       ))}
     </motion.div>
